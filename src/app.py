@@ -11,10 +11,13 @@ from analyzer.topology import TopologyAnalyzer
 import networkx as nx
 from uuid import uuid4
 from datetime import datetime
+from analyzer.network_analysis import NetworkAnalyzer
 
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.scanner.scanner import NetworkScanner, ScanResult
+from src.scanner.network_discovery import NetworkDiscovery
+from src.analyzer.network_analysis import NetworkAnalyzer
 
 app = Flask(__name__)
 
@@ -28,6 +31,156 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Initialize analyzer
+try:
+    analyzer = NetworkAnalyzer(data_dir='src/data')
+    logger.info("Network analyzer initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize analyzer: {str(e)}")
+    raise
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze_network():
+    """Analyze network based on scan results with comprehensive error handling"""
+    try:
+        # Validate input data
+        if not request.is_json:
+            logger.error("Request does not contain JSON data")
+            return jsonify({'error': 'Request must be JSON'}), 400
+
+        data = request.json
+        if not data:
+            logger.error("Empty JSON data received")
+            return jsonify({'error': 'No scan data provided'}), 400
+
+        scan_id = data.get('scan_id')
+        if not scan_id:
+            logger.error("No scan_id provided in request")
+            return jsonify({'error': 'No scan ID provided'}), 400
+
+        # Validate scan file path and existence
+        scan_file = os.path.join('src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(scan_file):
+            logger.error(f"Scan file not found: {scan_file}")
+            return jsonify({'error': f'Scan results not found for ID: {scan_id}'}), 404
+
+        # Load and validate scan results
+        try:
+            with open(scan_file, 'r') as f:
+                scan_result = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse scan results JSON: {str(e)}")
+            return jsonify({'error': 'Invalid scan results format'}), 500
+        except Exception as e:
+            logger.error(f"Failed to read scan file: {str(e)}")
+            return jsonify({'error': 'Failed to read scan results'}), 500
+
+        # Validate required fields in scan_result
+        required_fields = ['hosts', 'ports', 'services', 'vulnerabilities', 'os_matches', 'scan_stats']
+        missing_fields = [field for field in required_fields if field not in scan_result]
+        if missing_fields:
+            logger.error(f"Scan results missing required fields: {missing_fields}")
+            return jsonify({'error': f'Invalid scan results: missing {", ".join(missing_fields)}'}), 400
+
+        # Create ScanResult object
+        try:
+            scan_result_obj = ScanResult(
+                timestamp=scan_result.get('timestamp', datetime.now().isoformat()),
+                scan_type=scan_result.get('scan_type', 'unknown'),
+                hosts=scan_result['hosts'],
+                ports=scan_result['ports'],
+                services=scan_result['services'],
+                vulnerabilities=scan_result['vulnerabilities'],
+                os_matches=scan_result['os_matches'],
+                scan_stats=scan_result['scan_stats']
+            )
+        except Exception as e:
+            logger.error(f"Failed to create ScanResult object: {str(e)}")
+            return jsonify({'error': 'Invalid scan results format'}), 400
+
+        # Run analysis with error handling
+        try:
+            analysis_result = analyzer.analyze_network(scan_result_obj)
+        except nx.NetworkXError as e:
+            logger.error(f"NetworkX error during analysis: {str(e)}")
+            return jsonify({'error': 'Network analysis error'}), 500
+        except ValueError as e:
+            logger.error(f"Value error during analysis: {str(e)}")
+            return jsonify({'error': 'Invalid data for analysis'}), 400
+        except Exception as e:
+            logger.error(f"Unexpected error during analysis: {str(e)}", exc_info=True)
+            return jsonify({'error': 'Analysis failed'}), 500
+
+        # Save analysis results
+        try:
+            analysis_id = str(uuid4())
+            analysis_file = os.path.join('src', 'data', 'analysis', f'{analysis_id}.json')
+            os.makedirs(os.path.dirname(analysis_file), exist_ok=True)
+            
+            with open(analysis_file, 'w') as f:
+                json.dump({
+                    'id': analysis_id,
+                    'scan_id': scan_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'results': analysis_result
+                }, f, indent=2, default=str)
+        except Exception as e:
+            logger.error(f"Failed to save analysis results: {str(e)}")
+            # Continue since analysis was successful even if save failed
+            
+        return jsonify({
+            'status': 'success',
+            'analysis_id': analysis_id,
+            'analysis': analysis_result,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Unhandled exception in analyze_network: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/analysis/<analysis_id>')
+def get_analysis(analysis_id):
+    """Get specific analysis results"""
+    try:
+        analysis_file = os.path.join('src', 'data', 'analysis', f'{analysis_id}.json')
+        if not os.path.exists(analysis_file):
+            return jsonify({'error': 'Analysis results not found'}), 404
+
+        with open(analysis_file, 'r') as f:
+            analysis = json.load(f)
+
+        return jsonify(analysis)
+
+    except Exception as e:
+        logger.error(f"Error retrieving analysis: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analysis/list')
+def list_analyses():
+    """List all available analysis results"""
+    try:
+        analysis_dir = os.path.join('src', 'data', 'analysis')
+        if not os.path.exists(analysis_dir):
+            return jsonify([])
+
+        analyses = []
+        for file in os.listdir(analysis_dir):
+            if file.endswith('.json'):
+                with open(os.path.join(analysis_dir, file), 'r') as f:
+                    analysis = json.load(f)
+                    analyses.append({
+                        'id': file.replace('.json', ''),
+                        'timestamp': analysis.get('timestamp'),
+                        'summary': analysis.get('summary', {})
+                    })
+
+        return jsonify(analyses)
+
+    except Exception as e:
+        logger.error(f"Error listing analyses: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 # Initialize scanner
 try:
@@ -171,6 +324,23 @@ def get_status():
         logger.error(f"Error getting status: {str(e)}")
         return jsonify({'error': str(e)}), 500
     
+@app.route('/api/network/stats')
+def get_network_stats():
+    """Get current network statistics"""
+    try:
+        stats = analyzer.generate_network_stats()
+        vulnerability_score = analyzer.calculate_vulnerability_score()
+        
+        return jsonify({
+            'status': 'success',
+            'statistics': stats,
+            'vulnerability_score': vulnerability_score,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error getting network stats: {str(e)}")
+        return jsonify({'error': str(e)}), 500    
+    
 @app.route('/api/networks')
 def get_networks():
     """Get available networks for scanning"""
@@ -189,6 +359,19 @@ def get_networks():
 
 # Add to your imports
 from analyzer.topology import TopologyAnalyzer
+
+@app.route('/api/network/visualization')
+def get_network_visualization():
+    """Get network visualization data"""
+    try:
+        viz_file = os.path.join('src', 'data', 'analysis', 'network_visualization.png')
+        if os.path.exists(viz_file):
+            return send_file(viz_file, mimetype='image/png')
+        else:
+            return jsonify({'error': 'Visualization not found'}), 404
+    except Exception as e:
+        logger.error(f"Error getting visualization: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # Add new endpoint
 @app.route('/api/topology/<scan_id>')

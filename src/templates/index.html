@@ -6,6 +6,8 @@
     <title>Nodeheim - Network Analysis Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -399,24 +401,144 @@
         </div>
 
         <!-- Analysis Panel -->
-        <div class="analysis-panel" id="analysis-panel">
-            <div class="card-header">Network Analysis Results</div>
-            <div class="analysis-grid">
-                <div class="network-summary">
-                    <div class="metric-item">
-                        <span>Network Density</span>
-                        <span id="network-density">0%</span>
+        <!-- Replace the current analysis-panel div with this new version -->
+<div class="analysis-section p-4 mt-4">
+    <div class="card bg-dark">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Network Analysis</h5>
+        </div>
+        <div class="card-body">
+            <!-- Analysis Controls -->
+            <div class="row mb-4">
+                <div class="col">
+                    <button id="startAnalysisBtn" class="scan-button" onclick="startAnalysis()">
+                        Run Network Analysis
+                    </button>
+                    <button id="viewHistoryBtn" class="scan-button ms-2" onclick="showAnalysisHistory()">
+                        View Analysis History
+                    </button>
+                </div>
+            </div>
+
+            <!-- Analysis Results -->
+            <div id="analysisResults" class="analysis-results d-none">
+                <h6 class="text-light">Analysis Summary</h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="metric-item">
+                            <span>Total Nodes</span>
+                            <span id="analysis-total-nodes">-</span>
+                        </div>
                     </div>
-                    <div class="metric-item">
-                        <span>Critical Nodes</span>
-                        <span id="critical-node-count">0</span>
+                    <div class="col-md-3">
+                        <div class="metric-item">
+                            <span>High Risk Nodes</span>
+                            <span id="analysis-high-risk-nodes">-</span>
+                        </div>
                     </div>
-                    <div class="metric-item">
-                        <span>Risk Score</span>
-                        <span id="average-risk">0%</span>
+                    <div class="col-md-3">
+                        <div class="metric-item">
+                            <span>Isolated Nodes</span>
+                            <span id="analysis-isolated-nodes">-</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-item">
+                            <span>Components</span>
+                            <span id="analysis-components">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Analysis -->
+                <div class="mt-4">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active text-light" data-bs-toggle="tab" href="#securityMetrics">Security Metrics</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" data-bs-toggle="tab" href="#anomalies">Anomalies</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" data-bs-toggle="tab" href="#structure">Network Structure</a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="securityMetrics">
+                            <div class="table-responsive">
+                                <table class="results-table" id="securityMetricsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Node</th>
+                                            <th>Device Type</th>
+                                            <th>OS</th>
+                                            <th>Connections</th>
+                                            <th>Risk Level</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="anomalies">
+                            <div class="table-responsive">
+                                <table class="results-table" id="anomaliesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Node</th>
+                                            <th>Risk Score</th>
+                                            <th>Anomaly Type</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="structure">
+                            <div id="networkStats" class="mb-3 text-light">
+                                <p><strong>Network Density:</strong> <span id="networkDensity">-</span></p>
+                                <p><strong>Average Degree:</strong> <span id="averageDegree">-</span></p>
+                            </div>
+                            <div id="structureDetails" class="text-light"></div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis History Modal -->
+<div class="modal fade" id="analysisHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Analysis History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="results-table" id="analysisHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Total Nodes</th>
+                                <th>High Risk</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
             
             <div class="recommendations">
                 <div class="card-header">Security Recommendations</div>
@@ -528,6 +650,10 @@
 
         async function updateTopologyVisualization(scanId) {
     const container = document.getElementById('network-visualization');
+    if (!container) {
+        console.error('Network visualization container not found');
+        return;
+    }
     
     try {
         const response = await fetch(`/api/topology/${scanId}`);
@@ -603,9 +729,14 @@
             }
         };
 
-        // Merge with any backend-provided options
-        if (data.options && data.options.physics) {
-            options.physics = { ...options.physics, ...data.options.physics };
+        // Check if data has nodes and edges
+        if (!data.nodes || !data.edges) {
+            console.error('No nodes or edges in topology data');
+            container.innerHTML = `
+                <div style="color: #dc3545; padding: 20px; text-align: center;">
+                    No network topology data available
+                </div>`;
+            return;
         }
 
         // Create the network
@@ -616,16 +747,21 @@
 
         container.network = network;
 
-        // Update topology stats
+        // Safely update topology stats
         if (data.stats) {
-            document.getElementById('network-density').textContent = 
-                `${(data.stats.density * 100).toFixed(1)}%`;
-            
-            if (document.getElementById('total-nodes')) {
-                document.getElementById('total-nodes').textContent = data.stats.total_nodes;
+            const densityElement = document.getElementById('network-density');
+            if (densityElement) {
+                densityElement.textContent = `${(data.stats.density * 100).toFixed(1)}%`;
             }
-            if (document.getElementById('total-edges')) {
-                document.getElementById('total-edges').textContent = data.stats.total_edges;
+            
+            const totalNodesElement = document.getElementById('total-nodes');
+            if (totalNodesElement) {
+                totalNodesElement.textContent = data.stats.total_nodes;
+            }
+
+            const totalEdgesElement = document.getElementById('total-edges');
+            if (totalEdgesElement) {
+                totalEdgesElement.textContent = data.stats.total_edges;
             }
         }
 
@@ -656,10 +792,12 @@
         
     } catch (error) {
         console.error('Error updating topology:', error);
-        container.innerHTML = `
-            <div style="color: #dc3545; padding: 20px; text-align: center;">
-                Error loading topology: ${error.message}
-            </div>`;
+        if (container) {
+            container.innerHTML = `
+                <div style="color: #dc3545; padding: 20px; text-align: center;">
+                    Error loading topology: ${error.message}
+                </div>`;
+        }
     }
 }
 
@@ -911,6 +1049,167 @@
             if (resultsPanel.dataset.scanId) {
                 updateTopologyVisualization(resultsPanel.dataset.scanId);
             }
+        }
+
+        // Network Analysis Functions - ADD NEW CODE HERE
+        async function startAnalysis() {
+            try {
+                const btn = document.getElementById('startAnalysisBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<div class="loading"></div> Analyzing...';
+
+                // Get the latest scan ID from the results panel
+                const resultsPanel = document.getElementById('results-panel');
+                const scanId = resultsPanel.dataset.scanId;
+                
+                if (!scanId) {
+                    throw new Error('No scan data available. Please run a scan first.');
+                }
+
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ scan_id: scanId })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Analysis failed');
+                }
+
+                const data = await response.json();
+                displayAnalysisResults(data.analysis);
+                document.getElementById('analysisResults').classList.remove('d-none');
+
+            } catch (error) {
+                updateScanStatus('Analysis failed: ' + error.message, true);
+            } finally {
+                const btn = document.getElementById('startAnalysisBtn');
+                btn.disabled = false;
+                btn.textContent = 'Run Network Analysis';
+            }
+        }
+
+        function displayAnalysisResults(analysis) {
+            // Update summary cards
+            document.getElementById('analysis-total-nodes').textContent = analysis.summary.total_nodes;
+            document.getElementById('analysis-high-risk-nodes').textContent = analysis.summary.high_risk_nodes;
+            document.getElementById('analysis-isolated-nodes').textContent = analysis.summary.isolated_nodes;
+            document.getElementById('analysis-components').textContent = analysis.summary.components;
+
+            // Update security metrics table
+            const securityTable = document.getElementById('securityMetricsTable').getElementsByTagName('tbody')[0];
+            securityTable.innerHTML = '';
+            
+            Object.entries(analysis.security_metrics).forEach(([node, metrics]) => {
+                const row = securityTable.insertRow();
+                row.innerHTML = `
+                    <td>${node}</td>
+                    <td>${metrics.device_type}</td>
+                    <td>${metrics.os}</td>
+                    <td>${metrics.degree}</td>
+                    <td><span class="badge ${getRiskBadgeClass(metrics.risk_level)}">${metrics.risk_level}</span></td>
+                `;
+            });
+
+            // Update anomalies table
+            const anomaliesTable = document.getElementById('anomaliesTable').getElementsByTagName('tbody')[0];
+            anomaliesTable.innerHTML = '';
+            
+            Object.entries(analysis.anomalies).forEach(([node, data]) => {
+                const row = anomaliesTable.insertRow();
+                row.innerHTML = `
+                    <td>${node}</td>
+                    <td>${data.risk_score.toFixed(2)}</td>
+                    <td>${data.anomaly === -1 ? 'Anomalous' : 'Normal'}</td>
+                    <td>${getAnomalyDetails(data)}</td>
+                `;
+            });
+
+            // Update network structure info
+            document.getElementById('networkDensity').textContent = 
+                analysis.network_structure.density.toFixed(3);
+            document.getElementById('averageDegree').textContent = 
+                analysis.network_structure.average_degree.toFixed(2);
+
+            // Update structure details
+            const structureDetails = document.getElementById('structureDetails');
+            structureDetails.innerHTML = `
+                <h6>Network Components</h6>
+                <p>The network contains ${analysis.network_structure.components.length} components.</p>
+                <h6>Endpoints</h6>
+                <p>Found ${analysis.network_structure.endpoints.length} endpoint nodes.</p>
+            `;
+
+            // Highlight high-risk nodes in the topology visualization
+            highlightRiskyNodes(analysis.anomalies);
+        }
+
+        async function showAnalysisHistory() {
+            try {
+                const response = await fetch('/api/analysis/list');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch analysis history');
+                }
+
+                const data = await response.json();
+                const table = document.getElementById('analysisHistoryTable').getElementsByTagName('tbody')[0];
+                table.innerHTML = '';
+
+                data.forEach(analysis => {
+                    const row = table.insertRow();
+                    row.innerHTML = `
+                        <td>${new Date(analysis.timestamp).toLocaleString()}</td>
+                        <td>${analysis.summary.total_nodes}</td>
+                        <td>${analysis.summary.high_risk_nodes}</td>
+                        <td>
+                            <button class="scan-button" onclick="loadAnalysis('${analysis.id}')">
+                                View
+                            </button>
+                        </td>
+                    `;
+                });
+
+                const modal = new bootstrap.Modal(document.getElementById('analysisHistoryModal'));
+                modal.show();
+            } catch (error) {
+                updateScanStatus('Failed to load analysis history: ' + error.message, true);
+            }
+        }
+
+        function getRiskBadgeClass(riskLevel) {
+            const level = typeof riskLevel === 'number' ? 
+                (riskLevel > 75 ? 'High' : riskLevel > 50 ? 'Medium' : 'Low') : riskLevel;
+                
+            switch (level) {
+                case 'High': return 'bg-danger';
+                case 'Medium': return 'bg-warning text-dark';
+                case 'Low': return 'bg-success';
+                default: return 'bg-secondary';
+            }
+        }
+
+        function getAnomalyDetails(data) {
+            const details = [];
+            if (data.degree > 10) details.push('High connectivity');
+            if (data.betweenness > 0.5) details.push('Critical path');
+            return details.join(', ') || 'Normal behavior';
+        }
+
+        function highlightRiskyNodes(anomalies) {
+            const container = document.getElementById('network-visualization');
+            const network = container.network;
+            if (!network) return;
+
+            Object.entries(anomalies).forEach(([node, data]) => {
+                if (data.risk_score > 75) {
+                    network.body.data.nodes.update({
+                        id: node,
+                        color: { background: '#dc3545', border: '#dc3545' }
+                    });
+                }
+            });
         }
 
         // Event listener for network selection change
