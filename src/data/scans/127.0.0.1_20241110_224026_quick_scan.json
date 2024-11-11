@@ -1,0 +1,27 @@
+{
+  "timestamp": "20241110_224026",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip": "127.0.0.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "localhost",
+          "type": "PTR"
+        }
+      ]
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Sun Nov 10 22:40:26 2024",
+    "elapsed": "0.01",
+    "uphosts": "1",
+    "downhosts": "0",
+    "totalhosts": "1"
+  }
+}

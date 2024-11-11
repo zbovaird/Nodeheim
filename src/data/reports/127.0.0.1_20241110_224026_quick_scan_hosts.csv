@@ -1,0 +1,2 @@
+ip,status,hostnames
+127.0.0.1,up,"[{'name': 'localhost', 'type': 'PTR'}]"

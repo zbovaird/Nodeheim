@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nodeheim - Network Analysis Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --secondary-color: #2d2d2d;
+            --accent-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --text-color: #ffffff;
+            --border-color: #404040;
+            --hover-color: #0056b3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--secondary-color);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dashboard-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .network-selector {
+            padding: 0.5rem;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            min-width: 250px;
+        }
+
+        .network-selector:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .scan-button {
+            padding: 0.5rem 1rem;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 150px;
+            justify-content: center;
+        }
+
+        .scan-button:hover:not(:disabled) {
+            background-color: var(--hover-color);
+        }
+
+        .scan-button:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .network-view {
+            grid-column: span 8;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 600px;
+        }
+
+        .metrics-panel {
+            grid-column: span 4;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--accent-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+
+        .metric-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .scan-status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .scan-status.active {
+            display: block;
+            background-color: rgba(0, 123, 255, 0.1);
+            border: 1px solid var(--accent-color);
+        }
+
+        .scan-status.error {
+            background-color: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+        }
+
+        #results-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .results-table th {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .results-table tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active {
+            background-color: var(--success-color);
+        }
+
+        .status-warning {
+            background-color: var(--warning-color);
+        }
+
+        .status-error {
+            background-color: var(--error-color);
+        }
+
+        .network-info {
+            padding: 10px;
+            margin-top: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .refresh-button {
+            padding: 4px 8px;
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .refresh-button:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Nodeheim Dashboard</h1>
+                <div class="dashboard-controls">
+                    <select class="network-selector" id="network-select">
+                        <option value="">Loading networks...</option>
+                    </select>
+                    <button class="scan-button" id="scan-button" onclick="startScan()">
+                        Start Network Scan
+                    </button>
+                    <div>
+                        <span class="status-indicator status-active"></span>
+                        <span id="scanner-status">Scanner Status: Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="scan-status">
+            <!-- Scan status messages will appear here -->
+        </div>
+
+        <div class="network-info" id="network-info">
+            <!-- Network information will appear here -->
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="network-view">
+                <div class="card-header">
+                    Network Topology
+                    <button class="refresh-button" onclick="refreshTopology()">
+                        Refresh View
+                    </button>
+                </div>
+                <div id="network-visualization">
+                    <!-- Network visualization will be rendered here -->
+                </div>
+            </div>
+
+            <div class="metrics-panel">
+                <div class="card-header">Network Metrics</div>
+                <div class="metric-item">
+                    <span>Total Nodes</span>
+                    <span id="total-nodes">0</span>
+                </div>
+                <div class="metric-item">
+                    <span>Active Hosts</span>
+                    <span id="active-hosts">0</span>
+                </div>
+                <div class="metric-item">
+                    <span>Open Ports</span>
+                    <span id="open-ports">0</span>
+                </div>
+                <div class="metric-item">
+                    <span>Potential Vulnerabilities</span>
+                    <span id="vulnerabilities">0</span>
+                </div>
+                <div class="metric-item">
+                    <span>Last Scan</span>
+                    <span id="last-scan">Never</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-panel">
+            <!-- Scan results will be displayed here -->
+        </div>
+    </main>
+
+    <script>
+        let scanInProgress = false;
+        let currentScan = null;
+        let lastScanTime = null;
+
+        // Load available networks when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNetworks();
+            updateNetworkInfo();
+        });
+
+        async function loadNetworks() {
+            const networkSelect = document.getElementById('network-select');
+            try {
+                networkSelect.disabled = true;
+                const response = await fetch('/api/networks');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Clear existing options
+                networkSelect.innerHTML = '<option value="">Select Network/Subnet</option>';
+                
+                if (data.networks && data.networks.length > 0) {
+                    data.networks.forEach(network => {
+                        const option = document.createElement('option');
+                        option.value = network.network;
+                        option.textContent = `${network.network} (${network.interface})`;
+                        option.dataset.interface = network.interface;
+                        option.dataset.ip = network.ip;
+                        networkSelect.appendChild(option);
+                    });
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No networks found';
+                    option.disabled = true;
+                    networkSelect.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Error loading networks:', error);
+                updateScanStatus('Error loading networks: ' + error.message, true);
+            } finally {
+                networkSelect.disabled = false;
+            }
+        }
+
+        function updateNetworkInfo() {
+            const networkSelect = document.getElementById('network-select');
+            const networkInfo = document.getElementById('network-info');
+            
+            if (networkSelect.selectedIndex > 0) {
+                const option = networkSelect.selectedOptions[0];
+                networkInfo.innerHTML = `
+                    <strong>Selected Network:</strong> ${option.value}<br>
+                    <strong>Interface:</strong> ${option.dataset.interface}<br>
+                    <strong>Local IP:</strong> ${option.dataset.ip}
+                `;
+                networkInfo.style.display = 'block';
+            } else {
+                networkInfo.style.display = 'none';
+            }
+        }
+
+        function updateScanStatus(message, isError = false) {
+            const scanStatus = document.querySelector('.scan-status');
+            const statusIndicator = document.querySelector('.status-indicator');
+            const scannerStatus = document.getElementById('scanner-status');
+            
+            scanStatus.textContent = message;
+            scanStatus.classList.add('active');
+            
+            if (isError) {
+                scanStatus.classList.add('error');
+                statusIndicator.className = 'status-indicator status-error';
+                scannerStatus.textContent = 'Scanner Status: Error';
+            } else {
+                scanStatus.classList.remove('error');
+                statusIndicator.className = 'status-indicator status-active';
+                scannerStatus.textContent = 'Scanner Status: Ready';
+            }
+            
+            console.log(`Scan status: ${message}`);
+        }
+
+        function updateMetricsPanel(data) {
+            document.getElementById('total-nodes').textContent = data.summary.total_hosts;
+            document.getElementById('active-hosts').textContent = data.summary.active_hosts;
+            document.getElementById('open-ports').textContent = data.summary.total_ports;
+            document.getElementById('vulnerabilities').textContent = data.summary.total_vulnerabilities;
+            
+            lastScanTime = new Date().toLocaleTimeString();
+            document.getElementById('last-scan').textContent = lastScanTime;
+        }
+
+        async function startScan() {
+            const networkSelect = document.getElementById('network-select');
+            const target = networkSelect.value;
+            const scanButton = document.getElementById('scan-button');
+            
+            if (!target) {
+                alert('Please select a network/subnet to scan');
+                return;
+            }
+
+            if (scanInProgress) {
+                alert('A scan is already in progress');
+                return;
+            }
+
+            try {
+                scanInProgress = true;
+                scanButton.disabled = true;
+                scanButton.innerHTML = 'Scanning... <div class="loading"></div>';
+                updateScanStatus(`Initializing scan of ${target}...`);
+                
+                console.log(`Starting scan of ${target}`);
+
+                const response = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        target: target,
+                        scan_type: 'quick'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Scan results:', data);
+
+                updateScanStatus(`Scan complete! Found ${data.summary.total_hosts} hosts, ${data.summary.active_hosts} active.`);
+                updateMetricsPanel(data);
+                displayResults(data);
+
+            } catch (error) {
+                console.error('Scan failed:', error);
+                updateScanStatus(`Scan failed: ${error.message}`, true);
+            } finally {
+                scanInProgress = false;
+                scanButton.disabled = false;
+                scanButton.textContent = 'Start Network Scan';
+            }
+        }
+
+        function displayResults(data) {
+            const resultsPanel = document.getElementById('results-panel');
+            resultsPanel.style.display = 'block';
+
+            let summaryHtml = `
+                <h3>Scan Summary</h3>
+                <table class="results-table">
+                    <tr>
+                        <th>Total Hosts</th>
+                        <td>${data.summary.total_hosts}</td>
+                    </tr>
+                    <tr>
+                        <th>Active Hosts</th>
+                        <td>${data.summary.active_hosts}</td>
+                    </tr>
+                    <tr>
+                        <th>Total Ports</th>
+                        <td>${data.summary.total_ports}</td>
+                    </tr>
+                    <tr>
+                        <th>Services Detected</th>
+                        <td>${data.summary.total_services}</td>
+                    </tr>
+                    <tr>
+                        <th>Vulnerabilities Found</th>
+                        <td>${data.summary.total_vulnerabilities}</td>
+                    </tr>
+                    <tr>
+                        <th>Scan Time</th>
+                        <td>${data.scan_stats.elapsed} seconds</td>
+                    </tr>
+                </table>`;
+
+            if (data.hosts && data.hosts.length > 0) {
+                summaryHtml += `
+                    <h3>Hosts Details</h3>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Status</th>
+                                <th>Hostname</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.hosts.map(host => `
+                                <tr>
+                                    <td>${host.ip}</td>
+                                    <td>${host.status}</td>
+                                    <td>${host.hostnames.map(h => h.name).join(', ') || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            }
+
+            if (data.ports && data.ports.length > 0) {
+                summaryHtml += `
+                    <h3>Open Ports</h3>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Port</th>
+                                <th>Protocol</th>
+                                <th>State</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.ports.map(port => `
+                                <tr>
+                                    <td>${port.ip}</td>
+                                    <td>${port.port}</td>
+                                    <td>${port.protocol}</td>
+                                    <td>${port.state}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            }
+
+            if (data.services && data.services.length > 0) {
+                summaryHtml += `
+                    <h3>Services Detected</h3>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Port</th>
+                                <th>Service</th>
+                                <th>Version</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.services.map(service => `
+                                <tr>
+                                    <td>${service.ip}</td>
+                                    <td>${service.port}</td>
+                                    <td>${service.name}</td>
+                                    <td>${service.version || 'Unknown'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            }
+
+            if (data.vulnerabilities && data.vulnerabilities.length > 0) {
+                summaryHtml += `
+                    <h3>Vulnerabilities</h3>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Vulnerability</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.vulnerabilities.map(vuln => `
+                                <tr>
+                                    <td>${vuln.ip}</td>
+                                    <td>${vuln.script}</td>
+                                    <td>${vuln.output}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            }
+
+            resultsPanel.innerHTML = summaryHtml;
+        }
+
+        function refreshTopology() {
+            // Placeholder for topology refresh functionality
+            console.log('Refreshing topology view...');
+        }
+
+        function handleScanError(error) {
+            console.error('Scan error:', error);
+            updateScanStatus(`Error: ${error.message}`, true);
+        }
+
+        // Event listener for network selection change
+        document.getElementById('network-select').addEventListener('change', updateNetworkInfo);
+    </script>
+</body>
+</html>

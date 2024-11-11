@@ -1,0 +1,10 @@
+{
+  "nodes": [
+    {
+      "id": "127.0.0.1",
+      "type": "host",
+      "status": "up"
+    }
+  ],
+  "edges": []
+}

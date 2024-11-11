@@ -1,0 +1,22 @@
+{
+  "timestamp": "20241110_221654",
+  "scan_stats": {
+    "timestr": "Sun Nov 10 22:16:54 2024",
+    "elapsed": "0.01",
+    "uphosts": "1",
+    "downhosts": "0",
+    "totalhosts": "1"
+  },
+  "hosts": [
+    {
+      "ip": "127.0.0.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "localhost",
+          "type": "PTR"
+        }
+      ]
+    }
+  ]
+}
