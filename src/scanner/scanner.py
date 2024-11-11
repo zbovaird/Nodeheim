@@ -8,6 +8,8 @@ import logging
 import ipaddress
 from dataclasses import dataclass, asdict
 import csv
+import platform
+import subprocess
 
 @dataclass
 class ScanResult:
@@ -24,11 +26,72 @@ class ScanResult:
 class NetworkScanner:
     def __init__(self, output_dir: str = 'data'):
         """Initialize the network scanner"""
-        self.nm = nmap.PortScanner()
+        self.nm = self._initialize_nmap()
         self.output_dir = output_dir
         self.setup_directories()
         self.setup_logging()
         
+    def _initialize_nmap(self) -> nmap.PortScanner:
+        """Initialize nmap with platform-specific paths"""
+        system = platform.system().lower()
+        print(f"Operating System: {system}")
+        print(f"Current PATH: {os.environ['PATH']}")
+        
+        if system == "windows":
+            # Primary path for Windows - Program Files (x86)
+            nmap_path = r'C:\Program Files (x86)\Nmap\nmap.exe'
+            
+            # Add Nmap to system PATH at runtime if needed
+            nmap_dir = os.path.dirname(nmap_path)
+            if nmap_dir not in os.environ['PATH']:
+                os.environ['PATH'] = nmap_dir + os.pathsep + os.environ['PATH']
+                print(f"Added {nmap_dir} to PATH")
+            
+            print(f"Checking if Nmap exists at: {nmap_path}")
+            print(f"Nmap exists: {os.path.exists(nmap_path)}")
+            
+            try:
+                print("\nAttempting to initialize with Nmap...")
+                scanner = nmap.PortScanner(nmap_search_path=[nmap_path])
+                version = scanner.nmap_version()
+                print(f"Success! Nmap version: {version}")
+                return scanner
+            except Exception as e:
+                print(f"Failed to initialize with {nmap_path}. Error: {str(e)}")
+                print("Trying alternative initialization...")
+                try:
+                    # Try initializing without explicit path
+                    scanner = nmap.PortScanner()
+                    version = scanner.nmap_version()
+                    print(f"Success with default initialization! Nmap version: {version}")
+                    return scanner
+                except Exception as e:
+                    print(f"All initialization attempts failed: {str(e)}")
+                    raise nmap.PortScannerError(
+                        "Could not find nmap executable. Please ensure Nmap is installed in "
+                        "C:\\Program Files (x86)\\Nmap and Npcap is installed."
+                    )
+        else:  # macOS and Linux
+            nmap_paths = [
+                '/usr/local/bin/nmap',  # Common macOS location (Homebrew)
+                '/usr/bin/nmap',        # Common Linux/macOS location
+                '/opt/homebrew/bin/nmap',  # M1 Mac Homebrew location
+                'nmap'                  # Try default PATH as fallback
+            ]
+            
+            for path in nmap_paths:
+                try:
+                    scanner = nmap.PortScanner(nmap_search_path=[path])
+                    version = scanner.nmap_version()
+                    print(f"Success! Nmap version: {version}")
+                    return scanner
+                except Exception:
+                    continue
+            
+            raise nmap.PortScannerError(
+                "Could not find nmap executable. Please ensure Nmap is installed."
+            )
+
     def setup_directories(self):
         """Create necessary directories for output"""
         directories = [

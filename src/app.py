@@ -7,6 +7,10 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 from scanner.network_discovery import NetworkDiscovery
+from analyzer.topology import TopologyAnalyzer
+import networkx as nx
+from uuid import uuid4
+from datetime import datetime
 
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -80,6 +84,9 @@ def start_scan():
 
         logger.info(f"Starting {scan_type} scan on target: {target}")
         
+        # Generate unique scan ID
+        scan_id = str(uuid4())
+        
         # Execute scan based on type
         if scan_type == 'quick':
             results = scanner.quick_scan(target)
@@ -94,8 +101,21 @@ def start_scan():
         else:
             return jsonify({'error': 'Invalid scan type'}), 400
 
-        # Format and return results
+        # Format results
         formatted_results = format_scan_result(results)
+        
+        # Add scan ID and timestamp to results
+        formatted_results['scan_id'] = scan_id
+        formatted_results['timestamp'] = datetime.now().isoformat()
+        
+        # Save results to file
+        results_dir = os.path.join('src', 'data', 'scans')
+        os.makedirs(results_dir, exist_ok=True)
+        
+        result_file = os.path.join(results_dir, f'{scan_id}.json')
+        with open(result_file, 'w') as f:
+            json.dump(formatted_results, f, indent=2)
+        
         logger.info(f"Scan completed successfully. Found {len(results.hosts)} hosts")
         logger.debug(f"Detailed results: {formatted_results}")
         
@@ -166,6 +186,44 @@ def get_networks():
             'status': 'error',
             'message': str(e)
         }), 500
+
+# Add to your imports
+from analyzer.topology import TopologyAnalyzer
+
+# Add new endpoint
+@app.route('/api/topology/<scan_id>')
+def get_topology(scan_id):
+    """Get network topology data for visualization"""
+    try:
+        # Load scan result
+        scan_file = os.path.join('src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(scan_file):
+            return jsonify({'error': 'Scan result not found'}), 404
+
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+
+        # Convert scan data back to ScanResult object
+        scan_result = ScanResult(
+            timestamp=scan_data['timestamp'],
+            scan_type=scan_data['scan_type'],
+            hosts=scan_data['hosts'],
+            ports=scan_data['ports'],
+            services=scan_data['services'],
+            vulnerabilities=scan_data['vulnerabilities'],
+            os_matches=scan_data['os_matches'],
+            scan_stats=scan_data['scan_stats']
+        )
+
+        # Generate topology data
+        analyzer = TopologyAnalyzer()
+        topology_data = analyzer.create_network_graph(scan_result)
+        
+        return jsonify(topology_data)
+
+    except Exception as e:
+        logger.error(f"Error generating topology: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5050, debug=True)

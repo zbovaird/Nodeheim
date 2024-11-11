@@ -1,0 +1,197 @@
+{
+  "timestamp": "20241111_123108",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SAX1V1K.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.123",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.124",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.127",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM01.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.130",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.152",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "BRWDCE99452FC3A.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.154",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM04.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.159",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.168",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.197",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03-83.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.220",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.221",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "Watch.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.246",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.64",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "iPhone.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.74",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "Nest-Cam.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.83",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-e6.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.84",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.85",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-46.lan",
+          "type": "PTR"
+        }
+      ]
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Mon Nov 11 12:31:16 2024",
+    "elapsed": "8.84",
+    "uphosts": "18",
+    "downhosts": "238",
+    "totalhosts": "256"
+  }
+}

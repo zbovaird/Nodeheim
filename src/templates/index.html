@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nodeheim - Network Analysis Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -224,13 +226,63 @@
             font-size: 0.9rem;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        /* Network Visualization Styles */
+        .topology-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .topology-layout {
+            padding: 4px 8px;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .topology-container {
+            position: relative;
+            height: 100%;
+        }
+
+        #network-visualization {
+            width: 100%;
+            height: 550px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .topology-legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-color);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        #network-visualization .vis-network {
+            outline: none;
         }
 
         .refresh-button {
@@ -245,6 +297,15 @@
 
         .refresh-button:hover {
             background-color: rgba(0, 123, 255, 0.1);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
@@ -282,12 +343,33 @@
             <div class="network-view">
                 <div class="card-header">
                     Network Topology
-                    <button class="refresh-button" onclick="refreshTopology()">
-                        Refresh View
-                    </button>
+                    <div class="topology-controls">
+                        <select class="topology-layout" id="layout-select" onchange="changeLayout()">
+                            <option value="force">Force Directed</option>
+                            <option value="circular">Circular</option>
+                            <option value="hierarchical">Hierarchical</option>
+                        </select>
+                        <button class="refresh-button" onclick="refreshTopology()">
+                            Refresh View
+                        </button>
+                    </div>
                 </div>
-                <div id="network-visualization">
-                    <!-- Network visualization will be rendered here -->
+                <div class="topology-container">
+                    <div id="network-visualization"></div>
+                    <div class="topology-legend">
+                        <div class="legend-item">
+                            <span class="legend-dot" style="background-color: #28a745"></span>
+                            Low Risk
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot" style="background-color: #ffc107"></span>
+                            Medium Risk
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot" style="background-color: #dc3545"></span>
+                            High Risk
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -316,6 +398,34 @@
             </div>
         </div>
 
+        <!-- Analysis Panel -->
+        <div class="analysis-panel" id="analysis-panel">
+            <div class="card-header">Network Analysis Results</div>
+            <div class="analysis-grid">
+                <div class="network-summary">
+                    <div class="metric-item">
+                        <span>Network Density</span>
+                        <span id="network-density">0%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Critical Nodes</span>
+                        <span id="critical-node-count">0</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Risk Score</span>
+                        <span id="average-risk">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="card-header">Security Recommendations</div>
+                <div id="recommendations-list">
+                    <!-- Recommendations will be populated here -->
+                </div>
+            </div>
+        </div>
+
         <div id="results-panel">
             <!-- Scan results will be displayed here -->
         </div>
@@ -326,7 +436,6 @@
         let currentScan = null;
         let lastScanTime = null;
 
-        // Load available networks when page loads
         document.addEventListener('DOMContentLoaded', () => {
             loadNetworks();
             updateNetworkInfo();
@@ -343,7 +452,6 @@
                 
                 const data = await response.json();
                 
-                // Clear existing options
                 networkSelect.innerHTML = '<option value="">Select Network/Subnet</option>';
                 
                 if (data.networks && data.networks.length > 0) {
@@ -418,6 +526,195 @@
             document.getElementById('last-scan').textContent = lastScanTime;
         }
 
+        async function updateTopologyVisualization(scanId) {
+    const container = document.getElementById('network-visualization');
+    
+    try {
+        const response = await fetch(`/api/topology/${scanId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Basic options
+        const options = {
+            nodes: {
+                shape: 'dot',
+                size: 20,
+                font: {
+                    size: 14,
+                    color: '#ffffff',
+                    strokeWidth: 2,
+                    strokeColor: '#000000',
+                    align: 'center',
+                    multi: true,
+                    face: 'arial'
+                },
+                scaling: {
+                    min: 20,
+                    max: 50
+                },
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.5)',
+                    size: 10,
+                    x: 5,
+                    y: 5
+                }
+            },
+            edges: {
+                width: 2,
+                color: {
+                    inherit: false,
+                    opacity: 0.5
+                },
+                smooth: {
+                    type: 'continuous'
+                },
+                length: 200,
+                hoverWidth: 2
+            },
+            physics: {
+                enabled: true,
+                barnesHut: {
+                    gravitationalConstant: -3000,
+                    centralGravity: 0.3,
+                    springLength: 200,
+                    springConstant: 0.04,
+                    damping: 0.09,
+                    avoidOverlap: 0.1
+                },
+                stabilization: {
+                    enabled: true,
+                    iterations: 1000,
+                    updateInterval: 25
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200,
+                hideEdgesOnDrag: true,
+                navigationButtons: true,
+                keyboard: true,
+                zoomView: true,
+                dragView: true,
+                multiselect: true
+            }
+        };
+
+        // Merge with any backend-provided options
+        if (data.options && data.options.physics) {
+            options.physics = { ...options.physics, ...data.options.physics };
+        }
+
+        // Create the network
+        const network = new vis.Network(container, {
+            nodes: new vis.DataSet(data.nodes),
+            edges: new vis.DataSet(data.edges)
+        }, options);
+
+        container.network = network;
+
+        // Update topology stats
+        if (data.stats) {
+            document.getElementById('network-density').textContent = 
+                `${(data.stats.density * 100).toFixed(1)}%`;
+            
+            if (document.getElementById('total-nodes')) {
+                document.getElementById('total-nodes').textContent = data.stats.total_nodes;
+            }
+            if (document.getElementById('total-edges')) {
+                document.getElementById('total-edges').textContent = data.stats.total_edges;
+            }
+        }
+
+        // Add double-click to focus behavior
+        network.on('doubleClick', function(params) {
+            if (params.nodes.length > 0) {
+                network.focus(params.nodes[0], {
+                    scale: 1.2,
+                    animation: {
+                        duration: 1000,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            }
+        });
+
+        // Initial fit to show all nodes
+        setTimeout(() => {
+            network.fit({
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }, 1000);
+
+        console.log('Topology visualization updated successfully');
+        
+    } catch (error) {
+        console.error('Error updating topology:', error);
+        container.innerHTML = `
+            <div style="color: #dc3545; padding: 20px; text-align: center;">
+                Error loading topology: ${error.message}
+            </div>`;
+    }
+}
+
+        function changeLayout() {
+            const layoutType = document.getElementById('layout-select').value;
+            const container = document.getElementById('network-visualization');
+            const network = container.network;
+            
+            if (!network) return;
+
+            const options = {
+                physics: false,
+                layout: {
+                    hierarchical: {
+                        enabled: layoutType === 'hierarchical',
+                        direction: 'UD',
+                        sortMethod: 'directed'
+                    }
+                }
+            };
+
+            if (layoutType === 'circular') {
+                const positions = getCircularLayout(network.body.data.nodes.length);
+                network.body.data.nodes.forEach((node, i) => {
+                    network.moveNode(node.id, positions[i].x, positions[i].y);
+                });
+            } else if (layoutType === 'force') {
+                options.physics = {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -80000,
+                        springConstant: 0.001,
+                        springLength: 200
+                    }
+                };
+            }
+
+            network.setOptions(options);
+        }
+
+        function getCircularLayout(nodeCount) {
+            const positions = [];
+            const radius = 200;
+            const angleStep = (2 * Math.PI) / nodeCount;
+            
+            for (let i = 0; i < nodeCount; i++) {
+                positions.push({
+                    x: radius * Math.cos(i * angleStep),
+                    y: radius * Math.sin(i * angleStep)
+                });
+            }
+            
+            return positions;
+        }
+
         async function startScan() {
             const networkSelect = document.getElementById('network-select');
             const target = networkSelect.value;
@@ -462,6 +759,9 @@
                 updateScanStatus(`Scan complete! Found ${data.summary.total_hosts} hosts, ${data.summary.active_hosts} active.`);
                 updateMetricsPanel(data);
                 displayResults(data);
+                
+                // Run network topology visualization
+                await updateTopologyVisualization(data.scan_id);
 
             } catch (error) {
                 console.error('Scan failed:', error);
@@ -476,6 +776,7 @@
         function displayResults(data) {
             const resultsPanel = document.getElementById('results-panel');
             resultsPanel.style.display = 'block';
+            resultsPanel.dataset.scanId = data.scan_id;  // Store scan ID for refresh
 
             let summaryHtml = `
                 <h3>Scan Summary</h3>
@@ -522,7 +823,7 @@
                                 <tr>
                                     <td>${host.ip}</td>
                                     <td>${host.status}</td>
-                                    <td>${host.hostnames.map(h => h.name).join(', ') || 'N/A'}</td>
+                                    <td>${host.hostnames ? host.hostnames.map(h => h.name).join(', ') : 'N/A'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -606,13 +907,10 @@
         }
 
         function refreshTopology() {
-            // Placeholder for topology refresh functionality
-            console.log('Refreshing topology view...');
-        }
-
-        function handleScanError(error) {
-            console.error('Scan error:', error);
-            updateScanStatus(`Error: ${error.message}`, true);
+            const resultsPanel = document.getElementById('results-panel');
+            if (resultsPanel.dataset.scanId) {
+                updateTopologyVisualization(resultsPanel.dataset.scanId);
+            }
         }
 
         // Event listener for network selection change

@@ -1,0 +1,2 @@
+ip,status,hostnames
+192.168.56.1,up,"[{'name': '', 'type': ''}]"
