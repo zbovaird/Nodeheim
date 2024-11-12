@@ -1,0 +1,145 @@
+{
+  "timestamp": "2024-11-12T15:46:54.814726",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SAX1V1K.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.123",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.124",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.127",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM01.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.130",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.152",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "BRWDCE99452FC3A.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.154",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM04.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.197",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03-88.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.220",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.83",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-e6.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.84",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.85",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-46.lan",
+          "type": "PTR"
+        }
+      ]
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Tue Nov 12 15:46:54 2024",
+    "elapsed": "8.56",
+    "uphosts": "12",
+    "downhosts": "244",
+    "totalhosts": "256"
+  },
+  "summary": {
+    "total_hosts": 12,
+    "active_hosts": 12,
+    "total_ports": 0,
+    "total_services": 0,
+    "total_vulnerabilities": 0
+  },
+  "scan_id": "2af37660-9782-47d4-aec7-84037564a91b"
+}

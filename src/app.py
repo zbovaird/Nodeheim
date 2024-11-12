@@ -407,6 +407,34 @@ def get_topology(scan_id):
     except Exception as e:
         logger.error(f"Error generating topology: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/analysis/<analysis_id>/report', methods=['GET'])
+def get_analysis_report(analysis_id):
+    """Get the executive report for a specific analysis"""
+    try:
+        # Load analysis results
+        analysis_file = os.path.join('src', 'data', 'analysis', f'{analysis_id}.json')
+        if not os.path.exists(analysis_file):
+            return jsonify({'error': 'Analysis not found'}), 404
+
+        with open(analysis_file, 'r') as f:
+            analysis_data = json.load(f)
+
+        # Generate report
+        report = analyzer.generate_executive_report(analysis_data)
+        
+        # Save report
+        report_file = analyzer.save_report(report, analysis_id)
+        
+        return jsonify({
+            'status': 'success',
+            'report': report,
+            'report_file': report_file
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5050, debug=True)

@@ -309,6 +309,121 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
+        /* Network Risk Visualization Styles */
+        .risk-visualization {
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 20px;
+            padding: 20px;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .risk-visualization-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .risk-visualization-title {
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .risk-visualization-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .risk-visualization .vis-network {
+            outline: none !important;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .risk-legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 1000;
+        }
+
+        .risk-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .risk-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .risk-legend-color.high {
+            background-color: #dc3545;
+        }
+
+        .risk-legend-color.medium {
+            background-color: #ffc107;
+        }
+
+        .risk-legend-color.low {
+            background-color: #28a745;
+        }
+
+        .risk-visualization-tooltip {
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .markdown-content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    padding: 15px;
+    background-color: var(--secondary-color);
+    border-radius: 4px;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+    color: var(--accent-color);
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    padding-left: 20px;
+    margin-bottom: 1em;
+}
+
+.markdown-content code {
+    background-color: var(--primary-color);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
     </style>
 </head>
 <body>
@@ -416,6 +531,10 @@
                     </button>
                     <button id="viewHistoryBtn" class="scan-button ms-2" onclick="showAnalysisHistory()">
                         View Analysis History
+                    </button>
+                    <!-- Add the new Generate Report button here -->
+                    <button class="scan-button ms-2" onclick="generateReport()">
+                        Generate Report
                     </button>
                 </div>
             </div>
@@ -1146,37 +1265,129 @@
             highlightRiskyNodes(analysis.anomalies);
         }
 
-        async function showAnalysisHistory() {
-            try {
-                const response = await fetch('/api/analysis/list');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch analysis history');
-                }
+        function createRiskVisualization(analysisData) {
+    // Create container for the new visualization
+    const riskContainer = document.createElement('div');
+    riskContainer.className = 'risk-visualization';
+    riskContainer.style.height = '300px';
+    
+    // Find a good place to insert it - perhaps after the network-visualization div
+    const networkVis = document.getElementById('network-visualization');
+    networkVis.parentNode.insertBefore(riskContainer, networkVis.nextSibling);
 
-                const data = await response.json();
-                const table = document.getElementById('analysisHistoryTable').getElementsByTagName('tbody')[0];
-                table.innerHTML = '';
+    // Transform the data
+    const nodes = Object.entries(analysisData.anomalies).map(([node, metrics]) => ({
+        node,
+        risk: metrics.risk_score,
+        connections: analysisData.security_metrics[node].degree,
+        centrality: metrics.Degree_Centrality
+    }));
 
-                data.forEach(analysis => {
-                    const row = table.insertRow();
-                    row.innerHTML = `
-                        <td>${new Date(analysis.timestamp).toLocaleString()}</td>
-                        <td>${analysis.summary.total_nodes}</td>
-                        <td>${analysis.summary.high_risk_nodes}</td>
-                        <td>
-                            <button class="scan-button" onclick="loadAnalysis('${analysis.id}')">
-                                View
-                            </button>
-                        </td>
-                    `;
-                });
+    // Create the visualization using vis-network
+    const data = {
+        nodes: new vis.DataSet(nodes.map(n => ({
+            id: n.node,
+            label: n.node,
+            color: {
+                background: getRiskColor(n.risk),
+                border: getRiskColor(n.risk)
+            },
+            size: 20 + (n.connections * 2),
+            title: `Risk Score: ${n.risk.toFixed(2)}\nConnections: ${n.connections}`
+        }))),
+        edges: []
+    };
 
-                const modal = new bootstrap.Modal(document.getElementById('analysisHistoryModal'));
-                modal.show();
-            } catch (error) {
-                updateScanStatus('Failed to load analysis history: ' + error.message, true);
+    // Add edges based on connections
+    analysisData.network_structure.components.forEach(component => {
+        for (let i = 0; i < component.length - 1; i++) {
+            data.edges.push({
+                from: component[i],
+                to: component[i + 1],
+                color: { opacity: 0.5 }
+            });
+        }
+    });
+
+    const options = {
+        nodes: {
+            shape: 'dot',
+            scaling: { min: 20, max: 50 }
+        },
+        physics: {
+            stabilization: true,
+            barnesHut: {
+                gravitationalConstant: -80000,
+                springConstant: 0.001,
+                springLength: 200
             }
         }
+    };
+
+    new vis.Network(riskContainer, { nodes: data.nodes, edges: data.edges }, options);
+}
+
+function getRiskColor(riskScore) {
+    if (riskScore >= 75) return '#dc3545'; // High risk - red
+    if (riskScore >= 50) return '#ffc107'; // Medium risk - yellow
+    return '#28a745'; // Low risk - green
+}
+
+async function showAnalysisHistory() {
+    try {
+        console.log("Fetching analysis history...");
+        const response = await fetch('/api/analysis/list');
+        if (!response.ok) {
+            throw new Error('Failed to fetch analysis history');
+        }
+
+        const data = await response.json();
+        console.log("Received analysis history:", data);
+        
+        const table = document.getElementById('analysisHistoryTable').getElementsByTagName('tbody')[0];
+        table.innerHTML = '';
+
+        if (!Array.isArray(data) || data.length === 0) {
+            table.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center">No analysis history found</td>
+                </tr>
+            `;
+            return;
+        }
+
+        data.forEach(analysis => {
+            // Extract filename without extension to use as ID
+            const analysisId = analysis.id || analysis.timestamp.replace(/[^0-9]/g, "");
+            
+            // Handle nested analysis data structure
+            const summary = analysis.summary || 
+                          (analysis.network_structure ? {
+                              total_nodes: analysis.network_structure.total_nodes,
+                              high_risk_nodes: analysis.summary?.high_risk_nodes || 0
+                          } : {});
+
+            const row = table.insertRow();
+            row.innerHTML = `
+                <td>${new Date(analysis.timestamp).toLocaleString()}</td>
+                <td>${summary.total_nodes || analysis.network_structure?.total_nodes || 'N/A'}</td>
+                <td>${summary.high_risk_nodes || 0}</td>
+                <td>
+                    <button class="scan-button" onclick="generateReport('analysis_${analysisId}')">
+                        View Report
+                    </button>
+                </td>
+            `;
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('analysisHistoryModal'));
+        modal.show();
+    } catch (error) {
+        console.error('History error:', error);
+        updateScanStatus('Failed to load analysis history: ' + error.message, true);
+    }
+}
+
 
         function getRiskBadgeClass(riskLevel) {
             const level = typeof riskLevel === 'number' ? 
@@ -1214,6 +1425,131 @@
 
         // Event listener for network selection change
         document.getElementById('network-select').addEventListener('change', updateNetworkInfo);
+
+        // Add this to your script section in index.html
+
+        async function generateReport(analysisId = null) {
+    try {
+        if (!analysisId) {
+            // If no analysisId provided, get it from the current scan
+            const analysisData = await getCurrentAnalysis();
+            if (!analysisData) {
+                throw new Error('No analysis data available');
+            }
+            // Create ID from timestamp
+            const timestamp = analysisData.timestamp.replace(/[^0-9]/g, "");
+            analysisId = `analysis_${timestamp}`;
+        }
+
+        console.log("Generating report for analysis:", analysisId);
+        const reportResponse = await fetch(`/api/analysis/${analysisId}/report`);
+        if (!reportResponse.ok) {
+            throw new Error('Failed to generate report');
+        }
+
+        const data = await reportResponse.json();
+        console.log("Received report data:", data);
+        
+        if (!data.report) {
+            throw new Error('No report content received');
+        }
+
+        // Create modal for report display
+        const reportModal = document.createElement('div');
+        reportModal.className = 'modal fade';
+        reportModal.id = 'reportModal';
+        reportModal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-dark text-light">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Security Analysis Report</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="markdown-content" style="white-space: pre-wrap;">${data.report}</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="downloadReport('${analysisId}')">
+                            Download Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove any existing report modal
+        const existingModal = document.getElementById('reportModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        document.body.appendChild(reportModal);
+        const modal = new bootstrap.Modal(reportModal);
+        modal.show();
+
+    } catch (error) {
+        console.error('Error generating report:', error);
+        updateScanStatus('Failed to generate report: ' + error.message, true);
+    }
+}
+
+// Helper function to get current analysis
+async function getCurrentAnalysis() {
+    const resultsPanel = document.getElementById('results-panel');
+    const scanId = resultsPanel.dataset.scanId;
+    
+    if (!scanId) {
+        throw new Error('No scan data available. Please run a scan first.');
+    }
+
+    const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ scan_id: scanId })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to get current analysis');
+    }
+
+    return response.json();
+}
+
+async function downloadReport(analysisId) {
+    try {
+        console.log("Downloading report for analysis:", analysisId);
+        const response = await fetch(`/api/analysis/${analysisId}/report`);
+        if (!response.ok) throw new Error('Failed to download report');
+        
+        const data = await response.json();
+        
+        if (!data.report) {
+            throw new Error('No report content available');
+        }
+        
+        // Create blob and download
+        const blob = new Blob([data.report], { type: 'text/markdown' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `network_security_report_${analysisId}.md`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        console.error('Error downloading report:', error);
+        updateScanStatus('Failed to download report: ' + error.message, true);
+    }
+}
+
     </script>
 </body>
 </html>
