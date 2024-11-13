@@ -31,6 +31,11 @@ class NetworkAnalyzer:
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         self.logger = logging.getLogger(__name__)
+        
+        # Define system classifications for ICS/SCADA analysis
+        self.control_systems = ['PLC 1', 'PLC 2', 'PLC 3', 'PLC 4', 'PLC 5']
+        self.hmi_systems = ['HMI 1', 'HMI 2', 'HMI 3']
+        self.field_devices = ['Sensor 1', 'Actuator 1'] + [f'Device {i}' for i in range(1, 12)]
 
     def get_host_identifier(self, host):
         """Extract host identifier from host data with fallbacks"""
@@ -72,7 +77,9 @@ class NetworkAnalyzer:
                         'label': host.get('hostname', node_id),
                         'type': host.get('device_type', host.get('type', 'unknown')),
                         'os': host.get('os_match', host.get('os', 'unknown')),
-                        'status': host.get('status', 'unknown')
+                        'status': host.get('status', 'unknown'),
+                        'services': host.get('services', []),
+                        'vulnerabilities': host.get('vulnerabilities', [])
                     }
                     self.G.add_node(node_id, **node_attrs)
                     self.logger.debug(f"Added node: {node_id}")
@@ -90,7 +97,7 @@ class NetworkAnalyzer:
                             if isinstance(port, dict) and 'connections' in port:
                                 for target in port['connections']:
                                     if isinstance(target, str):
-                                        self.G.add_edge(source, target)
+                                        self.G.add_edge(source, target, port=port.get('port_number'))
                                         self.logger.debug(f"Added edge: {source} -> {target}")
                     
                     # Also check direct connections if present
@@ -156,12 +163,18 @@ class NetworkAnalyzer:
                 'Eigenvector_Centrality': nx.eigenvector_centrality(self.G, max_iter=1000)
             }
             
-            # Log the calculations for debugging
-            self.logger.debug(f"Number of nodes: {num_nodes}")
-            self.logger.debug(f"Number of edges: {num_edges}")
-            self.logger.debug(f"Density calculation: {density}")
-            self.logger.debug(f"Average degree calculation: {avg_degree}")
-            self.logger.debug(f"Number of endpoints: {len(endpoints)}")
+            # Find articulation points (critical nodes)
+            articulation_points = list(nx.articulation_points(self.G))
+            
+            # Calculate bridge edges
+            bridges = list(nx.bridges(self.G))
+            
+            # Calculate clustering coefficient per node
+            clustering = nx.clustering(self.G)
+            
+            # Identify potential bottlenecks
+            potential_bottlenecks = [node for node, degree in dict(self.G.degree()).items()
+                                   if degree > avg_degree * 1.5]
             
             return {
                 'components': [list(comp) for comp in components],
@@ -174,7 +187,13 @@ class NetworkAnalyzer:
                 'centrality': self.centrality_measures,
                 'total_nodes': num_nodes,
                 'total_edges': num_edges,
-                'connected_components': len(components)
+                'connected_components': len(components),
+                'articulation_points': articulation_points,
+                'bridges': bridges,
+                'clustering': clustering,
+                'potential_bottlenecks': potential_bottlenecks,
+                'average_clustering': nx.average_clustering(self.G),
+                'degree_histogram': nx.degree_histogram(self.G)
             }
             
         except Exception as e:
@@ -182,17 +201,19 @@ class NetworkAnalyzer:
             raise
 
     def analyze_bottlenecks(self):
-        """Analyze network bottlenecks using spectral properties"""
+        """Analyze network bottlenecks using spectral properties and flow analysis"""
         try:
             if self.G.number_of_nodes() == 0:
                 return {}
 
+            # Calculate spectral metrics
             laplacian = nx.laplacian_matrix(self.G).todense()
             eigenvalues, eigenvectors = np.linalg.eigh(laplacian)
             
             n_components = min(3, self.G.number_of_nodes() - 1)
             bottleneck_scores = {}
             
+            # Calculate node importance using eigenvectors
             for node in self.G.nodes():
                 idx = list(self.G.nodes()).index(node)
                 score = 0
@@ -206,16 +227,10 @@ class NetworkAnalyzer:
                     
                 bottleneck_scores[node] = score
 
-            # Calculate threshold based on non-zero scores
-            non_zero_scores = [s for s in bottleneck_scores.values() if s > 0]
-            threshold = np.percentile(non_zero_scores, 75) if non_zero_scores else 0
+            # Calculate edge betweenness
+            edge_betweenness = nx.edge_betweenness_centrality(self.G)
             
-            critical_bottlenecks = {
-                node: score for node, score in bottleneck_scores.items() 
-                if score > threshold
-            }
-
-            # Calculate flow centrality using random walks
+            # Calculate flow using random walks
             n_walks = min(1000, self.G.number_of_nodes() * 10)
             walk_length = min(5, self.G.number_of_nodes())
             flow_counts = {node: 0 for node in self.G.nodes()}
@@ -231,11 +246,18 @@ class NetworkAnalyzer:
                         flow_counts[current] += 1
             
             max_flow = max(flow_counts.values()) if flow_counts else 1
-            flow_centrality = {
-                node: count/max_flow 
-                for node, count in flow_counts.items()
+            flow_centrality = {node: count/max_flow for node, count in flow_counts.items()}
+
+            # Identify critical bottlenecks
+            non_zero_scores = [s for s in bottleneck_scores.values() if s > 0]
+            threshold = np.percentile(non_zero_scores, 75) if non_zero_scores else 0
+            
+            critical_bottlenecks = {
+                node: score for node, score in bottleneck_scores.items() 
+                if score > threshold
             }
             
+            # Compile comprehensive bottleneck analysis
             bottleneck_analysis = {}
             for node in self.G.nodes():
                 label = self.G.nodes[node].get('label', str(node))
@@ -244,7 +266,9 @@ class NetworkAnalyzer:
                     'flow_centrality': flow_centrality[node],
                     'is_critical': node in critical_bottlenecks,
                     'degree': self.G.degree(node),
-                    'betweenness': self.centrality_measures['Betweenness_Centrality'][node]
+                    'betweenness': self.centrality_measures['Betweenness_Centrality'][node],
+                    'edge_impact': sum(score for (u, v), score in edge_betweenness.items() 
+                                     if u == node or v == node)
                 }
             
             return bottleneck_analysis
@@ -392,6 +416,21 @@ class NetworkAnalyzer:
             anomalies = self.detect_anomalies()
             spectral_metrics = self.calculate_spectral_metrics()
             
+            # Generate risk scores based on multiple factors
+            risk_scores = {}
+            for node in self.G.nodes():
+                anomaly_risk = anomalies.get(node, {}).get('risk_score', 50)
+                centrality_risk = self.centrality_measures['Betweenness_Centrality'][node] * 100
+                security_risk = security_metrics[node]['connectivity_risk'] * 100
+                
+                # Weight the risks (can be adjusted based on requirements)
+                weighted_risk = (
+                    0.4 * anomaly_risk +
+                    0.3 * centrality_risk +
+                    0.3 * security_risk
+                )
+                risk_scores[node] = min(100, weighted_risk)
+            
             # Compile results
             analysis_result = {
                 'timestamp': datetime.now().isoformat(),
@@ -400,11 +439,11 @@ class NetworkAnalyzer:
                 'bottleneck_analysis': bottleneck_analysis,
                 'anomalies': anomalies,
                 'spectral_metrics': spectral_metrics,
+                'risk_scores': risk_scores,
                 'summary': {
                     'total_nodes': self.G.number_of_nodes(),
                     'total_edges': self.G.number_of_edges(),
-                    'high_risk_nodes': sum(1 for node in anomalies.values() 
-                                         if node.get('risk_score', 0) > 75),
+                    'high_risk_nodes': sum(1 for score in risk_scores.values() if score > 75),
                     'isolated_nodes': len(structure['endpoints']),
                     'components': len(structure['components']),
                     'average_degree': structure['average_degree'],
@@ -424,7 +463,6 @@ class NetworkAnalyzer:
                 self.logger.info(f"Analysis results saved to {output_file}")
             except Exception as e:
                 self.logger.error(f"Failed to save analysis results: {str(e)}")
-                # Continue since analysis was successful
             
             return analysis_result
             
@@ -538,96 +576,160 @@ class NetworkAnalyzer:
             self.logger.error(f"Error calculating vulnerability score: {e}")
             raise
 
-    # Add these methods to your NetworkAnalyzer class in src/analyzer/network_analysis.py
+    def generate_executive_report(self, analysis_data):
+        """Generate an executive summary report from analysis data"""
+        try:
+            # Extract results and summary data
+            results = analysis_data.get('results', {})
+            network_structure = results.get('network_structure', {})
+            security_metrics = results.get('security_metrics', {})
+            bottleneck_analysis = results.get('bottleneck_analysis', {})
+            anomalies = results.get('anomalies', {})
+            risk_scores = results.get('risk_scores', {})
+            spectral_metrics = results.get('spectral_metrics', {})
 
-def generate_executive_report(self, analysis_data):
-    """Generate an executive summary report from analysis data"""
-    try:
-        # Extract key metrics and results
-        results = analysis_data.get('results', {})
-        summary = results.get('summary', {})
-        network_structure = results.get('network_structure', {})
-        security_metrics = results.get('security_metrics', {})
-        anomalies = results.get('anomalies', {})
+            # Generate report sections
+            report = []
+            
+            # Executive Summary
+            report.append("# Network Security Analysis Executive Report")
+            report.append(f"\nAnalysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            report.append("\n## Executive Summary")
+            report.append(f"- Total Nodes Analyzed: {self.G.number_of_nodes()}")
+            report.append(f"- High Risk Nodes: {sum(1 for score in risk_scores.values() if score > 75)}")
+            report.append(f"- Critical Bottlenecks: {sum(1 for node in bottleneck_analysis.values() if node.get('is_critical', False))}")
+            report.append(f"- Network Density: {network_structure.get('density', 0):.2%}")
 
-        # Generate report sections
-        report = []
-        
-        # Executive Summary
-        report.append("# Network Security Analysis Report")
-        report.append(f"\nAnalysis Date: {analysis_data.get('timestamp', 'N/A')}")
-        report.append("\n## Executive Summary")
-        report.append(f"\nTotal Nodes Analyzed: {summary.get('total_nodes', 0)}")
-        report.append(f"High Risk Nodes: {summary.get('high_risk_nodes', 0)}")
-        report.append(f"Isolated Systems: {summary.get('isolated_nodes', 0)}")
-        report.append(f"Network Components: {summary.get('components', 0)}")
+            # Key Findings
+            report.append("\n## Key Findings")
+            
+            # Network Structure Analysis
+            report.append("\n### Network Structure")
+            report.append(f"- Network Density: {network_structure.get('density', 0):.2%}")
+            report.append(f"- Average Node Connections: {network_structure.get('average_degree', 0):.1f}")
+            report.append(f"- Number of Components: {len(network_structure.get('components', []))}")
+            
+            # High Risk Systems
+            report.append("\n### High Risk Systems")
+            high_risk_nodes = [node for node, score in risk_scores.items() if score > 75]
+            for node in high_risk_nodes:
+                metrics = security_metrics.get(node, {})
+                report.append(f"\nNode: {node}")
+                report.append(f"- Device Type: {metrics.get('device_type', 'Unknown')}")
+                report.append(f"- Risk Score: {risk_scores.get(node, 0):.1f}")
+                report.append(f"- Critical Path: {'Yes' if metrics.get('betweenness', 0) > 0.5 else 'No'}")
 
-        # Key Findings
-        report.append("\n## Key Findings")
-        
-        # Network Structure Analysis
-        report.append("\n### Network Structure")
-        report.append(f"- Network Density: {network_structure.get('density', 0):.2%}")
-        report.append(f"- Average Node Connections: {network_structure.get('average_degree', 0):.1f}")
-        if network_structure.get('is_tree'):
-            report.append("- Network has a tree-like structure with no redundant paths")
-        
-        # Security Analysis
-        report.append("\n### Security Analysis")
-        high_risk_nodes = [node for node, data in anomalies.items() 
-                          if data.get('risk_score', 0) > 75]
-        report.append(f"\nHigh Risk Systems ({len(high_risk_nodes)}):")
-        for node in high_risk_nodes:
-            metrics = security_metrics.get(node, {})
-            report.append(f"- {node}")
-            report.append(f"  * Device Type: {metrics.get('device_type', 'Unknown')}")
-            report.append(f"  * Risk Factors: High connectivity, potential critical path")
+            # Spectral Analysis Summary
+            report.append("\n### Network Cohesion Analysis")
+            fiedler_value = spectral_metrics.get('fiedler_value', 0)
+            spectral_radius = spectral_metrics.get('spectral_radius', 0)
+            report.append(f"- Network Connectivity Index: {fiedler_value:.3f}")
+            report.append(f"- Network Robustness Score: {spectral_radius:.3f}")
+            
+            # Add connectivity interpretation
+            if fiedler_value < 0.1:
+                report.append("- WARNING: Network shows signs of fragility and poor connectivity")
+            elif fiedler_value < 0.5:
+                report.append("- NOTICE: Network has moderate connectivity structure")
+            else:
+                report.append("- Network shows strong connectivity patterns")
 
-        # Recommendations
-        report.append("\n## Recommendations")
-        if high_risk_nodes:
-            report.append("\n### Critical Actions:")
-            report.append("1. Review and audit high-risk systems immediately")
-            report.append("2. Implement additional monitoring on critical paths")
-            report.append("3. Consider network segmentation to isolate high-risk components")
-        
-        report.append("\n### General Recommendations:")
-        if network_structure.get('density', 0) > 0.7:
-            report.append("- Consider reducing network complexity and unnecessary connections")
-        if summary.get('isolated_nodes', 0) > 0:
-            report.append("- Review isolated systems for necessary network access")
-        
-        # Security Metrics Detail
-        report.append("\n## Detailed Metrics")
-        report.append("\n### Device Security Status")
-        report.append("\n| Device | Type | Risk Level | Connections |")
-        report.append("| ------ | ---- | ---------- | ----------- |")
-        for node, metrics in security_metrics.items():
-            risk_level = "High" if node in high_risk_nodes else "Normal"
-            report.append(f"| {node} | {metrics.get('device_type', 'Unknown')} | {risk_level} | {metrics.get('degree', 0)} |")
+            # Critical Bottlenecks
+            report.append("\n### Critical Bottlenecks")
+            critical_bottlenecks = [node for node, data in bottleneck_analysis.items() 
+                                if data.get('is_critical', False)]
+            for node in critical_bottlenecks:
+                data = bottleneck_analysis[node]
+                report.append(f"\nNode: {node}")
+                report.append(f"- Flow Centrality: {data.get('flow_centrality', 0):.3f}")
+                report.append(f"- Spectral Score: {data.get('spectral_score', 0):.3f}")
+                report.append(f"- Connected Nodes: {data.get('degree', 0)}")
 
-        return "\n".join(report)
+            # Security Analysis
+            report.append("\n### Security Analysis")
+            report.append("\n#### Top Security Concerns:")
+            
+            # Count nodes with various risk factors
+            exposed_nodes = sum(1 for m in security_metrics.values() 
+                            if m.get('connectivity_risk', 0) > 0.5)
+            critical_path_nodes = sum(1 for m in security_metrics.values() 
+                                    if m.get('betweenness', 0) > 0.5)
+            
+            report.append(f"- {exposed_nodes} nodes with high exposure risk")
+            report.append(f"- {critical_path_nodes} nodes on critical network paths")
+            report.append(f"- {len(critical_bottlenecks)} critical bottleneck points")
 
-    except Exception as e:
-        self.logger.error(f"Error generating executive report: {e}")
-        raise
+            # Recommendations
+            report.append("\n## Recommendations")
+            
+            # High-priority recommendations based on findings
+            if high_risk_nodes:
+                report.append("\n### Immediate Actions Required:")
+                report.append("1. Audit and secure high-risk nodes")
+                report.append("2. Implement additional monitoring for critical systems")
+                report.append("3. Review and restrict unnecessary connections")
 
-def save_report(self, report, analysis_id):
-    """Save the generated report to a file"""
-    try:
-        # Create reports directory if it doesn't exist
-        reports_dir = os.path.join(self.data_dir, 'reports')
-        os.makedirs(reports_dir, exist_ok=True)
+            # General recommendations based on network structure
+            report.append("\n### General Recommendations:")
+            if network_structure.get('density', 0) > 0.7:
+                report.append("- Reduce network complexity and unnecessary connections")
+            if len(network_structure.get('endpoints', [])) > 0:
+                report.append("- Review and secure network endpoints")
+            if critical_bottlenecks:
+                report.append("- Implement redundancy for critical bottleneck points")
+            if fiedler_value < 0.1:
+                report.append("- Improve network connectivity to reduce fragility")
+
+            # Technical Details
+            report.append("\n## Technical Details")
+            report.append("\n### Network Metrics")
+            report.append("```")
+            report.append(f"Density: {network_structure.get('density', 0):.3f}")
+            report.append(f"Average Clustering: {network_structure.get('average_clustering', 0):.3f}")
+            
+            # Spectral Analysis Details
+            report.append(f"\nSpectral Analysis:")
+            report.append(f"Spectral Radius: {spectral_metrics.get('spectral_radius', 0):.3f}")
+            report.append(f"Fiedler Value: {spectral_metrics.get('fiedler_value', 0):.3f}")
+            
+            # Top contributing nodes
+            report.append("\nMost Critical Nodes for Network Cohesion:")
+            fiedler_components = spectral_metrics.get('fiedler_components', [])
+            for node, value in fiedler_components[:5]:  # Show top 5 contributors
+                report.append(f"- Node {node}: Impact Score {abs(value):.3f}")
+            report.append("```")
+
+            # Node Classification
+            report.append("\n### Node Classification")
+            report.append("```")
+            device_types = Counter(m.get('device_type', 'Unknown') for m in security_metrics.values())
+            for device_type, count in device_types.most_common():
+                report.append(f"{device_type}: {count}")
+            report.append("```")
+
+            return "\n".join(report)
+
+        except Exception as e:
+            self.logger.error(f"Error generating executive report: {e}")
+            raise
+
+    def save_report(self, report, analysis_id):
+        """Save the generated report to a file"""
+        try:
+            # Create reports directory if it doesn't exist
+            reports_dir = os.path.join(self.data_dir, 'reports')
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            # Save report
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            report_file = os.path.join(reports_dir, f'report_{analysis_id}_{timestamp}.md')
+            
+            with open(report_file, 'w') as f:
+                f.write(report)
+            
+            return report_file
         
-        # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_file = os.path.join(reports_dir, f'report_{analysis_id}_{timestamp}.md')
-        
-        with open(report_file, 'w') as f:
-            f.write(report)
-        
-        return report_file
-    
-    except Exception as e:
-        self.logger.error(f"Error saving report: {e}")
-        raise
+        except Exception as e:
+            self.logger.error(f"Error saving report: {e}")
+            raise
