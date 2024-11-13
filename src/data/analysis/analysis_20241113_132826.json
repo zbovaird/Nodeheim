@@ -1,0 +1,746 @@
+{
+  "timestamp": "2024-11-13T13:28:26.795493",
+  "network_structure": {
+    "components": [
+      [
+        "192.168.1.127",
+        "192.168.1.1",
+        "192.168.1.204",
+        "192.168.1.152",
+        "192.168.1.103",
+        "192.168.1.197",
+        "192.168.1.124",
+        "192.168.1.246",
+        "192.168.1.83",
+        "192.168.1.220",
+        "192.168.1.154",
+        "192.168.1.84",
+        "192.168.1.85",
+        "192.168.1.130",
+        "192.168.1.168",
+        "192.168.1.4",
+        "192.168.1.123"
+      ]
+    ],
+    "cycles": [],
+    "endpoints": [
+      "192.168.1.103",
+      "192.168.1.123",
+      "192.168.1.124",
+      "192.168.1.127",
+      "192.168.1.130",
+      "192.168.1.152",
+      "192.168.1.154",
+      "192.168.1.168",
+      "192.168.1.197",
+      "192.168.1.204",
+      "192.168.1.220",
+      "192.168.1.246",
+      "192.168.1.4",
+      "192.168.1.83",
+      "192.168.1.84",
+      "192.168.1.85"
+    ],
+    "density": 0.11764705882352941,
+    "is_tree": true,
+    "is_forest": true,
+    "average_degree": 1.8823529411764706,
+    "centrality": {
+      "Degree_Centrality": {
+        "192.168.1.1": 1.0,
+        "192.168.1.103": 0.0625,
+        "192.168.1.123": 0.0625,
+        "192.168.1.124": 0.0625,
+        "192.168.1.127": 0.0625,
+        "192.168.1.130": 0.0625,
+        "192.168.1.152": 0.0625,
+        "192.168.1.154": 0.0625,
+        "192.168.1.168": 0.0625,
+        "192.168.1.197": 0.0625,
+        "192.168.1.204": 0.0625,
+        "192.168.1.220": 0.0625,
+        "192.168.1.246": 0.0625,
+        "192.168.1.4": 0.0625,
+        "192.168.1.83": 0.0625,
+        "192.168.1.84": 0.0625,
+        "192.168.1.85": 0.0625
+      },
+      "Betweenness_Centrality": {
+        "192.168.1.1": 1.0,
+        "192.168.1.103": 0.0,
+        "192.168.1.123": 0.0,
+        "192.168.1.124": 0.0,
+        "192.168.1.127": 0.0,
+        "192.168.1.130": 0.0,
+        "192.168.1.152": 0.0,
+        "192.168.1.154": 0.0,
+        "192.168.1.168": 0.0,
+        "192.168.1.197": 0.0,
+        "192.168.1.204": 0.0,
+        "192.168.1.220": 0.0,
+        "192.168.1.246": 0.0,
+        "192.168.1.4": 0.0,
+        "192.168.1.83": 0.0,
+        "192.168.1.84": 0.0,
+        "192.168.1.85": 0.0
+      },
+      "Closeness_Centrality": {
+        "192.168.1.1": 1.0,
+        "192.168.1.103": 0.5161290322580645,
+        "192.168.1.123": 0.5161290322580645,
+        "192.168.1.124": 0.5161290322580645,
+        "192.168.1.127": 0.5161290322580645,
+        "192.168.1.130": 0.5161290322580645,
+        "192.168.1.152": 0.5161290322580645,
+        "192.168.1.154": 0.5161290322580645,
+        "192.168.1.168": 0.5161290322580645,
+        "192.168.1.197": 0.5161290322580645,
+        "192.168.1.204": 0.5161290322580645,
+        "192.168.1.220": 0.5161290322580645,
+        "192.168.1.246": 0.5161290322580645,
+        "192.168.1.4": 0.5161290322580645,
+        "192.168.1.83": 0.5161290322580645,
+        "192.168.1.84": 0.5161290322580645,
+        "192.168.1.85": 0.5161290322580645
+      },
+      "Eigenvector_Centrality": {
+        "192.168.1.1": 0.7071079873804859,
+        "192.168.1.103": 0.1767763937476379,
+        "192.168.1.123": 0.1767763937476379,
+        "192.168.1.124": 0.1767763937476379,
+        "192.168.1.127": 0.1767763937476379,
+        "192.168.1.130": 0.1767763937476379,
+        "192.168.1.152": 0.1767763937476379,
+        "192.168.1.154": 0.1767763937476379,
+        "192.168.1.168": 0.1767763937476379,
+        "192.168.1.197": 0.1767763937476379,
+        "192.168.1.204": 0.1767763937476379,
+        "192.168.1.220": 0.1767763937476379,
+        "192.168.1.246": 0.1767763937476379,
+        "192.168.1.4": 0.1767763937476379,
+        "192.168.1.83": 0.1767763937476379,
+        "192.168.1.84": 0.1767763937476379,
+        "192.168.1.85": 0.1767763937476379
+      }
+    },
+    "total_nodes": 17,
+    "total_edges": 16,
+    "connected_components": 1
+  },
+  "security_metrics": {
+    "192.168.1.1": {
+      "degree": 16,
+      "betweenness": 1.0,
+      "neighbors": [
+        "192.168.1.103",
+        "192.168.1.123",
+        "192.168.1.124",
+        "192.168.1.127",
+        "192.168.1.130",
+        "192.168.1.152",
+        "192.168.1.154",
+        "192.168.1.168",
+        "192.168.1.197",
+        "192.168.1.204",
+        "192.168.1.220",
+        "192.168.1.246",
+        "192.168.1.4",
+        "192.168.1.83",
+        "192.168.1.84",
+        "192.168.1.85"
+      ],
+      "is_endpoint": false,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.9411764705882353
+    },
+    "192.168.1.103": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.123": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.124": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.127": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.130": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.152": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.154": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.168": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.197": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.204": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.220": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.246": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.4": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.83": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.84": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    },
+    "192.168.1.85": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.058823529411764705
+    }
+  },
+  "bottleneck_analysis": {
+    "192.168.1.1": {
+      "spectral_score": 0.0,
+      "flow_centrality": 1.0,
+      "is_critical": false,
+      "degree": 16,
+      "betweenness": 1.0
+    },
+    "192.168.1.103": {
+      "spectral_score": 5.49329100725989e-17,
+      "flow_centrality": 0.04258823529411765,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.123": {
+      "spectral_score": 0.013907090608637528,
+      "flow_centrality": 0.04352941176470588,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.124": {
+      "spectral_score": 0.5706927714559105,
+      "flow_centrality": 0.04823529411764706,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.127": {
+      "spectral_score": 0.3607158130080559,
+      "flow_centrality": 0.04505882352941176,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.130": {
+      "spectral_score": 0.8919936710103513,
+      "flow_centrality": 0.04670588235294117,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.152": {
+      "spectral_score": 0.3098970658246557,
+      "flow_centrality": 0.042,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.154": {
+      "spectral_score": 0.7328885607399285,
+      "flow_centrality": 0.04,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.168": {
+      "spectral_score": 0.6043721712660021,
+      "flow_centrality": 0.04258823529411765,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.197": {
+      "spectral_score": 0.3957603780617034,
+      "flow_centrality": 0.04341176470588235,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.204": {
+      "spectral_score": 0.18839657387328007,
+      "flow_centrality": 0.042352941176470586,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.220": {
+      "spectral_score": 0.2572997595361402,
+      "flow_centrality": 0.04129411764705882,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.246": {
+      "spectral_score": 0.06764197413730512,
+      "flow_centrality": 0.04023529411764706,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.4": {
+      "spectral_score": 0.0670513948985526,
+      "flow_centrality": 0.04411764705882353,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.83": {
+      "spectral_score": 0.15649057030749491,
+      "flow_centrality": 0.04552941176470588,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.84": {
+      "spectral_score": 0.13995653507565725,
+      "flow_centrality": 0.043647058823529414,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    },
+    "192.168.1.85": {
+      "spectral_score": 0.10593367627572993,
+      "flow_centrality": 0.048705882352941175,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0
+    }
+  },
+  "anomalies": {
+    "192.168.1.1": {
+      "Degree_Centrality": 1.0,
+      "Betweenness_Centrality": 1.0,
+      "Closeness_Centrality": 1.0,
+      "Eigenvector_Centrality": 0.7071079873804859,
+      "degree": 16,
+      "clustering": 0,
+      "anomaly": -1,
+      "anomaly_score": -0.865984396169867,
+      "risk_score": 99.99999999999999
+    },
+    "192.168.1.103": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.123": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.124": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.127": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.130": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.152": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.154": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.168": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.197": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.204": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.220": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.246": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.4": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.83": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.84": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    },
+    "192.168.1.85": {
+      "Degree_Centrality": 0.0625,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5161290322580645,
+      "Eigenvector_Centrality": 0.1767763937476379,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.4406427226405659,
+      "risk_score": -0.0
+    }
+  },
+  "spectral_metrics": {
+    "spectral_radius": 17.0,
+    "fiedler_value": 0.9999999999999991,
+    "fiedler_components": [
+      [
+        "192.168.1.130",
+        -0.7079595891403279
+      ],
+      [
+        "192.168.1.168",
+        -0.37173810294674575
+      ],
+      [
+        "192.168.1.124",
+        0.357233752211207
+      ],
+      [
+        "192.168.1.154",
+        0.3210029115793178
+      ],
+      [
+        "192.168.1.127",
+        0.2299207559110433
+      ],
+      [
+        "192.168.1.197",
+        0.19461455017752857
+      ],
+      [
+        "192.168.1.152",
+        0.1668626668889216
+      ],
+      [
+        "192.168.1.204",
+        -0.07932619125688964
+      ],
+      [
+        "192.168.1.85",
+        -0.05899296464848759
+      ],
+      [
+        "192.168.1.220",
+        -0.02674324534359647
+      ],
+      [
+        "192.168.1.84",
+        -0.02674324534359647
+      ],
+      [
+        "192.168.1.83",
+        0.011306330197624871
+      ],
+      [
+        "192.168.1.246",
+        -0.0038427390192089655
+      ],
+      [
+        "192.168.1.4",
+        -0.0038427390192089655
+      ],
+      [
+        "192.168.1.123",
+        -0.001752150247581399
+      ],
+      [
+        "192.168.1.103",
+        -4.3368086899420184e-17
+      ],
+      [
+        "192.168.1.1",
+        0.0
+      ]
+    ]
+  },
+  "summary": {
+    "total_nodes": 17,
+    "total_edges": 16,
+    "high_risk_nodes": 1,
+    "isolated_nodes": 16,
+    "components": 1,
+    "average_degree": 1.8823529411764706,
+    "network_density": 0.11764705882352941,
+    "critical_bottlenecks": 4,
+    "spectral_radius": 17.0
+  }
+}

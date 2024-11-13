@@ -537,3 +537,97 @@ class NetworkAnalyzer:
         except Exception as e:
             self.logger.error(f"Error calculating vulnerability score: {e}")
             raise
+
+    # Add these methods to your NetworkAnalyzer class in src/analyzer/network_analysis.py
+
+def generate_executive_report(self, analysis_data):
+    """Generate an executive summary report from analysis data"""
+    try:
+        # Extract key metrics and results
+        results = analysis_data.get('results', {})
+        summary = results.get('summary', {})
+        network_structure = results.get('network_structure', {})
+        security_metrics = results.get('security_metrics', {})
+        anomalies = results.get('anomalies', {})
+
+        # Generate report sections
+        report = []
+        
+        # Executive Summary
+        report.append("# Network Security Analysis Report")
+        report.append(f"\nAnalysis Date: {analysis_data.get('timestamp', 'N/A')}")
+        report.append("\n## Executive Summary")
+        report.append(f"\nTotal Nodes Analyzed: {summary.get('total_nodes', 0)}")
+        report.append(f"High Risk Nodes: {summary.get('high_risk_nodes', 0)}")
+        report.append(f"Isolated Systems: {summary.get('isolated_nodes', 0)}")
+        report.append(f"Network Components: {summary.get('components', 0)}")
+
+        # Key Findings
+        report.append("\n## Key Findings")
+        
+        # Network Structure Analysis
+        report.append("\n### Network Structure")
+        report.append(f"- Network Density: {network_structure.get('density', 0):.2%}")
+        report.append(f"- Average Node Connections: {network_structure.get('average_degree', 0):.1f}")
+        if network_structure.get('is_tree'):
+            report.append("- Network has a tree-like structure with no redundant paths")
+        
+        # Security Analysis
+        report.append("\n### Security Analysis")
+        high_risk_nodes = [node for node, data in anomalies.items() 
+                          if data.get('risk_score', 0) > 75]
+        report.append(f"\nHigh Risk Systems ({len(high_risk_nodes)}):")
+        for node in high_risk_nodes:
+            metrics = security_metrics.get(node, {})
+            report.append(f"- {node}")
+            report.append(f"  * Device Type: {metrics.get('device_type', 'Unknown')}")
+            report.append(f"  * Risk Factors: High connectivity, potential critical path")
+
+        # Recommendations
+        report.append("\n## Recommendations")
+        if high_risk_nodes:
+            report.append("\n### Critical Actions:")
+            report.append("1. Review and audit high-risk systems immediately")
+            report.append("2. Implement additional monitoring on critical paths")
+            report.append("3. Consider network segmentation to isolate high-risk components")
+        
+        report.append("\n### General Recommendations:")
+        if network_structure.get('density', 0) > 0.7:
+            report.append("- Consider reducing network complexity and unnecessary connections")
+        if summary.get('isolated_nodes', 0) > 0:
+            report.append("- Review isolated systems for necessary network access")
+        
+        # Security Metrics Detail
+        report.append("\n## Detailed Metrics")
+        report.append("\n### Device Security Status")
+        report.append("\n| Device | Type | Risk Level | Connections |")
+        report.append("| ------ | ---- | ---------- | ----------- |")
+        for node, metrics in security_metrics.items():
+            risk_level = "High" if node in high_risk_nodes else "Normal"
+            report.append(f"| {node} | {metrics.get('device_type', 'Unknown')} | {risk_level} | {metrics.get('degree', 0)} |")
+
+        return "\n".join(report)
+
+    except Exception as e:
+        self.logger.error(f"Error generating executive report: {e}")
+        raise
+
+def save_report(self, report, analysis_id):
+    """Save the generated report to a file"""
+    try:
+        # Create reports directory if it doesn't exist
+        reports_dir = os.path.join(self.data_dir, 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+        
+        # Save report
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_file = os.path.join(reports_dir, f'report_{analysis_id}_{timestamp}.md')
+        
+        with open(report_file, 'w') as f:
+            f.write(report)
+        
+        return report_file
+    
+    except Exception as e:
+        self.logger.error(f"Error saving report: {e}")
+        raise

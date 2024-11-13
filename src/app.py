@@ -1,25 +1,26 @@
 # src/app.py
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file
 import sys
 import os
 import json
 import logging
 from typing import Dict, Any
 from datetime import datetime
-from scanner.network_discovery import NetworkDiscovery
-from analyzer.topology import TopologyAnalyzer
-import networkx as nx
 from uuid import uuid4
-from datetime import datetime
-from analyzer.network_analysis import NetworkAnalyzer
+import networkx as nx
 
 # Add the project root to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.scanner.scanner import NetworkScanner, ScanResult
-from src.scanner.network_discovery import NetworkDiscovery
-from src.analyzer.network_analysis import NetworkAnalyzer
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(project_root)
 
-app = Flask(__name__)
+# Local imports
+from scanner.scanner import NetworkScanner, ScanResult
+from scanner.network_discovery import NetworkDiscovery
+from analyzer.topology import TopologyAnalyzer
+from analyzer.network_analysis import NetworkAnalyzer
+from api.analysis import analysis_bp
+
+app = Flask(__name__)   
 
 # Configure logging
 logging.basicConfig(
@@ -31,6 +32,9 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Register the blueprint
+app.register_blueprint(analysis_bp)
 
 # Initialize analyzer
 try:
@@ -112,23 +116,34 @@ def analyze_network():
             logger.error(f"Unexpected error during analysis: {str(e)}", exc_info=True)
             return jsonify({'error': 'Analysis failed'}), 500
 
+        # Generate analysis ID with consistent format
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # No microseconds
+        analysis_id = f"analysis_{timestamp}"
+
         # Save analysis results
         try:
-            analysis_id = str(uuid4())
-            analysis_file = os.path.join('src', 'data', 'analysis', f'{analysis_id}.json')
-            os.makedirs(os.path.dirname(analysis_file), exist_ok=True)
+            analysis_dir = os.path.join('src', 'data', 'analysis')
+            os.makedirs(analysis_dir, exist_ok=True)
+            
+            analysis_file = os.path.join(analysis_dir, f'{analysis_id}.json')
+            logger.info(f"Saving analysis to: {analysis_file}")
+            
+            analysis_data = {
+                'id': analysis_id,
+                'scan_id': scan_id,
+                'timestamp': datetime.now().isoformat(),
+                'results': analysis_result
+            }
             
             with open(analysis_file, 'w') as f:
-                json.dump({
-                    'id': analysis_id,
-                    'scan_id': scan_id,
-                    'timestamp': datetime.now().isoformat(),
-                    'results': analysis_result
-                }, f, indent=2, default=str)
+                json.dump(analysis_data, f, indent=2, default=str)
+            
+            logger.info(f"Analysis results saved to {analysis_file}")
+            
         except Exception as e:
             logger.error(f"Failed to save analysis results: {str(e)}")
-            # Continue since analysis was successful even if save failed
-            
+            return jsonify({'error': 'Failed to save analysis results'}), 500
+
         return jsonify({
             'status': 'success',
             'analysis_id': analysis_id,
@@ -157,30 +172,6 @@ def get_analysis(analysis_id):
         logger.error(f"Error retrieving analysis: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/analysis/list')
-def list_analyses():
-    """List all available analysis results"""
-    try:
-        analysis_dir = os.path.join('src', 'data', 'analysis')
-        if not os.path.exists(analysis_dir):
-            return jsonify([])
-
-        analyses = []
-        for file in os.listdir(analysis_dir):
-            if file.endswith('.json'):
-                with open(os.path.join(analysis_dir, file), 'r') as f:
-                    analysis = json.load(f)
-                    analyses.append({
-                        'id': file.replace('.json', ''),
-                        'timestamp': analysis.get('timestamp'),
-                        'summary': analysis.get('summary', {})
-                    })
-
-        return jsonify(analyses)
-
-    except Exception as e:
-        logger.error(f"Error listing analyses: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
 
 # Initialize scanner
 try:
@@ -357,8 +348,6 @@ def get_networks():
             'message': str(e)
         }), 500
 
-# Add to your imports
-from analyzer.topology import TopologyAnalyzer
 
 @app.route('/api/network/visualization')
 def get_network_visualization():
@@ -412,29 +401,158 @@ def get_topology(scan_id):
 def get_analysis_report(analysis_id):
     """Get the executive report for a specific analysis"""
     try:
-        # Load analysis results
-        analysis_file = os.path.join('src', 'data', 'analysis', f'{analysis_id}.json')
-        if not os.path.exists(analysis_file):
-            return jsonify({'error': 'Analysis not found'}), 404
+        # Set up directories
+        analysis_dir = os.path.join('src', 'data', 'analysis')
+        reports_dir = os.path.join('src', 'data', 'reports')
+        os.makedirs(analysis_dir, exist_ok=True)
+        os.makedirs(reports_dir, exist_ok=True)
 
-        with open(analysis_file, 'r') as f:
-            analysis_data = json.load(f)
+        # Clean up the analysis ID
+        base_id = analysis_id.split('.')[0]  # Remove any file extension
+        timestamp_part = base_id.split('analysis_')[-1][:12]  # Get YYYYMMDDHHMMSS part
+        clean_id = f"analysis_{timestamp_part}"
+        
+        # Try different file patterns
+        possible_files = [
+            os.path.join(analysis_dir, f'{analysis_id}.json'),
+            os.path.join(analysis_dir, f'{clean_id}.json')
+        ]
+        
+        logger.info(f"Looking for analysis files with patterns: {possible_files}")
+        existing_files = os.listdir(analysis_dir)
+        logger.info(f"Available files in analysis directory: {existing_files}")
+
+        # Find the first matching file that exists
+        analysis_file = None
+        for file_path in possible_files:
+            if os.path.exists(file_path):
+                analysis_file = file_path
+                logger.info(f"Found matching analysis file: {file_path}")
+                break
+
+        if not analysis_file:
+            # Try to find the file by matching timestamp portion
+            for existing_file in existing_files:
+                if timestamp_part in existing_file:
+                    analysis_file = os.path.join(analysis_dir, existing_file)
+                    logger.info(f"Found matching analysis file by timestamp: {analysis_file}")
+                    break
+
+        if not analysis_file:
+            logger.error(f"Analysis not found for ID: {analysis_id}")
+            return jsonify({
+                'error': 'Analysis not found',
+                'details': {
+                    'requested_id': analysis_id,
+                    'attempted_patterns': [
+                        analysis_id,
+                        clean_id,
+                        f"*{timestamp_part}*"
+                    ],
+                    'existing_files': existing_files
+                }
+            }), 404
+
+        # Load and validate analysis data
+        try:
+            with open(analysis_file, 'r') as f:
+                analysis_data = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in analysis file: {str(e)}")
+            return jsonify({'error': 'Corrupt analysis file'}), 500
+        except Exception as e:
+            logger.error(f"Error reading analysis file: {str(e)}")
+            return jsonify({'error': 'Failed to read analysis file'}), 500
 
         # Generate report
-        report = analyzer.generate_executive_report(analysis_data)
-        
+        try:
+            report = analyzer.generate_executive_report(analysis_data)
+        except AttributeError:
+            logger.warning("Executive report generator not available, using basic report")
+            report = generate_basic_report(analysis_data)
+        except Exception as e:
+            logger.error(f"Error generating report: {str(e)}")
+            return jsonify({'error': 'Failed to generate report'}), 500
+
         # Save report
-        report_file = analyzer.save_report(report, analysis_id)
-        
-        return jsonify({
-            'status': 'success',
-            'report': report,
-            'report_file': report_file
-        })
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            report_filename = f'report_{clean_id}_{timestamp}.md'
+            report_path = os.path.join(reports_dir, report_filename)
+            
+            with open(report_path, 'w') as f:
+                f.write(report)
+                
+            logger.info(f"Report saved to {report_path}")
+            
+            return jsonify({
+                'status': 'success',
+                'report': report,
+                'report_file': report_filename
+            })
+            
+        except Exception as e:
+            logger.error(f"Error saving report: {str(e)}")
+            # Still return the report even if saving failed
+            return jsonify({
+                'status': 'partial_success',
+                'report': report,
+                'error': 'Failed to save report file'
+            })
 
     except Exception as e:
-        logger.error(f"Error generating report: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Unhandled exception in get_analysis_report: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Internal server error',
+            'details': str(e)
+        }), 500
+    
+# Add this route to your app.py
+@app.route('/favicon.ico')
+def favicon():
+    return send_file(
+        os.path.join(app.root_path, 'static', 'favicon.ico'),
+        mimetype='image/vnd.microsoft.icon'
+    )
+    
+def generate_basic_report(analysis_data):
+    """Generate a basic report if the full report generation fails"""
+    try:
+        results = analysis_data.get('results', {})
+        summary = results.get('summary', {})
+        
+        report = [
+            "# Network Analysis Report",
+            f"\nAnalysis Date: {analysis_data.get('timestamp', 'N/A')}",
+            "\n## Summary",
+            f"- Total Nodes: {summary.get('total_nodes', 'N/A')}",
+            f"- High Risk Nodes: {summary.get('high_risk_nodes', 'N/A')}",
+            f"- Components: {summary.get('components', 'N/A')}",
+            "\n## Details",
+        ]
+        
+        # Add any available security metrics
+        security_metrics = results.get('security_metrics', {})
+        if security_metrics:
+            report.append("\n### Security Metrics")
+            for node, metrics in security_metrics.items():
+                report.append(f"\nNode: {node}")
+                report.append(f"- Type: {metrics.get('device_type', 'Unknown')}")
+                report.append(f"- Risk Level: {metrics.get('risk_level', 'Unknown')}")
+        
+        # Add any available anomalies
+        anomalies = results.get('anomalies', {})
+        if anomalies:
+            report.append("\n### Anomalies")
+            for node, data in anomalies.items():
+                report.append(f"\nNode: {node}")
+                report.append(f"- Risk Score: {data.get('risk_score', 'N/A')}")
+        
+        return "\n".join(report)
+        
+    except Exception as e:
+        logger.error(f"Error generating basic report: {e}")
+        return "Error generating report"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5050, debug=True)
