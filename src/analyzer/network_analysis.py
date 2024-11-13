@@ -576,6 +576,65 @@ class NetworkAnalyzer:
             self.logger.error(f"Error calculating vulnerability score: {e}")
             raise
 
+    def analyze_vulnerability_paths(self):
+        """Analyze vulnerability propagation paths"""
+        try:
+            vulnerability_paths = {}
+            # Identify critical systems - include PLCs, HMIs, and any high-value targets
+            critical_systems = [n for n in self.G.nodes() 
+                             if any(sys_type in str(self.G.nodes[n].get('type', '')).lower() 
+                                   for sys_type in ['plc', 'hmi', 'scada', 'server', 'controller'])]
+            
+            # If no systems are explicitly marked as critical, use high centrality nodes
+            if not critical_systems:
+                betweenness = nx.betweenness_centrality(self.G)
+                critical_systems = [node for node, score in betweenness.items() 
+                                  if score > np.mean(list(betweenness.values()))]
+            
+            for system in critical_systems:
+                paths = []
+                for node in self.G.nodes():
+                    if node != system and nx.has_path(self.G, node, system):
+                        path = nx.shortest_path(self.G, node, system)
+                        # Calculate vulnerability score based on multiple factors
+                        vulnerability_score = 0
+                        for n in path:
+                            node_data = self.G.nodes[n]
+                            # Count vulnerabilities
+                            vulns = len(node_data.get('vulnerabilities', []))
+                            # Check exposed services
+                            exposed_services = len(node_data.get('services', []))
+                            # Consider node degree (more connections = more risk)
+                            degree_factor = self.G.degree(n) / self.G.number_of_nodes()
+                            
+                            # Combine factors into a weighted score
+                            node_score = (vulns * 3) + (exposed_services * 2) + (degree_factor * 5)
+                            vulnerability_score += node_score
+                        
+                        paths.append({
+                            'path': path,
+                            'length': len(path),
+                            'vulnerability_score': vulnerability_score,
+                            'details': {
+                                'total_vulnerabilities': sum(len(self.G.nodes[n].get('vulnerabilities', [])) 
+                                                          for n in path),
+                                'exposed_services': sum(len(self.G.nodes[n].get('services', [])) 
+                                                     for n in path),
+                                'critical_nodes': sum(1 for n in path 
+                                                    if n in critical_systems)
+                            }
+                        })
+                
+                # Sort paths by vulnerability score
+                paths.sort(key=lambda x: x['vulnerability_score'], reverse=True)
+                vulnerability_paths[system] = paths
+            
+            return vulnerability_paths
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing vulnerability paths: {e}")
+            return {}
+
     def generate_executive_report(self, analysis_data):
         """Generate an executive summary report from analysis data"""
         try:
@@ -638,7 +697,7 @@ class NetworkAnalyzer:
             # Critical Bottlenecks
             report.append("\n### Critical Bottlenecks")
             critical_bottlenecks = [node for node, data in bottleneck_analysis.items() 
-                                if data.get('is_critical', False)]
+                                  if data.get('is_critical', False)]
             for node in critical_bottlenecks:
                 data = bottleneck_analysis[node]
                 report.append(f"\nNode: {node}")
@@ -652,13 +711,54 @@ class NetworkAnalyzer:
             
             # Count nodes with various risk factors
             exposed_nodes = sum(1 for m in security_metrics.values() 
-                            if m.get('connectivity_risk', 0) > 0.5)
+                              if m.get('connectivity_risk', 0) > 0.5)
             critical_path_nodes = sum(1 for m in security_metrics.values() 
                                     if m.get('betweenness', 0) > 0.5)
             
             report.append(f"- {exposed_nodes} nodes with high exposure risk")
             report.append(f"- {critical_path_nodes} nodes on critical network paths")
             report.append(f"- {len(critical_bottlenecks)} critical bottleneck points")
+
+            # Vulnerability Path Analysis
+            report.append("\n## Vulnerability Analysis")
+            vuln_paths = self.analyze_vulnerability_paths()
+            
+            if vuln_paths:
+                report.append("\n### Critical System Access Paths")
+                total_high_risk_paths = 0
+                
+                for system, paths in vuln_paths.items():
+                    if paths:
+                        high_risk_paths = [p for p in paths if p['vulnerability_score'] > 5]
+                        total_high_risk_paths += len(high_risk_paths)
+                        
+                        report.append(f"\n#### Critical System: {system}")
+                        report.append(f"- Total Access Paths: {len(paths)}")
+                        report.append(f"- High Risk Paths: {len(high_risk_paths)}")
+                        
+                        if high_risk_paths:
+                            report.append("\nTop Risk Paths:")
+                            for path in high_risk_paths[:3]:  # Show top 3 riskiest paths
+                                report.append(f"\n* Path: {' → '.join(path['path'])}")
+                                report.append(f"  - Risk Score: {path['vulnerability_score']:.2f}")
+                                report.append(f"  - Path Length: {path['length']}")
+                                report.append(f"  - Total Vulnerabilities: {path['details']['total_vulnerabilities']}")
+                                report.append(f"  - Exposed Services: {path['details']['exposed_services']}")
+                                report.append(f"  - Critical Nodes Traversed: {path['details']['critical_nodes']}")
+                
+                # Add summary section
+                report.append("\n### Vulnerability Summary")
+                report.append(f"- Total Critical Systems Analyzed: {len(vuln_paths)}")
+                report.append(f"- Total High Risk Paths: {total_high_risk_paths}")
+                
+                # Add specific recommendations based on findings
+                report.append("\n### Risk Mitigation Recommendations")
+                if total_high_risk_paths > 0:
+                    report.append("1. Implement network segmentation to reduce access paths")
+                    report.append("2. Add access controls on critical path nodes")
+                    report.append("3. Increase monitoring on high-risk paths")
+                    report.append("4. Consider implementing honeypots to detect potential attacks")
+                    report.append("5. Regular vulnerability scanning and patching for nodes on critical paths")
 
             # Recommendations
             report.append("\n## Recommendations")
