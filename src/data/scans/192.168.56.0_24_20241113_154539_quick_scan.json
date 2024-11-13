@@ -1,0 +1,27 @@
+{
+  "timestamp": "20241113_154539",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip": "192.168.56.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Wed Nov 13 15:45:50 2024",
+    "elapsed": "11.08",
+    "uphosts": "1",
+    "downhosts": "255",
+    "totalhosts": "256"
+  }
+}

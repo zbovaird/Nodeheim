@@ -1,0 +1,145 @@
+{
+  "timestamp": "2024-11-13T15:46:05.784754",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SAX1V1K.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.123",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.124",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.127",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM01.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.130",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.152",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "BRWDCE99452FC3A.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.154",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM04.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.197",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03-93.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.220",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.64",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "iPhone.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.83",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-e6.lan",
+          "type": "PTR"
+        }
+      ]
+    },
+    {
+      "ip": "192.168.1.84",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ]
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Wed Nov 13 15:46:05 2024",
+    "elapsed": "8.92",
+    "uphosts": "12",
+    "downhosts": "244",
+    "totalhosts": "256"
+  },
+  "summary": {
+    "total_hosts": 12,
+    "active_hosts": 12,
+    "total_ports": 0,
+    "total_services": 0,
+    "total_vulnerabilities": 0
+  },
+  "scan_id": "cc7ae769-c59f-4850-83ea-a6dc32729ecd"
+}
