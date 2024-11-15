@@ -1,2 +1,2 @@
 # Nodeheim
- network analysis and incident response tool using graph theory and hypergraphs 
+creation of dashboard for graph-theory network analysis tool  
