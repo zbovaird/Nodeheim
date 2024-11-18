@@ -1111,6 +1111,8 @@
                 // Run network topology visualization
                 await updateTopologyVisualization(data.scan_id);
 
+                // Update port analysis
+                await updatePortAnalysis(data.scan_id);
             } catch (error) {
                 console.error('Scan failed:', error);
                 updateScanStatus(`Scan failed: ${error.message}`, true);
@@ -1641,7 +1643,7 @@ async function downloadReport(analysisId) {
     }
 }
 
-// Add this after your existing JavaScript, before the closing </script> tag
+
 
 async function updatePortAnalysis(scanId) {
     try {
@@ -1761,10 +1763,7 @@ async function updatePortAnalysis(scanId) {
     return colors[category] || '#6c757d';
  }
  
- // Add this to your startScan() function, after updateTopologyVisualization:
- await updatePortAnalysis(data.scan_id);
 
     </script>
 </body>
 </html>
-
