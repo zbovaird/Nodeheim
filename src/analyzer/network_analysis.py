@@ -19,10 +19,10 @@ from itertools import combinations
 warnings.filterwarnings('ignore')
 
 class NetworkAnalyzer:
-    def __init__(self, data_dir='src/data'):
+    def __init__(self, data_dir=None):
         """Initialize the Network Analyzer"""
-        self.data_dir = data_dir
-        self.output_dir = os.path.join(data_dir, 'analysis')
+        self.data_dir = data_dir or 'src/data'
+        self.output_dir = os.path.join(self.data_dir, 'analysis')
         os.makedirs(self.output_dir, exist_ok=True)
         
         logging.basicConfig(
@@ -33,9 +33,9 @@ class NetworkAnalyzer:
         self.logger = logging.getLogger(__name__)
         
         # Define system classifications for ICS/SCADA analysis
-        self.control_systems = ['PLC 1', 'PLC 2', 'PLC 3', 'PLC 4', 'PLC 5']
-        self.hmi_systems = ['HMI 1', 'HMI 2', 'HMI 3']
-        self.field_devices = ['Sensor 1', 'Actuator 1'] + [f'Device {i}' for i in range(1, 12)]
+        #self.control_systems = ['PLC 1', 'PLC 2', 'PLC 3', 'PLC 4', 'PLC 5']
+        #self.hmi_systems = ['HMI 1', 'HMI 2', 'HMI 3']
+        #self.field_devices = ['Sensor 1', 'Actuator 1'] + [f'Device {i}' for i in range(1, 12)]
 
     def get_host_identifier(self, host):
         """Extract host identifier from host data with fallbacks"""
@@ -415,6 +415,8 @@ class NetworkAnalyzer:
             bottleneck_analysis = self.analyze_bottlenecks()
             anomalies = self.detect_anomalies()
             spectral_metrics = self.calculate_spectral_metrics()
+
+            port_analysis = self.analyze_port_data(scan_result)
             
             # Generate risk scores based on multiple factors
             risk_scores = {}
@@ -440,19 +442,24 @@ class NetworkAnalyzer:
                 'anomalies': anomalies,
                 'spectral_metrics': spectral_metrics,
                 'risk_scores': risk_scores,
+                'port_analysis': port_analysis,  # Add this line
                 'summary': {
                     'total_nodes': self.G.number_of_nodes(),
                     'total_edges': self.G.number_of_edges(),
+                    'total_open_ports': port_analysis.get('total_open_ports', 0),
                     'high_risk_nodes': sum(1 for score in risk_scores.values() if score > 75),
                     'isolated_nodes': len(structure['endpoints']),
                     'components': len(structure['components']),
                     'average_degree': structure['average_degree'],
                     'network_density': structure['density'],
                     'critical_bottlenecks': sum(1 for metrics in bottleneck_analysis.values() 
-                                              if metrics['is_critical']),
+                                            if metrics['is_critical']),
                     'spectral_radius': spectral_metrics['spectral_radius'],
+                    'high_risk_services': len(port_analysis['interesting_ports']['high_risk']),
+                    'remote_access_services': len(port_analysis['interesting_ports']['remote_access']),
+                    'industrial_services': len(port_analysis['interesting_ports']['industrial'])
                 }
-            }
+}
             
             # Save analysis results
             try:
@@ -833,3 +840,108 @@ class NetworkAnalyzer:
         except Exception as e:
             self.logger.error(f"Error saving report: {e}")
             raise
+
+    def analyze_port_data(self, scan_result=None):
+        """Analyze port and service data from scan results"""
+        try:
+            port_analysis = {
+                'total_open_ports': 0,
+                'common_ports': {},
+                'services': {},
+                'port_states': {},
+                'interesting_ports': {
+                    'remote_access': [],
+                    'web_services': [],
+                    'databases': [],
+                    'industrial': [],
+                    'high_risk': []
+                }
+            }
+            
+            # Define port categories
+            port_categories = {
+                'remote_access': [22, 23, 3389, 5900],
+                'web_services': [80, 443, 8080, 8443],
+                'databases': [1433, 3306, 5432, 27017],
+                'industrial': [502, 102, 44818, 47808],
+                'high_risk': [21, 23, 445, 135, 137, 138, 139]
+            }
+
+            # Use scan_result if provided, otherwise use graph nodes
+            hosts_to_analyze = []
+            if scan_result and hasattr(scan_result, 'hosts'):
+                hosts_to_analyze = scan_result.hosts
+            else:
+                hosts_to_analyze = [{'ip_address': node, **self.G.nodes[node]} 
+                                for node in self.G.nodes()]
+
+            for host in hosts_to_analyze:
+                host_ip = host.get('ip_address', host.get('ip', None))
+                if not host_ip:
+                    continue
+
+                # Get ports from the host
+                ports = host.get('ports', [])
+                if isinstance(ports, list):
+                    for port in ports:
+                        if isinstance(port, dict):
+                            port_num = int(port.get('port', port.get('portid', 0)))
+                            state = port.get('state', {}).get('state', port.get('state', 'unknown'))
+                            service = port.get('service', {}).get('name', 'unknown')
+                            
+                            if state == 'open':
+                                # Increment total open ports
+                                port_analysis['total_open_ports'] += 1
+                                
+                                # Count common ports
+                                port_analysis['common_ports'][port_num] = \
+                                    port_analysis['common_ports'].get(port_num, 0) + 1
+                                
+                                # Count services
+                                port_analysis['services'][service] = \
+                                    port_analysis['services'].get(service, 0) + 1
+                                
+                                # Categorize ports
+                                for category, port_list in port_categories.items():
+                                    if port_num in port_list:
+                                        port_analysis['interesting_ports'][category].append({
+                                            'host': host_ip,
+                                            'port': port_num,
+                                            'service': service
+                                        })
+                                
+                                # Track port states
+                                port_analysis['port_states'][state] = \
+                                    port_analysis['port_states'].get(state, 0) + 1
+
+            # Sort and limit common ports and services for visualization
+            port_analysis['common_ports'] = dict(sorted(
+                port_analysis['common_ports'].items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )[:10])
+
+            port_analysis['services'] = dict(sorted(
+                port_analysis['services'].items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )[:10])
+
+            return port_analysis
+                
+        except Exception as e:
+            self.logger.error(f"Error analyzing port data: {e}")
+            return {
+                'total_open_ports': 0,
+                'common_ports': {},
+                'services': {},
+                'port_states': {},
+                'interesting_ports': {
+                    'remote_access': [],
+                    'web_services': [],
+                    'databases': [],
+                    'industrial': [],
+                    'high_risk': []
+                }
+            }
+    

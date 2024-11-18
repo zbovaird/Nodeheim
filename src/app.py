@@ -8,10 +8,12 @@ from typing import Dict, Any
 from datetime import datetime
 from uuid import uuid4
 import networkx as nx
+import inspect
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
+
 
 # Local imports
 from scanner.scanner import NetworkScanner, ScanResult
@@ -36,124 +38,23 @@ logger = logging.getLogger(__name__)
 # Register the blueprint
 app.register_blueprint(analysis_bp)
 
+
+print("NetworkAnalyzer attributes:", NetworkAnalyzer.__dict__)
+
 # Initialize analyzer
 try:
-    analyzer = NetworkAnalyzer(data_dir='src/data')
+    data_dir = os.path.join('src', 'data')
+    analyzer = NetworkAnalyzer()
+    analyzer.data_dir = data_dir
+    analyzer.output_dir = os.path.join(data_dir, 'analysis')
+    os.makedirs(analyzer.output_dir, exist_ok=True)
+    analyzer.logger = logging.getLogger(__name__)
     logger.info("Network analyzer initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize analyzer: {str(e)}")
     raise
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze_network():
-    """Analyze network based on scan results with comprehensive error handling"""
-    try:
-        # Validate input data
-        if not request.is_json:
-            logger.error("Request does not contain JSON data")
-            return jsonify({'error': 'Request must be JSON'}), 400
 
-        data = request.json
-        if not data:
-            logger.error("Empty JSON data received")
-            return jsonify({'error': 'No scan data provided'}), 400
-
-        scan_id = data.get('scan_id')
-        if not scan_id:
-            logger.error("No scan_id provided in request")
-            return jsonify({'error': 'No scan ID provided'}), 400
-
-        # Validate scan file path and existence
-        scan_file = os.path.join('src', 'data', 'scans', f'{scan_id}.json')
-        if not os.path.exists(scan_file):
-            logger.error(f"Scan file not found: {scan_file}")
-            return jsonify({'error': f'Scan results not found for ID: {scan_id}'}), 404
-
-        # Load and validate scan results
-        try:
-            with open(scan_file, 'r') as f:
-                scan_result = json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse scan results JSON: {str(e)}")
-            return jsonify({'error': 'Invalid scan results format'}), 500
-        except Exception as e:
-            logger.error(f"Failed to read scan file: {str(e)}")
-            return jsonify({'error': 'Failed to read scan results'}), 500
-
-        # Validate required fields in scan_result
-        required_fields = ['hosts', 'ports', 'services', 'vulnerabilities', 'os_matches', 'scan_stats']
-        missing_fields = [field for field in required_fields if field not in scan_result]
-        if missing_fields:
-            logger.error(f"Scan results missing required fields: {missing_fields}")
-            return jsonify({'error': f'Invalid scan results: missing {", ".join(missing_fields)}'}), 400
-
-        # Create ScanResult object
-        try:
-            scan_result_obj = ScanResult(
-                timestamp=scan_result.get('timestamp', datetime.now().isoformat()),
-                scan_type=scan_result.get('scan_type', 'unknown'),
-                hosts=scan_result['hosts'],
-                ports=scan_result['ports'],
-                services=scan_result['services'],
-                vulnerabilities=scan_result['vulnerabilities'],
-                os_matches=scan_result['os_matches'],
-                scan_stats=scan_result['scan_stats']
-            )
-        except Exception as e:
-            logger.error(f"Failed to create ScanResult object: {str(e)}")
-            return jsonify({'error': 'Invalid scan results format'}), 400
-
-        # Run analysis with error handling
-        try:
-            analysis_result = analyzer.analyze_network(scan_result_obj)
-        except nx.NetworkXError as e:
-            logger.error(f"NetworkX error during analysis: {str(e)}")
-            return jsonify({'error': 'Network analysis error'}), 500
-        except ValueError as e:
-            logger.error(f"Value error during analysis: {str(e)}")
-            return jsonify({'error': 'Invalid data for analysis'}), 400
-        except Exception as e:
-            logger.error(f"Unexpected error during analysis: {str(e)}", exc_info=True)
-            return jsonify({'error': 'Analysis failed'}), 500
-
-        # Generate analysis ID with consistent format
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # No microseconds
-        analysis_id = f"analysis_{timestamp}"
-
-        # Save analysis results
-        try:
-            analysis_dir = os.path.join('src', 'data', 'analysis')
-            os.makedirs(analysis_dir, exist_ok=True)
-            
-            analysis_file = os.path.join(analysis_dir, f'{analysis_id}.json')
-            logger.info(f"Saving analysis to: {analysis_file}")
-            
-            analysis_data = {
-                'id': analysis_id,
-                'scan_id': scan_id,
-                'timestamp': datetime.now().isoformat(),
-                'results': analysis_result
-            }
-            
-            with open(analysis_file, 'w') as f:
-                json.dump(analysis_data, f, indent=2, default=str)
-            
-            logger.info(f"Analysis results saved to {analysis_file}")
-            
-        except Exception as e:
-            logger.error(f"Failed to save analysis results: {str(e)}")
-            return jsonify({'error': 'Failed to save analysis results'}), 500
-
-        return jsonify({
-            'status': 'success',
-            'analysis_id': analysis_id,
-            'analysis': analysis_result,
-            'timestamp': datetime.now().isoformat()
-        })
-
-    except Exception as e:
-        logger.error(f"Unhandled exception in analyze_network: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/analysis/<analysis_id>')
 def get_analysis(analysis_id):
@@ -184,10 +85,26 @@ except Exception as e:
 def format_scan_result(result: ScanResult) -> Dict[str, Any]:
     """Format scan result for JSON response"""
     try:
+        hosts_with_ports = []
+        for host in result.hosts:
+            # Ensure ports are correctly formatted
+            if 'ports' in host:
+                formatted_ports = []
+                for port in host['ports']:
+                    if isinstance(port, dict):
+                        formatted_port = {
+                            'port': port.get('port', port.get('portid', 0)),
+                            'state': port.get('state', {}).get('state', port.get('state', 'unknown')),
+                            'service': port.get('service', {}).get('name', 'unknown')
+                        }
+                        formatted_ports.append(formatted_port)
+                host['ports'] = formatted_ports
+            hosts_with_ports.append(host)
+
         return {
             'timestamp': result.timestamp,
             'scan_type': result.scan_type,
-            'hosts': result.hosts,
+            'hosts': hosts_with_ports,  # Use the formatted hosts
             'ports': result.ports,
             'services': result.services,
             'vulnerabilities': result.vulnerabilities,
@@ -195,7 +112,7 @@ def format_scan_result(result: ScanResult) -> Dict[str, Any]:
             'scan_stats': result.scan_stats,
             'summary': {
                 'total_hosts': len(result.hosts),
-                'active_hosts': len([h for h in result.hosts if h['status'] == 'up']),
+                'active_hosts': len([h for h in result.hosts if h.get('status') == 'up']),
                 'total_ports': len(result.ports),
                 'total_services': len(result.services),
                 'total_vulnerabilities': len(result.vulnerabilities)
@@ -553,6 +470,115 @@ def generate_basic_report(analysis_data):
     except Exception as e:
         logger.error(f"Error generating basic report: {e}")
         return "Error generating report"
+    
+@app.route('/api/analysis/ports/<scan_id>')
+def get_port_analysis(scan_id):
+    """Get detailed port analysis for a specific scan"""
+    try:
+        # Load scan result
+        scan_file = os.path.join('src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(scan_file):
+            return jsonify({'error': 'Scan results not found'}), 404
+
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+
+        # Convert scan data back to ScanResult object
+        scan_result = ScanResult(
+            timestamp=scan_data['timestamp'],
+            scan_type=scan_data['scan_type'],
+            hosts=scan_data['hosts'],
+            ports=scan_data.get('ports', []),
+            services=scan_data.get('services', []),
+            vulnerabilities=scan_data.get('vulnerabilities', []),
+            os_matches=scan_data.get('os_matches', []),
+            scan_stats=scan_data.get('scan_stats', {})
+        )
+
+        # Get port analysis directly from analyzer
+        port_analysis = analyzer.analyze_port_data(scan_result)
+
+        # Format the response to match what the frontend expects
+        response = {
+            'total_open_ports': port_analysis.get('total_open_ports', 0),
+            'common_ports': port_analysis.get('common_ports', {}),
+            'services': port_analysis.get('services', {}),
+            'interesting_ports': {
+                'high_risk': port_analysis.get('interesting_ports', {}).get('high_risk', []),
+                'remote_access': port_analysis.get('interesting_ports', {}).get('remote_access', []),
+                'industrial': port_analysis.get('interesting_ports', {}).get('industrial', []),
+                'web_services': port_analysis.get('interesting_ports', {}).get('web_services', []),
+                'databases': port_analysis.get('interesting_ports', {}).get('databases', [])
+            }
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"Error retrieving port analysis: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze_network():
+    """Analyze network based on scan results"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No scan data provided'}), 400
+
+        scan_id = data.get('scan_id')
+        if not scan_id:
+            return jsonify({'error': 'No scan ID provided'}), 400
+
+        # Load scan results
+        scan_file = os.path.join('src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(scan_file):
+            return jsonify({'error': 'Scan results not found'}), 404
+
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+
+        # Create ScanResult object
+        scan_result = ScanResult(
+            timestamp=scan_data['timestamp'],
+            scan_type=scan_data['scan_type'],
+            hosts=scan_data['hosts'],
+            ports=scan_data.get('ports', []),
+            services=scan_data.get('services', []),
+            vulnerabilities=scan_data.get('vulnerabilities', []),
+            os_matches=scan_data.get('os_matches', []),
+            scan_stats=scan_data.get('scan_stats', {})
+        )
+
+        # Run analysis
+        analysis_result = analyzer.analyze_network(scan_result)
+        
+        # Ensure port analysis exists in the response
+        if 'port_analysis' not in analysis_result:
+            analysis_result['port_analysis'] = analyzer.analyze_port_data(scan_result)
+        
+        # Generate unique analysis ID
+        analysis_id = f"analysis_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Save analysis results
+        analysis_dir = os.path.join('src', 'data', 'analysis')
+        os.makedirs(analysis_dir, exist_ok=True)
+        
+        output_file = os.path.join(analysis_dir, f'{analysis_id}.json')
+        with open(output_file, 'w') as f:
+            json.dump(analysis_result, f, indent=2, default=str)
+
+        return jsonify({
+            'status': 'success',
+            'analysis_id': analysis_id,
+            'analysis': analysis_result,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5050, debug=True)
