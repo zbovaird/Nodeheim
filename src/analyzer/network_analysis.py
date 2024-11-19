@@ -40,28 +40,41 @@ class NetworkAnalyzer:
     def get_host_identifier(self, host):
         """Extract host identifier from host data with fallbacks"""
         try:
-            # Try different common field names for host identification
-            for field in ['ip_address', 'ip', 'address', 'host', 'hostname']:
+            # Primary check for ip_address
+            if 'ip_address' in host and host['ip_address']:
+                return str(host['ip_address'])
+            
+            # Check for alternate IP fields
+            for field in ['address', 'ip', 'host_ip', 'host_address']:
                 if field in host and host[field]:
-                    return str(host[field])
+                    # Store as ip_address for consistency
+                    host['ip_address'] = str(host[field])
+                    return host['ip_address']
             
-            # If no standard fields found, look for any field containing 'ip' or 'address'
-            for field in host.keys():
-                if 'ip' in field.lower() or 'address' in field.lower():
-                    return str(host[field])
+            # Check for hostname with IP
+            if 'hostname' in host and host['hostname']:
+                hostname = str(host['hostname'])
+                # Check if hostname is actually an IP
+                if '.' in hostname and all(part.isdigit() for part in hostname.split('.')):
+                    host['ip_address'] = hostname
+                    return host['ip_address']
             
-            # If still no identifier found, use the first value that looks like an IP
-            for value in host.values():
+            # If no direct IP found, check host dict for any IP-like values
+            for field, value in host.items():
                 if isinstance(value, str) and '.' in value:
                     parts = value.split('.')
-                    if len(parts) == 4 and all(part.isdigit() for part in parts):
-                        return value
+                    if len(parts) == 4 and all(part.isdigit() and 0 <= int(part) <= 255 for part in parts):
+                        host['ip_address'] = value
+                        return host['ip_address']
             
-            raise ValueError(f"No valid host identifier found in host data: {host}")
-            
+            # If we get here, log the issue and raise an error
+            self.logger.warning(f"No valid IP address found in host data: {host}")
+            raise ValueError(f"No valid IP address found in host data: {host}")
+                
         except Exception as e:
             self.logger.error(f"Error extracting host identifier: {str(e)}")
-            raise
+            self.logger.debug(f"Host data: {host}")
+            raise ValueError(f"Failed to extract host identifier: {str(e)}")
 
     def create_graph_from_scan(self, scan_result):
         """Create a NetworkX graph from scan results"""
@@ -132,7 +145,7 @@ class NetworkAnalyzer:
         except Exception as e:
             self.logger.error(f"Error creating graph: {str(e)}")
             raise
-
+    
     def analyze_network_structure(self):
         """Analyze basic network structure"""
         self.logger.info("Analyzing network structure")
@@ -1188,4 +1201,19 @@ class NetworkAnalyzer:
                 'critical_by_type': Counter()
             }}
         
-    
+    def _validate_ip(self, ip_str: str) -> bool:
+        """Validate IP address string"""
+        try:
+            # Split IP into octets
+            parts = ip_str.split('.')
+            if len(parts) != 4:
+                return False
+                
+            # Check each octet
+            return all(
+                part.isdigit() and 
+                0 <= int(part) <= 255 
+                for part in parts
+            )
+        except:
+            return False

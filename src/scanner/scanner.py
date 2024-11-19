@@ -346,7 +346,11 @@ class NetworkScanner:
                     'ip_address': host,
                     'status': self.nm[host].state(),
                     'hostnames': self.nm[host].hostnames(),
-                    'os_info': os_info,
+                    'os_info': os_info,  # Add OS info here
+                    'device_type': self._determine_device_type({  # And determine device type
+                        'os_info': os_info,
+                        'ports': [],  # Will be filled below
+                    }),
                     'ports': []
                 }
 

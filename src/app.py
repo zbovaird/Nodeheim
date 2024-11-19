@@ -556,11 +556,32 @@ def analyze_network():
         with open(scan_file, 'r') as f:
             scan_data = json.load(f)
 
-        # Create ScanResult object
+        # Process and standardize host data
+        processed_hosts = []
+        for host in scan_data['hosts']:
+            processed_host = {
+                'ip_address': host.get('ip_address', host.get('ip', '')),
+                'status': host.get('status', 'unknown'),
+                'hostnames': host.get('hostnames', []),
+                'ports': host.get('ports', []),
+                'os_info': host.get('os_info', {
+                    'os_match': 'unknown',
+                    'os_accuracy': 0,
+                    'os_type': 'unknown',
+                    'os_vendor': 'unknown',
+                    'os_family': 'unknown'
+                }),
+                'device_type': host.get('device_type', 'unknown'),
+                'vulnerabilities': host.get('vulnerabilities', []),
+                'services': host.get('services', [])
+            }
+            processed_hosts.append(processed_host)
+
+        # Create ScanResult object with processed hosts
         scan_result = ScanResult(
             timestamp=scan_data['timestamp'],
             scan_type=scan_data['scan_type'],
-            hosts=scan_data['hosts'],
+            hosts=processed_hosts,
             ports=scan_data.get('ports', []),
             services=scan_data.get('services', []),
             vulnerabilities=scan_data.get('vulnerabilities', []),
@@ -574,6 +595,23 @@ def analyze_network():
         # Ensure port analysis exists in the response
         if 'port_analysis' not in analysis_result:
             analysis_result['port_analysis'] = analyzer.analyze_port_data(scan_result)
+        
+        # Add device analysis
+        device_analysis = analyzer.analyze_device_types()
+        analysis_result['device_analysis'] = device_analysis
+
+        # Add summary metrics
+        analysis_result['summary'] = {
+            'total_nodes': len(processed_hosts),
+            'identified_devices': sum(1 for h in processed_hosts if h['device_type'] != 'unknown'),
+            'identified_ratio': sum(1 for h in processed_hosts if h['device_type'] != 'unknown') / len(processed_hosts) if processed_hosts else 0,
+            'os_identified': sum(1 for h in processed_hosts if h['os_info']['os_match'] != 'unknown'),
+            'suspicious_devices': len(device_analysis.get('suspicious_devices', [])) if device_analysis else 0,
+            'high_risk_nodes': sum(1 for h in processed_hosts if analysis_result.get('risk_scores', {}).get(h['ip_address'], 0) > 75),
+            'total_services': len(scan_data.get('services', [])),
+            'total_vulnerabilities': len(scan_data.get('vulnerabilities', [])),
+            'total_ports': len(scan_data.get('ports', []))
+        }
         
         # Generate unique analysis ID
         analysis_id = f"analysis_{datetime.now().strftime('%Y%m%d%H%M%S')}"

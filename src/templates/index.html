@@ -1991,6 +1991,58 @@ async function updatePortAnalysis(scanId) {
     return colors[category] || '#6c757d';
  }
  
+ async function updateDeviceAnalysis(analysis) {
+    console.log("Device analysis data:", analysis);  // Debug log
+    
+    // Update metrics
+    document.getElementById('total-devices-metric').textContent = 
+        analysis.summary?.total_nodes || 0;
+    document.getElementById('identified-devices-metric').textContent = 
+        Math.round((analysis.summary?.total_nodes || 0) * (analysis.summary?.identified_ratio || 0));
+    document.getElementById('unknown-devices-metric').textContent = 
+        analysis.device_analysis?.unidentified_devices?.length || 0;
+    document.getElementById('suspicious-devices-metric').textContent = 
+        analysis.device_analysis?.suspicious_devices?.length || 0;
+
+    // Update device table
+    const tbody = document.querySelector('#device-details-table tbody');
+    tbody.innerHTML = '';
+
+    if (analysis.hosts) {
+        analysis.hosts.forEach(host => {
+            console.log("Processing host:", host);  // Debug log
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${host.ip_address}</td>
+                <td>${host.device_type || 'Unknown'}</td>
+                <td>${host.os_info?.os_match || 'Unknown'}</td>
+                <td>${host.ports?.length || 0}</td>
+                <td>${host.status}</td>
+                <td class="risk-level-${getRiskLevel(host)}">${getRiskLevel(host)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // Update charts if they exist
+    if (window.deviceTypeChart) {
+        updateDeviceTypeChart(analysis);
+    }
+    if (window.osDistributionChart) {
+        updateOSDistributionChart(analysis);
+    }
+}
+
+function getRiskLevel(host) {
+    const openPorts = host.ports?.length || 0;
+    const hasHighRiskServices = host.ports?.some(port => 
+        ['21', '23', '445', '3389'].includes(port.port?.toString())
+    );
+    
+    if (openPorts > 10 || hasHighRiskServices) return 'high';
+    if (openPorts > 5) return 'medium';
+    return 'low';
+}
 
     </script>
 </body>
