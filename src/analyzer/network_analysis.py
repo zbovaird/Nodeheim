@@ -846,6 +846,7 @@ class NetworkAnalyzer:
         try:
             port_analysis = {
                 'total_open_ports': 0,
+                'hosts_with_ports': {},  # Track ports by host
                 'common_ports': {},
                 'services': {},
                 'port_states': {},
@@ -857,7 +858,7 @@ class NetworkAnalyzer:
                     'high_risk': []
                 }
             }
-            
+
             # Define port categories
             port_categories = {
                 'remote_access': [22, 23, 3389, 5900],
@@ -867,72 +868,70 @@ class NetworkAnalyzer:
                 'high_risk': [21, 23, 445, 135, 137, 138, 139]
             }
 
-            # Use scan_result if provided, otherwise use graph nodes
-            hosts_to_analyze = []
-            if scan_result and hasattr(scan_result, 'hosts'):
-                hosts_to_analyze = scan_result.hosts
-            else:
-                hosts_to_analyze = [{'ip_address': node, **self.G.nodes[node]} 
-                                for node in self.G.nodes()]
-
-            for host in hosts_to_analyze:
-                host_ip = host.get('ip_address', host.get('ip', None))
+            # Process each host
+            for host in scan_result.hosts:
+                host_ip = host.get('ip_address')
                 if not host_ip:
                     continue
 
-                # Get ports from the host
-                ports = host.get('ports', [])
-                if isinstance(ports, list):
-                    for port in ports:
-                        if isinstance(port, dict):
-                            port_num = int(port.get('port', port.get('portid', 0)))
-                            state = port.get('state', {}).get('state', port.get('state', 'unknown'))
-                            service = port.get('service', {}).get('name', 'unknown')
-                            
-                            if state == 'open':
-                                # Increment total open ports
-                                port_analysis['total_open_ports'] += 1
-                                
-                                # Count common ports
-                                port_analysis['common_ports'][port_num] = \
-                                    port_analysis['common_ports'].get(port_num, 0) + 1
-                                
-                                # Count services
-                                port_analysis['services'][service] = \
-                                    port_analysis['services'].get(service, 0) + 1
-                                
-                                # Categorize ports
-                                for category, port_list in port_categories.items():
-                                    if port_num in port_list:
-                                        port_analysis['interesting_ports'][category].append({
-                                            'host': host_ip,
-                                            'port': port_num,
-                                            'service': service
-                                        })
-                                
-                                # Track port states
-                                port_analysis['port_states'][state] = \
-                                    port_analysis['port_states'].get(state, 0) + 1
+                # Initialize host entry
+                port_analysis['hosts_with_ports'][host_ip] = {
+                    'open_ports': [],
+                    'services': [],
+                    'high_risk_ports': []
+                }
 
-            # Sort and limit common ports and services for visualization
-            port_analysis['common_ports'] = dict(sorted(
-                port_analysis['common_ports'].items(), 
-                key=lambda x: x[1], 
-                reverse=True
-            )[:10])
+                # Process ports for this host
+                for port_info in host.get('ports', []):
+                    if isinstance(port_info, dict):
+                        port_num = port_info.get('port')
+                        state = port_info.get('state')
+                        service = port_info.get('service', 'unknown')
 
-            port_analysis['services'] = dict(sorted(
-                port_analysis['services'].items(), 
-                key=lambda x: x[1], 
-                reverse=True
-            )[:10])
+                        if state == 'open':
+                            # Add to host's open ports
+                            port_analysis['hosts_with_ports'][host_ip]['open_ports'].append({
+                                'port': port_num,
+                                'service': service
+                            })
+
+                            # Update total open ports
+                            port_analysis['total_open_ports'] += 1
+
+                            # Count common ports
+                            port_analysis['common_ports'][port_num] = \
+                                port_analysis['common_ports'].get(port_num, 0) + 1
+
+                            # Count services
+                            port_analysis['services'][service] = \
+                                port_analysis['services'].get(service, 0) + 1
+
+                            # Categorize ports
+                            for category, port_list in port_categories.items():
+                                if port_num in port_list:
+                                    port_data = {
+                                        'host': host_ip,
+                                        'port': port_num,
+                                        'service': service
+                                    }
+                                    port_analysis['interesting_ports'][category].append(port_data)
+                                    
+                                    if category == 'high_risk':
+                                        port_analysis['hosts_with_ports'][host_ip]['high_risk_ports'].append(port_num)
+
+            # Log detailed results
+            for host_ip, host_data in port_analysis['hosts_with_ports'].items():
+                if host_data['open_ports']:
+                    logging.info(f"Host {host_ip} open ports: " + 
+                            ', '.join(str(p['port']) for p in host_data['open_ports']))
 
             return port_analysis
-                
+
         except Exception as e:
-            self.logger.error(f"Error analyzing port data: {e}")
+            logging.error(f"Error analyzing port data: {e}")
             return {
                 'total_open_ports': 0,
+                'hosts_with_ports': {},
                 'common_ports': {},
                 'services': {},
                 'port_states': {},

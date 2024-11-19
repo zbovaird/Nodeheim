@@ -267,70 +267,84 @@ class NetworkScanner:
         for host in self.nm.all_hosts():
             try:
                 logging.debug(f"Processing host: {host}")
-                logging.debug(f"Raw host data: {self.nm[host]}")            
                 
                 # Basic host information
                 host_info = {
                     'ip_address': host,
                     'status': self.nm[host].state(),
                     'hostnames': self.nm[host].hostnames(),
-                    'ports': []  # Initialize ports list for this host
+                    'ports': []
                 }
 
-                # Process ports and services
+                # Process ports and services for this host
+                host_ports = []  # Track ports for this specific host
                 for proto in self.nm[host].all_protocols():
                     port_list = self.nm[host][proto].keys()
+                    logging.debug(f"Found ports for {host}: {port_list}")
+                    
                     for port in port_list:
                         try:
-                            port_num = int(port)  # Ensure port is an integer
+                            port_num = int(port)
                             port_info = self.nm[host][proto][port]
+                            port_state = port_info.get('state', 'unknown')
                             
-                            # Add port to host's ports list
-                            host_port = {
-                                'port': port_num,
-                                'protocol': proto,
-                                'state': port_info.get('state', 'unknown'),
-                                'service': port_info.get('name', 'unknown')
-                            }
-                            host_info['ports'].append(host_port)
-                            
-                            # Add to global ports list
-                            ports.append({
-                                'ip_address': host,
-                                'port': port_num,
-                                'protocol': proto,
-                                'state': port_info.get('state', 'unknown')
-                            })
-                            
-                            # Add service information if available
-                            if 'service' in port_info:
-                                services.append({
+                            # Only process open ports
+                            if port_state == 'open':
+                                port_data = {
+                                    'port': port_num,
+                                    'protocol': proto,
+                                    'state': port_state,
+                                    'service': port_info.get('name', 'unknown')
+                                }
+                                
+                                # Add to host's ports list
+                                host_ports.append(port_data)
+                                
+                                # Add to global ports list with host information
+                                ports.append({
                                     'ip_address': host,
                                     'port': port_num,
-                                    'name': port_info.get('name', 'unknown'),
-                                    'product': port_info.get('product', ''),
-                                    'version': port_info.get('version', '')
+                                    'protocol': proto,
+                                    'state': port_state
                                 })
-                        except ValueError:
-                            logging.warning(f"Invalid port number: {port}")
+                                
+                                # Add service information if available
+                                if 'service' in port_info:
+                                    services.append({
+                                        'ip_address': host,
+                                        'port': port_num,
+                                        'name': port_info.get('name', 'unknown'),
+                                        'product': port_info.get('product', ''),
+                                        'version': port_info.get('version', '')
+                                    })
+                                    
+                                logging.debug(f"Added open port {port_num} for host {host}")
+                                
+                        except (ValueError, TypeError) as e:
+                            logging.warning(f"Error processing port {port} for host {host}: {e}")
                             continue
 
-                hosts.append(host_info)
+                # Add ports to host info
+                host_info['ports'] = host_ports
+                host_info['open_ports_count'] = len(host_ports)
                 
+                if host_ports:
+                    logging.info(f"Host {host} has {len(host_ports)} open ports: " + 
+                            ', '.join(str(p['port']) for p in host_ports))
+
+                hosts.append(host_info)
+
             except Exception as e:
                 logging.error(f"Error processing host {host}: {e}")
                 continue
 
-        # Ensure scan stats are properly typed
-        scan_stats = self.nm.scanstats()
-        if scan_stats:
-            try:
-                scan_stats = {
-                    key: int(value) if key in ['uphosts', 'downhosts', 'totalhosts'] else value
-                    for key, value in scan_stats.items()
-                }
-            except (ValueError, TypeError):
-                logging.warning("Error converting scan stats to integers")
+        # Log summary
+        logging.info(f"Scan summary:")
+        logging.info(f"Total hosts: {len(hosts)}")
+        logging.info(f"Total open ports: {len(ports)}")
+        for host_info in hosts:
+            if host_info['open_ports_count'] > 0:
+                logging.info(f"Host {host_info['ip_address']}: {host_info['open_ports_count']} open ports")
 
         return ScanResult(
             timestamp=timestamp,
@@ -340,7 +354,7 @@ class NetworkScanner:
             services=services,
             vulnerabilities=vulnerabilities,
             os_matches=os_matches,
-            scan_stats=scan_stats
+            scan_stats=self.nm.scanstats()
         )
 
     def _save_results(self, results: ScanResult, target: str, scan_type: str):

@@ -1,0 +1,9 @@
+ip_address,status,hostnames,ports,open_ports_count
+192.168.1.1,up,"[{'name': '', 'type': ''}]","[{'port': 53, 'protocol': 'tcp', 'state': 'open', 'service': 'domain'}, {'port': 80, 'protocol': 'tcp', 'state': 'open', 'service': 'http'}, {'port': 443, 'protocol': 'tcp', 'state': 'open', 'service': 'https'}]",3
+192.168.1.10,up,"[{'name': '', 'type': ''}]",[],0
+192.168.1.19,up,"[{'name': '', 'type': ''}]",[],0
+192.168.1.2,up,"[{'name': '', 'type': ''}]",[],0
+192.168.1.21,up,"[{'name': '', 'type': ''}]",[],0
+192.168.1.3,up,"[{'name': '', 'type': ''}]",[],0
+192.168.1.5,up,"[{'name': '', 'type': ''}]","[{'port': 53, 'protocol': 'tcp', 'state': 'open', 'service': 'domain'}, {'port': 80, 'protocol': 'tcp', 'state': 'open', 'service': 'http'}, {'port': 443, 'protocol': 'tcp', 'state': 'open', 'service': 'https'}]",3
+192.168.1.9,up,"[{'name': '', 'type': ''}]",[],0

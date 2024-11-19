@@ -1,0 +1,188 @@
+{
+  "timestamp": "20241118_210907",
+  "scan_type": "basic_scan",
+  "hosts": [
+    {
+      "ip_address": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [
+        {
+          "port": 53,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "domain"
+        },
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "https"
+        }
+      ],
+      "open_ports_count": 3
+    },
+    {
+      "ip_address": "192.168.1.10",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [],
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.19",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [],
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.2",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [],
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.21",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [],
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.3",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [],
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.5",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [
+        {
+          "port": 53,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "domain"
+        },
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "https"
+        }
+      ],
+      "open_ports_count": 3
+    },
+    {
+      "ip_address": "192.168.1.9",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "ports": [],
+      "open_ports_count": 0
+    }
+  ],
+  "ports": [
+    {
+      "ip_address": "192.168.1.1",
+      "port": 53,
+      "protocol": "tcp",
+      "state": "open"
+    },
+    {
+      "ip_address": "192.168.1.1",
+      "port": 80,
+      "protocol": "tcp",
+      "state": "open"
+    },
+    {
+      "ip_address": "192.168.1.1",
+      "port": 443,
+      "protocol": "tcp",
+      "state": "open"
+    },
+    {
+      "ip_address": "192.168.1.5",
+      "port": 53,
+      "protocol": "tcp",
+      "state": "open"
+    },
+    {
+      "ip_address": "192.168.1.5",
+      "port": 80,
+      "protocol": "tcp",
+      "state": "open"
+    },
+    {
+      "ip_address": "192.168.1.5",
+      "port": 443,
+      "protocol": "tcp",
+      "state": "open"
+    }
+  ],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Mon Nov 18 21:12:45 2024",
+    "elapsed": "217.88",
+    "uphosts": "8",
+    "downhosts": "248",
+    "totalhosts": "256"
+  }
+}
