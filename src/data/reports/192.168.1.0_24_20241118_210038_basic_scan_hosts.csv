@@ -1,0 +1,11 @@
+ip_address,status,hostnames,ports
+192.168.1.1,up,"[{'name': '', 'type': ''}]","[{'port': 53, 'protocol': 'tcp', 'state': 'open', 'service': 'domain'}, {'port': 80, 'protocol': 'tcp', 'state': 'open', 'service': 'http'}, {'port': 443, 'protocol': 'tcp', 'state': 'open', 'service': 'https'}]"
+192.168.1.10,up,"[{'name': '', 'type': ''}]",[]
+192.168.1.12,up,"[{'name': '', 'type': ''}]",[]
+192.168.1.19,up,"[{'name': '', 'type': ''}]",[]
+192.168.1.2,up,"[{'name': '', 'type': ''}]",[]
+192.168.1.20,up,"[{'name': '', 'type': ''}]","[{'port': 56, 'protocol': 'tcp', 'state': 'filtered', 'service': 'xns-auth'}, {'port': 330, 'protocol': 'tcp', 'state': 'filtered', 'service': ''}, {'port': 339, 'protocol': 'tcp', 'state': 'filtered', 'service': ''}, {'port': 598, 'protocol': 'tcp', 'state': 'filtered', 'service': 'sco-websrvrmg3'}, {'port': 841, 'protocol': 'tcp', 'state': 'filtered', 'service': ''}, {'port': 992, 'protocol': 'tcp', 'state': 'filtered', 'service': 'telnets'}, {'port': 1023, 'protocol': 'tcp', 'state': 'filtered', 'service': 'netvenuechat'}]"
+192.168.1.21,up,"[{'name': '', 'type': ''}]",[]
+192.168.1.3,up,"[{'name': '', 'type': ''}]",[]
+192.168.1.5,up,"[{'name': '', 'type': ''}]","[{'port': 53, 'protocol': 'tcp', 'state': 'open', 'service': 'domain'}, {'port': 80, 'protocol': 'tcp', 'state': 'open', 'service': 'http'}, {'port': 443, 'protocol': 'tcp', 'state': 'open', 'service': 'https'}]"
+192.168.1.9,up,"[{'name': '', 'type': ''}]","[{'port': 508, 'protocol': 'tcp', 'state': 'filtered', 'service': 'xvttp'}, {'port': 639, 'protocol': 'tcp', 'state': 'filtered', 'service': 'msdp'}]"

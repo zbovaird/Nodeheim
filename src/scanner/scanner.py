@@ -3,13 +3,14 @@ import nmap
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import logging
 import ipaddress
 from dataclasses import dataclass, asdict
 import csv
 import platform
 import subprocess
+import time
 
 @dataclass
 class ScanResult:
@@ -156,14 +157,37 @@ class NetworkScanner:
 
     def basic_scan(self, target: str) -> ScanResult:
         """
-        Basic port scan with service detection
-        Arguments: -sT -sV -p- (SYN scan with service version detection on all ports)
+        Basic port scan with service detection, optimized for mixed networks
         """
-        logging.info(f"Starting basic port scan on {target}")
+        logging.info(f"Starting optimized basic port scan on {target}")
+        
         try:
-            result = self._run_scan(target, '-sT -sV -p 1-1024', 'basic_scan')  # Scan common ports 1-1024
-            logging.info(f"Basic scan completed. Found {len(result.hosts)} hosts with ports: {len(result.ports)}")
+            # Mixed network optimized parameters using standard nmap options
+            arguments = (
+                '-sT '               # TCP connect scan
+                '-sV '               # Version detection
+                '-p 1-1024 '         # Scan first 1024 ports
+                '-T3 '               # Normal timing template
+                '--min-rate 100 '    # Minimum number of packets per second
+                '--max-retries 2 '   # Limit retries
+                '--host-timeout 15m ' # Host timeout
+                '--initial-rtt-timeout 500ms '  # Initial round-trip timeout
+                '--min-hostgroup 24 '  # Minimum hosts per group
+                '--min-parallelism 10'  # Minimum probe parallelization
+            )
+            
+            logging.info("Using optimized timing for mixed network environments")
+            result = self._run_scan(target, arguments, 'basic_scan')
+            
+            # Log scan statistics
+            if result and hasattr(result, 'scan_stats'):
+                logging.info(f"Scan completed in {result.scan_stats.get('elapsed', 'unknown')} seconds")
+                logging.info(f"Found {len(result.hosts)} hosts")
+                up_hosts = [h for h in result.hosts if h.get('status') == 'up']
+                logging.info(f"Active hosts: {len(up_hosts)}")
+                
             return result
+            
         except Exception as e:
             logging.error(f"Basic scan failed: {e}")
             raise
@@ -241,88 +265,72 @@ class NetworkScanner:
         os_matches = []
 
         for host in self.nm.all_hosts():
+            try:
+                logging.debug(f"Processing host: {host}")
+                logging.debug(f"Raw host data: {self.nm[host]}")            
+                
+                # Basic host information
+                host_info = {
+                    'ip_address': host,
+                    'status': self.nm[host].state(),
+                    'hostnames': self.nm[host].hostnames(),
+                    'ports': []  # Initialize ports list for this host
+                }
 
-            logging.debug(f"Processing host: {host}")
-            logging.debug(f"Raw host data: {self.nm[host]}")            
-            
-            # Basic host information
-            host_info = {
-                'ip_address': host,  # Changed from 'ip' to 'ip_address'
-                'status': self.nm[host].state(),
-                'hostnames': self.nm[host].hostnames(),
-                'ports': []  # Initialize ports list for this host
-            }
+                # Process ports and services
+                for proto in self.nm[host].all_protocols():
+                    port_list = self.nm[host][proto].keys()
+                    for port in port_list:
+                        try:
+                            port_num = int(port)  # Ensure port is an integer
+                            port_info = self.nm[host][proto][port]
+                            
+                            # Add port to host's ports list
+                            host_port = {
+                                'port': port_num,
+                                'protocol': proto,
+                                'state': port_info.get('state', 'unknown'),
+                                'service': port_info.get('name', 'unknown')
+                            }
+                            host_info['ports'].append(host_port)
+                            
+                            # Add to global ports list
+                            ports.append({
+                                'ip_address': host,
+                                'port': port_num,
+                                'protocol': proto,
+                                'state': port_info.get('state', 'unknown')
+                            })
+                            
+                            # Add service information if available
+                            if 'service' in port_info:
+                                services.append({
+                                    'ip_address': host,
+                                    'port': port_num,
+                                    'name': port_info.get('name', 'unknown'),
+                                    'product': port_info.get('product', ''),
+                                    'version': port_info.get('version', '')
+                                })
+                        except ValueError:
+                            logging.warning(f"Invalid port number: {port}")
+                            continue
 
-            logging.debug(f"Processing host: {host}")
-            logging.debug(f"Host info structure: {host_info}")
+                hosts.append(host_info)
+                
+            except Exception as e:
+                logging.error(f"Error processing host {host}: {e}")
+                continue
 
-            # Process ports and services
-            for proto in self.nm[host].all_protocols():
-                port_list = self.nm[host][proto].keys()
-                for port in port_list:
-                    port_info = self.nm[host][proto][port]
-                    
-                    # Add port to host's ports list
-                    host_port = {
-                        'port': port,
-                        'protocol': proto,
-                        'state': port_info.get('state', 'unknown'),
-                        'service': port_info.get('name', 'unknown')
-                    }
-                    host_info['ports'].append(host_port)
-                    
-                    # Add to global ports list
-                    ports.append({
-                        'ip_address': host,  # Changed from 'ip' to 'ip_address'
-                        'port': port,
-                        'protocol': proto,
-                        'state': port_info.get('state', 'unknown')
-                    })
-                    
-                    # Add service information if available
-                    if 'service' in port_info:
-                        services.append({
-                            'ip_address': host,  # Changed from 'ip' to 'ip_address'
-                            'port': port,
-                            'name': port_info.get('name', 'unknown'),
-                            'product': port_info.get('product', ''),
-                            'version': port_info.get('version', '')
-                        })
-
-            # Add completed host info to hosts list
-            hosts.append(host_info)
-
-            # Debug logging
-            logging.debug(f"Processed host {host} with {len(host_info['ports'])} ports")
-            if host_info['ports']:
-                logging.debug(f"First port for {host}: {host_info['ports'][0]}")
-
-            # OS detection results
-            if 'osmatch' in self.nm[host]:
-                for match in self.nm[host]['osmatch']:
-                    os_info = {
-                        'ip_address': host,  # Changed from 'ip' to 'ip_address'
-                        'name': match['name'],
-                        'accuracy': match['accuracy']
-                    }
-                    os_matches.append(os_info)
-
-            # Vulnerability detection
-            if 'script' in self.nm[host]:
-                for script_name, output in self.nm[host]['script'].items():
-                    if 'VULNERABLE' in output:
-                        vulnerabilities.append({
-                            'ip_address': host,  # Changed from 'ip' to 'ip_address'
-                            'script': script_name,
-                            'output': output
-                        })
-
-        # Debug logging
-        logging.debug("Processed scan results:")
-        logging.debug(f"Hosts structure example: {hosts[0] if hosts else 'No hosts'}")
-        logging.debug(f"Total hosts: {len(hosts)}")
-        logging.debug(f"Total ports: {len(ports)}")
-        logging.debug(f"Total services: {len(services)}")
+        # Ensure scan stats are properly typed
+        scan_stats = self.nm.scanstats()
+        if scan_stats:
+            try:
+                scan_stats = {
+                    key: int(value) if key in ['uphosts', 'downhosts', 'totalhosts'] else value
+                    for key, value in scan_stats.items()
+                }
+            except (ValueError, TypeError):
+                logging.warning("Error converting scan stats to integers")
 
         return ScanResult(
             timestamp=timestamp,
@@ -332,7 +340,7 @@ class NetworkScanner:
             services=services,
             vulnerabilities=vulnerabilities,
             os_matches=os_matches,
-            scan_stats=self.nm.scanstats()
+            scan_stats=scan_stats
         )
 
     def _save_results(self, results: ScanResult, target: str, scan_type: str):
@@ -417,6 +425,59 @@ class NetworkScanner:
                 writer = csv.DictWriter(f, fieldnames=data[0].keys())
                 writer.writeheader()
                 writer.writerows(data)
+
+    def _monitor_scan_performance(self, scan_start_time: float) -> None:
+        """Monitor scan performance and log warnings for slow responses"""
+        current_time = time.time()
+        elapsed = current_time - scan_start_time
+        
+        if hasattr(self, 'nm') and hasattr(self.nm, 'scanstats'):
+            stats = self.nm.scanstats()
+            if stats:
+                try:
+                    # Convert string values to integers
+                    hosts_completed = int(stats.get('uphosts', 0)) + int(stats.get('downhosts', 0))
+                    total_hosts = int(stats.get('totalhosts', 0))
+                    
+                    if total_hosts > 0:
+                        progress = (hosts_completed / total_hosts) * 100
+                        logging.info(f"Scan progress: {progress:.1f}% ({hosts_completed}/{total_hosts} hosts)")
+                        
+                        # Log warning if scan is taking too long
+                        if elapsed > 300 and progress < 50:  # 5 minutes with < 50% progress
+                            logging.warning("Scan is progressing slowly. Network may have mixed connectivity types.")
+                except (ValueError, TypeError) as e:
+                    logging.warning(f"Error processing scan statistics: {e}")
+
+    def _run_scan(self, target: str, arguments: str, scan_type: str) -> ScanResult:
+        """Execute nmap scan and process results with performance monitoring"""
+        if not self.validate_target(target):
+            raise ValueError(f"Invalid target: {target}")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        logging.info(f"Starting {scan_type} on {target}")
+        
+        scan_start_time = time.time()
+
+        try:
+            # Start the scan
+            self.nm.scan(hosts=target, arguments=arguments)
+            
+            # Monitor performance
+            self._monitor_scan_performance(scan_start_time)
+            
+            # Process results
+            results = self._process_results(scan_type, timestamp)
+            self._save_results(results, target, scan_type)
+            
+            # Log completion time
+            scan_duration = time.time() - scan_start_time
+            logging.info(f"Scan completed in {scan_duration:.1f} seconds")
+            
+            return results
+        except Exception as e:
+            logging.error(f"Scan failed: {str(e)}")
+            raise
 
 if __name__ == "__main__":
     # Set up logging
