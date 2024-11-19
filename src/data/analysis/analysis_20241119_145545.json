@@ -1,0 +1,1724 @@
+{
+  "timestamp": "2024-11-19T14:55:45.008637",
+  "network_structure": {
+    "components": [
+      [
+        "192.168.1.152",
+        "192.168.1.204",
+        "192.168.1.123",
+        "192.168.1.154",
+        "192.168.1.220",
+        "192.168.1.145",
+        "192.168.1.221",
+        "192.168.1.237",
+        "192.168.1.74",
+        "192.168.1.127",
+        "192.168.1.168",
+        "192.168.1.197",
+        "192.168.1.233",
+        "192.168.1.82",
+        "192.168.1.103",
+        "192.168.1.84",
+        "192.168.1.130",
+        "192.168.1.1"
+      ]
+    ],
+    "cycles": [],
+    "endpoints": [
+      "192.168.1.103",
+      "192.168.1.123",
+      "192.168.1.127",
+      "192.168.1.130",
+      "192.168.1.145",
+      "192.168.1.152",
+      "192.168.1.154",
+      "192.168.1.168",
+      "192.168.1.197",
+      "192.168.1.204",
+      "192.168.1.220",
+      "192.168.1.221",
+      "192.168.1.233",
+      "192.168.1.237",
+      "192.168.1.74",
+      "192.168.1.82",
+      "192.168.1.84"
+    ],
+    "density": 0.1111111111111111,
+    "is_tree": true,
+    "is_forest": true,
+    "average_degree": 1.8888888888888888,
+    "centrality": {
+      "Degree_Centrality": {
+        "192.168.1.1": 1.0,
+        "192.168.1.103": 0.058823529411764705,
+        "192.168.1.123": 0.058823529411764705,
+        "192.168.1.127": 0.058823529411764705,
+        "192.168.1.130": 0.058823529411764705,
+        "192.168.1.145": 0.058823529411764705,
+        "192.168.1.152": 0.058823529411764705,
+        "192.168.1.154": 0.058823529411764705,
+        "192.168.1.168": 0.058823529411764705,
+        "192.168.1.197": 0.058823529411764705,
+        "192.168.1.204": 0.058823529411764705,
+        "192.168.1.220": 0.058823529411764705,
+        "192.168.1.221": 0.058823529411764705,
+        "192.168.1.233": 0.058823529411764705,
+        "192.168.1.237": 0.058823529411764705,
+        "192.168.1.74": 0.058823529411764705,
+        "192.168.1.82": 0.058823529411764705,
+        "192.168.1.84": 0.058823529411764705
+      },
+      "Betweenness_Centrality": {
+        "192.168.1.1": 1.0,
+        "192.168.1.103": 0.0,
+        "192.168.1.123": 0.0,
+        "192.168.1.127": 0.0,
+        "192.168.1.130": 0.0,
+        "192.168.1.145": 0.0,
+        "192.168.1.152": 0.0,
+        "192.168.1.154": 0.0,
+        "192.168.1.168": 0.0,
+        "192.168.1.197": 0.0,
+        "192.168.1.204": 0.0,
+        "192.168.1.220": 0.0,
+        "192.168.1.221": 0.0,
+        "192.168.1.233": 0.0,
+        "192.168.1.237": 0.0,
+        "192.168.1.74": 0.0,
+        "192.168.1.82": 0.0,
+        "192.168.1.84": 0.0
+      },
+      "Closeness_Centrality": {
+        "192.168.1.1": 1.0,
+        "192.168.1.103": 0.5151515151515151,
+        "192.168.1.123": 0.5151515151515151,
+        "192.168.1.127": 0.5151515151515151,
+        "192.168.1.130": 0.5151515151515151,
+        "192.168.1.145": 0.5151515151515151,
+        "192.168.1.152": 0.5151515151515151,
+        "192.168.1.154": 0.5151515151515151,
+        "192.168.1.168": 0.5151515151515151,
+        "192.168.1.197": 0.5151515151515151,
+        "192.168.1.204": 0.5151515151515151,
+        "192.168.1.220": 0.5151515151515151,
+        "192.168.1.221": 0.5151515151515151,
+        "192.168.1.233": 0.5151515151515151,
+        "192.168.1.237": 0.5151515151515151,
+        "192.168.1.74": 0.5151515151515151,
+        "192.168.1.82": 0.5151515151515151,
+        "192.168.1.84": 0.5151515151515151
+      },
+      "Eigenvector_Centrality": {
+        "192.168.1.1": 0.7071056696438923,
+        "192.168.1.103": 0.17149885473077772,
+        "192.168.1.123": 0.17149885473077772,
+        "192.168.1.127": 0.17149885473077772,
+        "192.168.1.130": 0.17149885473077772,
+        "192.168.1.145": 0.17149885473077772,
+        "192.168.1.152": 0.17149885473077772,
+        "192.168.1.154": 0.17149885473077772,
+        "192.168.1.168": 0.17149885473077772,
+        "192.168.1.197": 0.17149885473077772,
+        "192.168.1.204": 0.17149885473077772,
+        "192.168.1.220": 0.17149885473077772,
+        "192.168.1.221": 0.17149885473077772,
+        "192.168.1.233": 0.17149885473077772,
+        "192.168.1.237": 0.17149885473077772,
+        "192.168.1.74": 0.17149885473077772,
+        "192.168.1.82": 0.17149885473077772,
+        "192.168.1.84": 0.17149885473077772
+      }
+    },
+    "total_nodes": 18,
+    "total_edges": 17,
+    "connected_components": 1,
+    "articulation_points": [
+      "192.168.1.1"
+    ],
+    "bridges": [
+      [
+        "192.168.1.1",
+        "192.168.1.103"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.123"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.127"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.130"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.145"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.152"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.154"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.168"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.197"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.204"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.220"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.221"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.233"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.237"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.74"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.82"
+      ],
+      [
+        "192.168.1.1",
+        "192.168.1.84"
+      ]
+    ],
+    "clustering": {
+      "192.168.1.1": 0,
+      "192.168.1.103": 0,
+      "192.168.1.123": 0,
+      "192.168.1.127": 0,
+      "192.168.1.130": 0,
+      "192.168.1.145": 0,
+      "192.168.1.152": 0,
+      "192.168.1.154": 0,
+      "192.168.1.168": 0,
+      "192.168.1.197": 0,
+      "192.168.1.204": 0,
+      "192.168.1.220": 0,
+      "192.168.1.221": 0,
+      "192.168.1.233": 0,
+      "192.168.1.237": 0,
+      "192.168.1.74": 0,
+      "192.168.1.82": 0,
+      "192.168.1.84": 0
+    },
+    "potential_bottlenecks": [
+      "192.168.1.1"
+    ],
+    "average_clustering": 0.0,
+    "degree_histogram": [
+      0,
+      17,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "security_metrics": {
+    "192.168.1.1": {
+      "degree": 17,
+      "betweenness": 1.0,
+      "neighbors": [
+        "192.168.1.103",
+        "192.168.1.123",
+        "192.168.1.127",
+        "192.168.1.130",
+        "192.168.1.145",
+        "192.168.1.152",
+        "192.168.1.154",
+        "192.168.1.168",
+        "192.168.1.197",
+        "192.168.1.204",
+        "192.168.1.220",
+        "192.168.1.221",
+        "192.168.1.233",
+        "192.168.1.237",
+        "192.168.1.74",
+        "192.168.1.82",
+        "192.168.1.84"
+      ],
+      "is_endpoint": false,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.9444444444444444
+    },
+    "192.168.1.103": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.123": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.127": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.130": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.145": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.152": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.154": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.168": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.197": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.204": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.220": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.221": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.233": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.237": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.74": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.82": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    },
+    "192.168.1.84": {
+      "degree": 1,
+      "betweenness": 0.0,
+      "neighbors": [
+        "192.168.1.1"
+      ],
+      "is_endpoint": true,
+      "device_type": "unknown",
+      "os": "unknown",
+      "local_clustering": 0,
+      "connectivity_risk": 0.05555555555555555
+    }
+  },
+  "bottleneck_analysis": {
+    "192.168.1.1": {
+      "spectral_score": 0.0,
+      "flow_centrality": 1.0,
+      "is_critical": false,
+      "degree": 17,
+      "betweenness": 1.0,
+      "edge_impact": 1.888888888888889
+    },
+    "192.168.1.103": {
+      "spectral_score": 0.01348884953089492,
+      "flow_centrality": 0.039412997903563944,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.123": {
+      "spectral_score": 0.14804323493052185,
+      "flow_centrality": 0.04287211740041929,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.127": {
+      "spectral_score": 0.03851373149681871,
+      "flow_centrality": 0.04119496855345912,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.130": {
+      "spectral_score": 0.6806511727122698,
+      "flow_centrality": 0.04025157232704402,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.145": {
+      "spectral_score": 0.5933059649031811,
+      "flow_centrality": 0.04507337526205451,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.152": {
+      "spectral_score": 0.1303853003759719,
+      "flow_centrality": 0.044444444444444446,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.154": {
+      "spectral_score": 0.48356702700262855,
+      "flow_centrality": 0.039832285115303984,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.168": {
+      "spectral_score": 0.33569527320461984,
+      "flow_centrality": 0.04182389937106918,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.197": {
+      "spectral_score": 0.6059030230255066,
+      "flow_centrality": 0.04077568134171908,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.204": {
+      "spectral_score": 0.21567943359801395,
+      "flow_centrality": 0.04077568134171908,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.220": {
+      "spectral_score": 0.5036059689643817,
+      "flow_centrality": 0.0420335429769392,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.221": {
+      "spectral_score": 0.4109318804041624,
+      "flow_centrality": 0.04109014675052411,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.233": {
+      "spectral_score": 0.5461877177827477,
+      "flow_centrality": 0.037945492662473795,
+      "is_critical": true,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.237": {
+      "spectral_score": 0.4000553687023662,
+      "flow_centrality": 0.03930817610062893,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.74": {
+      "spectral_score": 0.1280864198945767,
+      "flow_centrality": 0.0420335429769392,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.82": {
+      "spectral_score": 0.29410765647222936,
+      "flow_centrality": 0.038050314465408804,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    },
+    "192.168.1.84": {
+      "spectral_score": 0.40855350507710664,
+      "flow_centrality": 0.04119496855345912,
+      "is_critical": false,
+      "degree": 1,
+      "betweenness": 0.0,
+      "edge_impact": 0.11111111111111112
+    }
+  },
+  "anomalies": {
+    "192.168.1.1": {
+      "Degree_Centrality": 1.0,
+      "Betweenness_Centrality": 1.0,
+      "Closeness_Centrality": 1.0,
+      "Eigenvector_Centrality": 0.7071056696438923,
+      "degree": 17,
+      "clustering": 0,
+      "anomaly": -1,
+      "anomaly_score": -0.8688874571486124,
+      "risk_score": 100.0
+    },
+    "192.168.1.103": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.123": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.127": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.130": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.145": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.152": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.154": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.168": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.197": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.204": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.220": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.221": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.233": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.237": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.74": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.82": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    },
+    "192.168.1.84": {
+      "Degree_Centrality": 0.058823529411764705,
+      "Betweenness_Centrality": 0.0,
+      "Closeness_Centrality": 0.5151515151515151,
+      "Eigenvector_Centrality": 0.17149885473077772,
+      "degree": 1,
+      "clustering": 0,
+      "anomaly": 1,
+      "anomaly_score": -0.44150459429911726,
+      "risk_score": -0.0
+    }
+  },
+  "spectral_metrics": {
+    "spectral_radius": 18.0,
+    "fiedler_value": 0.9999999999999992,
+    "fiedler_components": [
+      [
+        "192.168.1.233",
+        0.46489417371105785
+      ],
+      [
+        "192.168.1.197",
+        -0.45668866459483265
+      ],
+      [
+        "192.168.1.237",
+        -0.3501583391015673
+      ],
+      [
+        "192.168.1.145",
+        0.31894452153896125
+      ],
+      [
+        "192.168.1.221",
+        -0.31045733056385916
+      ],
+      [
+        "192.168.1.130",
+        -0.3067282791296814
+      ],
+      [
+        "192.168.1.154",
+        0.2637812605331507
+      ],
+      [
+        "192.168.1.82",
+        0.15243875375389612
+      ],
+      [
+        "192.168.1.204",
+        0.1481526433307014
+      ],
+      [
+        "192.168.1.220",
+        0.11358461371982345
+      ],
+      [
+        "192.168.1.84",
+        -0.11104229477032901
+      ],
+      [
+        "192.168.1.74",
+        -0.09220317494641857
+      ],
+      [
+        "192.168.1.168",
+        0.09155818235776741
+      ],
+      [
+        "192.168.1.123",
+        0.05794349317066222
+      ],
+      [
+        "192.168.1.127",
+        0.015255178133612914
+      ],
+      [
+        "192.168.1.152",
+        0.004391448037474578
+      ],
+      [
+        "192.168.1.103",
+        -0.003666185180419779
+      ],
+      [
+        "192.168.1.1",
+        -0.0
+      ]
+    ]
+  },
+  "risk_scores": {
+    "192.168.1.1": 100,
+    "192.168.1.103": 1.4444444444444446,
+    "192.168.1.123": 1.4444444444444446,
+    "192.168.1.127": 1.4444444444444446,
+    "192.168.1.130": 1.4444444444444446,
+    "192.168.1.145": 1.4444444444444446,
+    "192.168.1.152": 1.4444444444444446,
+    "192.168.1.154": 1.4444444444444446,
+    "192.168.1.168": 1.4444444444444446,
+    "192.168.1.197": 1.4444444444444446,
+    "192.168.1.204": 1.4444444444444446,
+    "192.168.1.220": 1.4444444444444446,
+    "192.168.1.221": 1.4444444444444446,
+    "192.168.1.233": 1.4444444444444446,
+    "192.168.1.237": 1.4444444444444446,
+    "192.168.1.74": 1.4444444444444446,
+    "192.168.1.82": 1.4444444444444446,
+    "192.168.1.84": 1.4444444444444446
+  },
+  "port_analysis": {
+    "total_open_ports": 23,
+    "hosts_with_ports": {
+      "192.168.1.1": {
+        "open_ports": [
+          {
+            "port": 53,
+            "service": "domain",
+            "service_details": "domain",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 80,
+            "service": "http",
+            "service_details": "http",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 443,
+            "service": "http",
+            "service_details": "http",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.103": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.123": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.127": {
+        "open_ports": [
+          {
+            "port": 135,
+            "service": "msrpc",
+            "service_details": "msrpc",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 139,
+            "service": "netbios-ssn",
+            "service_details": "netbios-ssn",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 445,
+            "service": "microsoft-ds",
+            "service_details": "microsoft-ds",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": [
+          135,
+          139,
+          445
+        ]
+      },
+      "192.168.1.130": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.145": {
+        "open_ports": [
+          {
+            "port": 23,
+            "service": "tcpwrapped",
+            "service_details": "tcpwrapped",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": [
+          23
+        ]
+      },
+      "192.168.1.152": {
+        "open_ports": [
+          {
+            "port": 80,
+            "service": "http",
+            "service_details": "http",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 443,
+            "service": "http",
+            "service_details": "http",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 515,
+            "service": "printer",
+            "service_details": "printer",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 631,
+            "service": "http",
+            "service_details": "http",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.154": {
+        "open_ports": [
+          {
+            "port": 135,
+            "service": "msrpc",
+            "service_details": "msrpc",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 139,
+            "service": "netbios-ssn",
+            "service_details": "netbios-ssn",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 445,
+            "service": "microsoft-ds",
+            "service_details": "microsoft-ds",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": [
+          135,
+          139,
+          445
+        ]
+      },
+      "192.168.1.168": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.197": {
+        "open_ports": [
+          {
+            "port": 135,
+            "service": "msrpc",
+            "service_details": "msrpc",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 139,
+            "service": "netbios-ssn",
+            "service_details": "netbios-ssn",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 445,
+            "service": "microsoft-ds",
+            "service_details": "microsoft-ds",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": [
+          135,
+          139,
+          445
+        ]
+      },
+      "192.168.1.204": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.220": {
+        "open_ports": [
+          {
+            "port": 135,
+            "service": "msrpc",
+            "service_details": "msrpc",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 139,
+            "service": "netbios-ssn",
+            "service_details": "netbios-ssn",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 445,
+            "service": "microsoft-ds",
+            "service_details": "microsoft-ds",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": [
+          135,
+          139,
+          445
+        ]
+      },
+      "192.168.1.221": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.233": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.237": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.74": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.82": {
+        "open_ports": [],
+        "services": [],
+        "high_risk_ports": []
+      },
+      "192.168.1.84": {
+        "open_ports": [
+          {
+            "port": 135,
+            "service": "msrpc",
+            "service_details": "msrpc",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 139,
+            "service": "netbios-ssn",
+            "service_details": "netbios-ssn",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          },
+          {
+            "port": 445,
+            "service": "microsoft-ds",
+            "service_details": "microsoft-ds",
+            "product": "",
+            "version": "",
+            "extra_info": "",
+            "tunnel_type": "",
+            "protocol": "tcp"
+          }
+        ],
+        "services": [],
+        "high_risk_ports": [
+          135,
+          139,
+          445
+        ]
+      }
+    },
+    "common_ports": {
+      "53": 1,
+      "80": 2,
+      "443": 2,
+      "135": 5,
+      "139": 5,
+      "445": 5,
+      "23": 1,
+      "515": 1,
+      "631": 1
+    },
+    "services": {
+      "domain": 1,
+      "http": 5,
+      "msrpc": 5,
+      "netbios-ssn": 5,
+      "microsoft-ds": 5,
+      "tcpwrapped": 1,
+      "printer": 1
+    },
+    "port_states": {},
+    "interesting_ports": {
+      "remote_access": [
+        {
+          "host": "192.168.1.145",
+          "port": 23,
+          "service": "tcpwrapped",
+          "service_details": "tcpwrapped",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        }
+      ],
+      "web_services": [
+        {
+          "host": "192.168.1.1",
+          "port": 80,
+          "service": "http",
+          "service_details": "http",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.1",
+          "port": 443,
+          "service": "http",
+          "service_details": "http",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.152",
+          "port": 80,
+          "service": "http",
+          "service_details": "http",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.152",
+          "port": 443,
+          "service": "http",
+          "service_details": "http",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        }
+      ],
+      "databases": [],
+      "industrial": [],
+      "high_risk": [
+        {
+          "host": "192.168.1.127",
+          "port": 135,
+          "service": "msrpc",
+          "service_details": "msrpc",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.127",
+          "port": 139,
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.127",
+          "port": 445,
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.145",
+          "port": 23,
+          "service": "tcpwrapped",
+          "service_details": "tcpwrapped",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.154",
+          "port": 135,
+          "service": "msrpc",
+          "service_details": "msrpc",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.154",
+          "port": 139,
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.154",
+          "port": 445,
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.197",
+          "port": 135,
+          "service": "msrpc",
+          "service_details": "msrpc",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.197",
+          "port": 139,
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.197",
+          "port": 445,
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.220",
+          "port": 135,
+          "service": "msrpc",
+          "service_details": "msrpc",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.220",
+          "port": 139,
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.220",
+          "port": 445,
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.84",
+          "port": 135,
+          "service": "msrpc",
+          "service_details": "msrpc",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.84",
+          "port": 139,
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        },
+        {
+          "host": "192.168.1.84",
+          "port": 445,
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "product": "",
+          "version": "",
+          "protocol": "tcp",
+          "tunnel_type": ""
+        }
+      ]
+    }
+  },
+  "zone_analysis": {
+    "zone_violations": {
+      "DMZ": [],
+      "Internal": [],
+      "Management": []
+    },
+    "summary": {
+      "total_violations": 0,
+      "violations_by_zone": {
+        "DMZ": 0,
+        "Internal": 0,
+        "Management": 0
+      }
+    }
+  },
+  "attack_paths": {
+    "attack_paths": {},
+    "summary": {
+      "total_critical_assets": 0,
+      "high_risk_paths": 0,
+      "assets_by_risk": []
+    }
+  },
+  "node_criticality": {
+    "node_criticality": {
+      "192.168.1.1": {
+        "component_impact": 16,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 16.055555555555557,
+        "node_type": "unknown",
+        "degree": 17,
+        "betweenness": 1.0
+      },
+      "192.168.1.103": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.123": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.127": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.130": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.145": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.152": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.154": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.168": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.197": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.204": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.220": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.221": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.233": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.237": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.74": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.82": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      },
+      "192.168.1.84": {
+        "component_impact": 0,
+        "reachability_impact": 0.05555555555555558,
+        "total_impact": 0.05555555555555558,
+        "node_type": "unknown",
+        "degree": 1,
+        "betweenness": 0.0
+      }
+    },
+    "summary": {
+      "high_impact_nodes": 1,
+      "critical_by_type": {
+        "unknown": 1
+      }
+    }
+  },
+  "summary": {
+    "total_nodes": 18,
+    "total_edges": 17,
+    "total_open_ports": 23,
+    "high_risk_nodes": 1,
+    "isolated_nodes": 17,
+    "components": 1,
+    "average_degree": 1.8888888888888888,
+    "network_density": 0.1111111111111111,
+    "critical_bottlenecks": 4,
+    "spectral_radius": 18.0,
+    "fiedler_value": 0.9999999999999992,
+    "zone_violations": 0,
+    "high_risk_attack_paths": 0,
+    "critical_assets": 0,
+    "high_risk_services": 16,
+    "remote_access_services": 1,
+    "database_services": 0,
+    "web_services": 4
+  }
+}

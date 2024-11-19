@@ -1171,7 +1171,7 @@
                         <tbody>
                             ${data.hosts.map(host => `
                                 <tr>
-                                    <td>${host.ip}</td>
+                                    <td>${host.ip_address}</td>
                                     <td>${host.status}</td>
                                     <td>${host.hostnames ? host.hostnames.map(h => h.name).join(', ') : 'N/A'}</td>
                                 </tr>
@@ -1195,7 +1195,7 @@
                         <tbody>
                             ${data.ports.map(port => `
                                 <tr>
-                                    <td>${port.ip}</td>
+                                    <td>${port.ip_address}</td>
                                     <td>${port.port}</td>
                                     <td>${port.protocol}</td>
                                     <td>${port.state}</td>
@@ -1220,7 +1220,7 @@
                         <tbody>
                             ${data.services.map(service => `
                                 <tr>
-                                    <td>${service.ip}</td>
+                                    <td>${service.ip_address}</td>
                                     <td>${service.port}</td>
                                     <td>${service.name}</td>
                                     <td>${service.version || 'Unknown'}</td>
@@ -1244,7 +1244,7 @@
                         <tbody>
                             ${data.vulnerabilities.map(vuln => `
                                 <tr>
-                                    <td>${vuln.ip}</td>
+                                    <td>${vuln.ip_address}</td>
                                     <td>${vuln.script}</td>
                                     <td>${vuln.output}</td>
                                 </tr>
