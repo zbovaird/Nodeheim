@@ -398,84 +398,128 @@ class NetworkAnalyzer:
             }
 
     def analyze_network(self, scan_result):
-        """Run complete network analysis"""
+        """Run complete network analysis with IT security focus"""
         try:
             if not hasattr(scan_result, 'hosts') or not scan_result.hosts:
                 raise ValueError("Invalid scan result: no hosts data found")
 
-            # Create graph from scan results
             self.create_graph_from_scan(scan_result)
             
             if self.G.number_of_nodes() == 0:
                 raise ValueError("No valid nodes could be created from scan results")
             
-            # Run analyses
-            structure = self.analyze_network_structure()
-            security_metrics = self.analyze_security_metrics()
-            bottleneck_analysis = self.analyze_bottlenecks()
-            anomalies = self.detect_anomalies()
-            spectral_metrics = self.calculate_spectral_metrics()
-
-            port_analysis = self.analyze_port_data(scan_result)
+            default_metrics = {
+                'spectral_radius': 0.0,
+                'fiedler_value': 0.0,
+                'network_density': 0.0,
+                'average_degree': 0.0,
+                'total_nodes': 0,
+                'total_edges': 0,
+                'components': 0,
+                'high_risk_nodes': 0
+            }
             
-            # Generate risk scores based on multiple factors
-            risk_scores = {}
-            for node in self.G.nodes():
-                anomaly_risk = anomalies.get(node, {}).get('risk_score', 50)
-                centrality_risk = self.centrality_measures['Betweenness_Centrality'][node] * 100
-                security_risk = security_metrics[node]['connectivity_risk'] * 100
+            try:
+                structure = self.analyze_network_structure()
+                security_metrics = self.analyze_security_metrics()
+                bottleneck_analysis = self.analyze_bottlenecks()
+                anomalies = self.detect_anomalies()
+                spectral_metrics = self.calculate_spectral_metrics()
+                port_analysis = self.analyze_port_data(scan_result)
+                zone_analysis = self.analyze_zone_isolation()
+                attack_paths = self.analyze_attack_paths()
+                node_criticality = self.analyze_node_criticality()
                 
-                # Weight the risks (can be adjusted based on requirements)
-                weighted_risk = (
-                    0.4 * anomaly_risk +
-                    0.3 * centrality_risk +
-                    0.3 * security_risk
-                )
-                risk_scores[node] = min(100, weighted_risk)
-            
-            # Compile results
-            analysis_result = {
-                'timestamp': datetime.now().isoformat(),
-                'network_structure': structure,
-                'security_metrics': security_metrics,
-                'bottleneck_analysis': bottleneck_analysis,
-                'anomalies': anomalies,
-                'spectral_metrics': spectral_metrics,
-                'risk_scores': risk_scores,
-                'port_analysis': port_analysis,  # Add this line
-                'summary': {
+                # Calculate risk scores with validation
+                risk_scores = {}
+                for node in self.G.nodes():
+                    try:
+                        anomaly_risk = float(anomalies.get(node, {}).get('risk_score', 50))
+                        centrality_risk = float(self.centrality_measures['Betweenness_Centrality'][node] * 100)
+                        security_risk = float(security_metrics[node]['connectivity_risk'] * 100)
+                        node_crit = float(node_criticality['node_criticality'].get(node, {}).get('total_impact', 0) * 20)
+                        
+                        weighted_risk = (
+                            0.3 * anomaly_risk +
+                            0.2 * centrality_risk +
+                            0.2 * security_risk +
+                            0.3 * node_crit
+                        )
+                        risk_scores[node] = min(100, max(0, weighted_risk))
+                    except (KeyError, TypeError, ValueError) as e:
+                        logging.warning(f"Error calculating risk score for node {node}: {e}")
+                        risk_scores[node] = 50
+                        
+                metrics = default_metrics.copy()
+                metrics.update({
+                    'spectral_radius': float(spectral_metrics.get('spectral_radius', 0.0)),
+                    'fiedler_value': float(spectral_metrics.get('fiedler_value', 0.0)),
+                    'network_density': float(structure.get('density', 0.0)),
+                    'average_degree': float(structure.get('average_degree', 0.0)),
                     'total_nodes': self.G.number_of_nodes(),
                     'total_edges': self.G.number_of_edges(),
-                    'total_open_ports': port_analysis.get('total_open_ports', 0),
-                    'high_risk_nodes': sum(1 for score in risk_scores.values() if score > 75),
-                    'isolated_nodes': len(structure['endpoints']),
-                    'components': len(structure['components']),
-                    'average_degree': structure['average_degree'],
-                    'network_density': structure['density'],
-                    'critical_bottlenecks': sum(1 for metrics in bottleneck_analysis.values() 
-                                            if metrics['is_critical']),
-                    'spectral_radius': spectral_metrics['spectral_radius'],
-                    'high_risk_services': len(port_analysis['interesting_ports']['high_risk']),
-                    'remote_access_services': len(port_analysis['interesting_ports']['remote_access']),
-                    'industrial_services': len(port_analysis['interesting_ports']['industrial'])
+                    'components': len(structure.get('components', [])),
+                    'high_risk_nodes': sum(1 for score in risk_scores.values() if score > 75)
+                })
+
+                analysis_result = {
+                    'timestamp': datetime.now().isoformat(),
+                    'network_structure': structure,
+                    'security_metrics': security_metrics,
+                    'bottleneck_analysis': bottleneck_analysis,
+                    'anomalies': anomalies,
+                    'spectral_metrics': spectral_metrics,
+                    'risk_scores': risk_scores,
+                    'port_analysis': port_analysis,
+                    'zone_analysis': zone_analysis,
+                    'attack_paths': attack_paths,
+                    'node_criticality': node_criticality,
+                    'summary': {
+                        'total_nodes': metrics['total_nodes'],
+                        'total_edges': metrics['total_edges'],
+                        'total_open_ports': port_analysis.get('total_open_ports', 0),
+                        'high_risk_nodes': metrics['high_risk_nodes'],
+                        'isolated_nodes': len(structure.get('endpoints', [])),
+                        'components': metrics['components'],
+                        'average_degree': metrics['average_degree'],
+                        'network_density': metrics['network_density'],
+                        'critical_bottlenecks': sum(1 for metrics in bottleneck_analysis.values() 
+                                                if metrics.get('is_critical', False)),
+                        'spectral_radius': metrics['spectral_radius'],
+                        'fiedler_value': metrics['fiedler_value'],
+                        'zone_violations': zone_analysis['summary']['total_violations'],
+                        'high_risk_attack_paths': attack_paths['summary']['high_risk_paths'],
+                        'critical_assets': attack_paths['summary']['total_critical_assets'],
+                        'high_risk_services': len(port_analysis['interesting_ports']['high_risk']),
+                        'remote_access_services': len(port_analysis['interesting_ports']['remote_access']),
+                        'database_services': len(port_analysis['interesting_ports']['databases']),
+                        'web_services': len(port_analysis['interesting_ports']['web_services'])
+                    }
                 }
-}
-            
-            # Save analysis results
-            try:
-                output_file = os.path.join(self.output_dir, 
-                                         f'analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
-                with open(output_file, 'w') as f:
-                    json.dump(analysis_result, f, indent=2, default=str)
-                self.logger.info(f"Analysis results saved to {output_file}")
+                
+                try:
+                    output_file = os.path.join(self.output_dir, 
+                                            f'analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
+                    with open(output_file, 'w') as f:
+                        json.dump(analysis_result, f, indent=2, default=str)
+                    logging.info(f"Analysis results saved to {output_file}")
+                except Exception as e:
+                    logging.error(f"Failed to save analysis results: {str(e)}")
+                
+                return analysis_result
+                
             except Exception as e:
-                self.logger.error(f"Failed to save analysis results: {str(e)}")
-            
-            return analysis_result
-            
+                logging.error(f"Error in analysis components: {e}")
+                return {
+                    'timestamp': datetime.now().isoformat(),
+                    'error': str(e),
+                    'summary': default_metrics
+                }
+                
         except Exception as e:
-            self.logger.error(f"Error in network analysis: {e}")
+            logging.error(f"Critical error in network analysis: {e}")
             raise
+
 
     def visualize_network(self):
         """Generate network visualization"""
@@ -646,13 +690,15 @@ class NetworkAnalyzer:
         """Generate an executive summary report from analysis data"""
         try:
             # Extract results and summary data
-            results = analysis_data.get('results', {})
-            network_structure = results.get('network_structure', {})
-            security_metrics = results.get('security_metrics', {})
-            bottleneck_analysis = results.get('bottleneck_analysis', {})
-            anomalies = results.get('anomalies', {})
-            risk_scores = results.get('risk_scores', {})
-            spectral_metrics = results.get('spectral_metrics', {})
+            network_structure = analysis_data.get('network_structure', {})
+            security_metrics = analysis_data.get('security_metrics', {})
+            bottleneck_analysis = analysis_data.get('bottleneck_analysis', {})
+            anomalies = analysis_data.get('anomalies', {})
+            risk_scores = analysis_data.get('risk_scores', {})
+            spectral_metrics = analysis_data.get('spectral_metrics', {})
+            port_analysis = analysis_data.get('port_analysis', {})
+            zone_analysis = analysis_data.get('zone_analysis', {})
+            attack_paths = analysis_data.get('attack_paths', {})
 
             # Generate report sections
             report = []
@@ -996,3 +1042,148 @@ class NetworkAnalyzer:
                     'high_risk': []
                 }
             }
+        
+    def analyze_zone_isolation(self):
+        """Analyze network zone isolation"""
+        try:
+            zone_violations = {}
+            zone_nodes = {
+                'DMZ': [n for n in self.G.nodes() 
+                        if self.G.nodes[n].get('type', '').lower() in ['proxy', 'gateway', 'firewall']],
+                'Internal': [n for n in self.G.nodes() 
+                            if self.G.nodes[n].get('type', '').lower() in ['server', 'workstation']],
+                'Management': [n for n in self.G.nodes() 
+                            if self.G.nodes[n].get('type', '').lower() in ['admin', 'management']]
+            }
+            
+            for zone, nodes in zone_nodes.items():
+                violations = []
+                for node in nodes:
+                    neighbors = list(self.G.neighbors(node))
+                    for neighbor in neighbors:
+                        if not any(neighbor in zone_nodes[z] for z in zone_nodes):
+                            violations.append({
+                                'source': node,
+                                'target': neighbor,
+                                'source_type': self.G.nodes[node].get('type', 'unknown'),
+                                'target_type': self.G.nodes[neighbor].get('type', 'unknown')
+                            })
+                zone_violations[zone] = violations
+                
+            return {
+                'zone_violations': zone_violations,
+                'summary': {
+                    'total_violations': sum(len(v) for v in zone_violations.values()),
+                    'violations_by_zone': {zone: len(violations) 
+                                        for zone, violations in zone_violations.items()}
+                }
+            }
+        except Exception as e:
+            self.logger.error(f"Error analyzing zone isolation: {e}")
+            return {'zone_violations': {}, 'summary': {'total_violations': 0, 'violations_by_zone': {}}}
+
+    def analyze_attack_paths(self):
+        """Analyze potential attack paths to critical assets"""
+        try:
+            critical_assets = [n for n in self.G.nodes() 
+                            if self.G.nodes[n].get('type', '').lower() in 
+                            ['server', 'database', 'firewall', 'domain_controller']]
+            
+            attack_paths = {}
+            for asset in critical_assets:
+                paths = []
+                for node in self.G.nodes():
+                    if node != asset and nx.has_path(self.G, node, asset):
+                        path = nx.shortest_path(self.G, node, asset)
+                        
+                        risk_score = 0
+                        for n in path:
+                            node_data = self.G.nodes[n]
+                            vulns = len(node_data.get('vulnerabilities', []))
+                            exposed_services = len(node_data.get('services', []))
+                            degree_factor = self.G.degree(n) / self.G.number_of_nodes()
+                            
+                            node_score = (vulns * 3) + (exposed_services * 2) + (degree_factor * 5)
+                            risk_score += node_score
+                        
+                        paths.append({
+                            'path': path,
+                            'length': len(path),
+                            'risk_score': risk_score,
+                            'details': {
+                                'total_vulnerabilities': sum(len(self.G.nodes[n].get('vulnerabilities', [])) 
+                                                        for n in path),
+                                'exposed_services': sum(len(self.G.nodes[n].get('services', [])) 
+                                                    for n in path),
+                                'critical_nodes': sum(1 for n in path if n in critical_assets)
+                            }
+                        })
+                
+                paths.sort(key=lambda x: x['risk_score'], reverse=True)
+                attack_paths[asset] = paths
+                
+            return {
+                'attack_paths': attack_paths,
+                'summary': {
+                    'total_critical_assets': len(critical_assets),
+                    'high_risk_paths': sum(1 for paths in attack_paths.values() 
+                                        for path in paths if path['risk_score'] > 10),
+                    'assets_by_risk': sorted(
+                        [(asset, max(p['risk_score'] for p in paths) if paths else 0) 
+                        for asset, paths in attack_paths.items()],
+                        key=lambda x: x[1],
+                        reverse=True
+                    )
+                }
+            }
+        except Exception as e:
+            self.logger.error(f"Error analyzing attack paths: {e}")
+            return {'attack_paths': {}, 'summary': {
+                'total_critical_assets': 0, 
+                'high_risk_paths': 0, 
+                'assets_by_risk': []
+            }}
+
+    def analyze_node_criticality(self):
+        """Analyze node criticality based on network segmentation impact"""
+        try:
+            original_components = nx.number_connected_components(self.G)
+            node_criticality = {}
+            
+            for node in self.G.nodes():
+                G_temp = self.G.copy()
+                G_temp.remove_node(node)
+                
+                new_components = nx.number_connected_components(G_temp)
+                component_impact = new_components - original_components
+                
+                orig_reachable = sum(1 for _ in nx.all_pairs_shortest_path_length(self.G))
+                new_reachable = sum(1 for _ in nx.all_pairs_shortest_path_length(G_temp))
+                reachability_impact = 1 - (new_reachable / orig_reachable if orig_reachable > 0 else 0)
+                
+                node_criticality[node] = {
+                    'component_impact': component_impact,
+                    'reachability_impact': reachability_impact,
+                    'total_impact': component_impact + reachability_impact,
+                    'node_type': self.G.nodes[node].get('type', 'unknown'),
+                    'degree': self.G.degree(node),
+                    'betweenness': self.centrality_measures['Betweenness_Centrality'][node]
+                }
+                
+            return {
+                'node_criticality': node_criticality,
+                'summary': {
+                    'high_impact_nodes': sum(1 for n in node_criticality.values() 
+                                        if n['total_impact'] > 1.5),
+                    'critical_by_type': Counter(
+                        n['node_type'] for n in node_criticality.values() 
+                        if n['total_impact'] > 1.5
+                    )
+                }
+            }
+        except Exception as e:
+            self.logger.error(f"Error analyzing node criticality: {e}")
+            return {'node_criticality': {}, 'summary': {
+                'high_impact_nodes': 0, 
+                'critical_by_type': Counter()
+            }}
