@@ -1297,38 +1297,175 @@ class NetworkAnalyzer:
             }
 
     def _check_suspicious_services(self, device_type: str, services: list) -> list:
-        """Check for suspicious services based on device type"""
+        """Check for suspicious services based on device type and security best practices"""
         suspicious = []
         
-        # Define expected services by device type
+        # Define normal service profiles by device type
         expected_services = {
-            'workstation': ['rdp', 'smb', 'netbios'],
-            'web_server': ['http', 'https', 'ssh'],
-            'database_server': ['mysql', 'postgresql', 'mongodb', 'oracle', 'mssql'],
-            'domain_controller': ['ldap', 'kerberos', 'dns', 'msrpc'],
-            'router': ['snmp', 'ssh', 'telnet'],
-            'firewall': ['https', 'ssh'],
-            'printer': ['ipp', 'http', 'snmp']
+            'workstation': {
+                'normal': ['rdp', 'smb', 'netbios', 'dhcp', 'dns', 'http', 'https'],
+                'suspicious': [
+                    'mysql', 'postgresql', 'mongodb', 'redis',  # Database services
+                    'ftp', 'telnet', 'ssh',                    # Remote access
+                    'smtp', 'pop3', 'imap',                    # Mail services
+                    'snmp',                                    # Management protocols
+                    'mssql', 'oracle'                          # Enterprise databases
+                ],
+                'critical': ['bind', 'named', 'dns_server']    # DNS server services
+            },
+            'web_server': {
+                'normal': ['http', 'https', 'ssh', 'ssl/http', 'ssl/https'],
+                'suspicious': [
+                    'rdp', 'telnet',                          # Remote desktop access
+                    'ftp', 'tftp',                           # Unencrypted file transfer
+                    'mysql', 'mssql', 'oracle',              # Direct database access
+                    'smtp'                                   # Mail services
+                ],
+                'critical': ['netbios', 'smb']               # Windows file sharing
+            },
+            'database_server': {
+                'normal': ['mysql', 'postgresql', 'mongodb', 'oracle', 'mssql', 'ssh'],
+                'suspicious': [
+                    'http', 'https',                         # Web services
+                    'ftp', 'telnet',                        # Insecure access
+                    'rdp'                                   # Remote desktop
+                ],
+                'critical': ['bind', 'dns']                 # DNS services
+            },
+            'domain_controller': {
+                'normal': ['ldap', 'kerberos', 'dns', 'msrpc', 'netbios', 'smb'],
+                'suspicious': [
+                    'http', 'https',                        # Web services
+                    'mysql', 'postgresql',                  # Databases
+                    'ftp', 'telnet'                        # Insecure protocols
+                ],
+                'critical': ['ssh', 'rdp']                 # Direct remote access
+            },
+            'router': {
+                'normal': ['snmp', 'ssh', 'https'],
+                'suspicious': [
+                    'http',                                # Unencrypted management
+                    'telnet',                             # Insecure remote access
+                    'ftp', 'tftp'                         # File transfer protocols
+                ],
+                'critical': [
+                    'mysql', 'mssql',                     # Database services
+                    'smb', 'netbios'                      # Windows services
+                ]
+            },
+            'firewall': {
+                'normal': ['https', 'ssh', 'snmp'],
+                'suspicious': [
+                    'http',                               # Unencrypted management
+                    'telnet',                            # Insecure access
+                    'ftp', 'tftp'                        # File transfer
+                ],
+                'critical': [
+                    'mysql', 'mssql',                    # Database services
+                    'rdp',                               # Remote desktop
+                    'smb', 'netbios'                     # Windows sharing
+                ]
+            },
+            'printer': {
+                'normal': ['ipp', 'http', 'snmp', 'cups'],
+                'suspicious': [
+                    'ssh', 'telnet',                     # Remote access
+                    'ftp',                               # File transfer
+                    'smb', 'netbios'                     # Windows sharing
+                ],
+                'critical': [
+                    'mysql', 'mssql',                    # Database services
+                    'rdp'                                # Remote desktop
+                ]
+            }
         }
         
-        # Define suspicious services by device type
-        suspicious_services = {
-            'workstation': ['mysql', 'pgsql', 'mongodb', 'redis', 'ftp-data'],
-            'printer': ['rdp', 'ssh', 'telnet', 'ftp'],
-            'router': ['rdp', 'http', 'mysql'],
-            'firewall': ['rdp', 'mysql', 'smb']
-        }
-        
-        if device_type in suspicious_services:
+        # Check services against profiles
+        if device_type in expected_services:
+            profile = expected_services[device_type]
             for service in services:
                 service_name = service.get('name', '').lower()
-                if service_name in suspicious_services[device_type]:
+                
+                # Check for suspicious services
+                if service_name in profile['suspicious']:
                     suspicious.append({
                         'service': service_name,
-                        'reason': f"Unexpected service for {device_type}"
+                        'reason': f"Unexpected service for {device_type}",
+                        'severity': 'medium'
                     })
-                    
+                
+                # Check for critical (high-risk) services
+                elif service_name in profile['critical']:
+                    suspicious.append({
+                        'service': service_name,
+                        'reason': f"High-risk service for {device_type}",
+                        'severity': 'high'
+                    })
+                
+                # Check for insecure versions/configurations
+                if service.get('product') and service.get('version'):
+                    version_check = self._check_service_version(
+                        service_name,
+                        service['product'],
+                        service['version']
+                    )
+                    if version_check:
+                        suspicious.append(version_check)
+
         return suspicious
+    
+    def _check_service_version(self, service: str, product: str, version: str) -> dict:
+        """Check if service version is outdated or insecure"""
+        # Define known vulnerable versions (example)
+        vulnerable_versions = {
+            'apache': ['2.4.49', '2.4.50'],
+            'nginx': ['1.18.0'],
+            'openssh': ['7.0', '7.1', '7.2', '7.3'],
+            'mysql': ['5.5', '5.6', '5.7'],
+            'microsoft-ds': ['5.0']
+        }
+        
+        # Check for known vulnerable versions
+        if product.lower() in vulnerable_versions:
+            for vuln_version in vulnerable_versions[product.lower()]:
+                if version.startswith(vuln_version):
+                    return {
+                        'service': service,
+                        'reason': f"Vulnerable version {version} of {product}",
+                        'severity': 'high'
+                    }
+        
+        return None
+
+    def analyze_device_risk(self, host):
+        """Analyze overall device risk based on multiple factors"""
+        risk_factors = {
+            'high_risk_ports': 0,
+            'suspicious_services': 0,
+            'vulnerable_versions': 0,
+            'exposed_services': 0
+        }
+        
+        # Check for high-risk ports
+        high_risk_ports = [21, 23, 445, 3389, 135, 137, 138, 139]
+        for port in host.get('ports', []):
+            if port.get('port') in high_risk_ports:
+                risk_factors['high_risk_ports'] += 1
+        
+        # Check services
+        services = host.get('services', [])
+        suspicious = self._check_suspicious_services(host.get('device_type', 'unknown'), services)
+        risk_factors['suspicious_services'] = len(suspicious)
+        
+        # Calculate risk score (0-100)
+        risk_score = (
+            (risk_factors['high_risk_ports'] * 15) +
+            (risk_factors['suspicious_services'] * 20) +
+            (risk_factors['vulnerable_versions'] * 25) +
+            (risk_factors['exposed_services'] * 10)
+        )
+        
+        return min(100, risk_score)  # Cap at 100
 
     def _determine_zone(self, node_data: dict) -> str:
         """Determine the network zone of a device based on its attributes"""
