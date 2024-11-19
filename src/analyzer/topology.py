@@ -15,13 +15,13 @@ class TopologyAnalyzer:
         edges = []
         
         # First, identify the router/gateway
-        network_ips = [host['ip'] for host in scan_result.hosts if host.get('status') == 'up']
+        network_ips = [host['ip_address'] for host in scan_result.hosts if host.get('status') == 'up']
         gateway_ip = self._find_gateway_ip(network_ips)
         
         # Add nodes (hosts)
         for host in scan_result.hosts:
             if host.get('status') == 'up':
-                ip = host['ip']
+                ip = host['ip_address']
                 
                 # Get hostname - handle different possible formats
                 hostname = None
@@ -40,12 +40,12 @@ class TopologyAnalyzer:
 
                 host_services = [
                     service for service in scan_result.services 
-                    if service.get('host') == ip
+                    if service.get('ip_address') == ip
                 ]
                 
                 host_vulns = [
                     vuln for vuln in scan_result.vulnerabilities 
-                    if vuln.get('host') == ip
+                    if vuln.get('ip_address') == ip
                 ]
                 
                 # Determine node type
@@ -103,7 +103,7 @@ class TopologyAnalyzer:
             if host.get('status') != 'up':
                 continue
                 
-            source_ip = host['ip']
+            source_ip = host['ip_address']
             
             # Always connect to gateway if it exists
             if gateway_ip and source_ip != gateway_ip:
@@ -127,10 +127,10 @@ class TopologyAnalyzer:
             # Add direct connections based on services
             for target_host in scan_result.hosts:
                 if (target_host.get('status') != 'up' or 
-                    target_host['ip'] == source_ip):
+                    target_host['ip_address'] == source_ip):
                     continue
                     
-                target_ip = target_host['ip']
+                target_ip = target_host['ip_address']
                 
                 # Skip if this would be a duplicate gateway connection
                 if gateway_ip and (source_ip == gateway_ip or target_ip == gateway_ip):
@@ -139,11 +139,11 @@ class TopologyAnalyzer:
                 # Check for service-based connections
                 source_services = {
                     s['name'] for s in scan_result.services 
-                    if s.get('host') == source_ip
+                    if s.get('ip_address') == source_ip
                 }
                 target_services = {
                     s['name'] for s in scan_result.services 
-                    if s.get('host') == target_ip
+                    if s.get('ip_address') == target_ip
                 }
                 
                 common_services = source_services & target_services

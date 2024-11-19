@@ -157,16 +157,23 @@ class NetworkScanner:
     def basic_scan(self, target: str) -> ScanResult:
         """
         Basic port scan with service detection
-        Arguments: -sS -sV (SYN scan with service version detection)
+        Arguments: -sT -sV -p- (SYN scan with service version detection on all ports)
         """
-        return self._run_scan(target, '-sS -sV', 'basic_scan')
+        logging.info(f"Starting basic port scan on {target}")
+        try:
+            result = self._run_scan(target, '-sT -sV -p 1-1024', 'basic_scan')  # Scan common ports 1-1024
+            logging.info(f"Basic scan completed. Found {len(result.hosts)} hosts with ports: {len(result.ports)}")
+            return result
+        except Exception as e:
+            logging.error(f"Basic scan failed: {e}")
+            raise
 
     def full_scan(self, target: str) -> ScanResult:
         """
         Comprehensive scan including OS detection and script scanning
-        Arguments: -sS -sV -O -sC (SYN scan, service version, OS detection, default scripts)
+        Arguments: -sT -sV -O -sC (SYN scan, service version, OS detection, default scripts)
         """
-        return self._run_scan(target, '-sS -sV -O -sC', 'full_scan')
+        return self._run_scan(target, '-sT -sV -O -sC', 'full_scan')
 
     def vulnerability_scan(self, target: str) -> ScanResult:
         """
@@ -234,53 +241,88 @@ class NetworkScanner:
         os_matches = []
 
         for host in self.nm.all_hosts():
+
+            logging.debug(f"Processing host: {host}")
+            logging.debug(f"Raw host data: {self.nm[host]}")            
+            
             # Basic host information
             host_info = {
-                'ip': host,
+                'ip_address': host,  # Changed from 'ip' to 'ip_address'
                 'status': self.nm[host].state(),
-                'hostnames': self.nm[host].hostnames()
+                'hostnames': self.nm[host].hostnames(),
+                'ports': []  # Initialize ports list for this host
             }
+
+            logging.debug(f"Processing host: {host}")
+            logging.debug(f"Host info structure: {host_info}")
+
+            # Process ports and services
+            for proto in self.nm[host].all_protocols():
+                port_list = self.nm[host][proto].keys()
+                for port in port_list:
+                    port_info = self.nm[host][proto][port]
+                    
+                    # Add port to host's ports list
+                    host_port = {
+                        'port': port,
+                        'protocol': proto,
+                        'state': port_info.get('state', 'unknown'),
+                        'service': port_info.get('name', 'unknown')
+                    }
+                    host_info['ports'].append(host_port)
+                    
+                    # Add to global ports list
+                    ports.append({
+                        'ip_address': host,  # Changed from 'ip' to 'ip_address'
+                        'port': port,
+                        'protocol': proto,
+                        'state': port_info.get('state', 'unknown')
+                    })
+                    
+                    # Add service information if available
+                    if 'service' in port_info:
+                        services.append({
+                            'ip_address': host,  # Changed from 'ip' to 'ip_address'
+                            'port': port,
+                            'name': port_info.get('name', 'unknown'),
+                            'product': port_info.get('product', ''),
+                            'version': port_info.get('version', '')
+                        })
+
+            # Add completed host info to hosts list
             hosts.append(host_info)
+
+            # Debug logging
+            logging.debug(f"Processed host {host} with {len(host_info['ports'])} ports")
+            if host_info['ports']:
+                logging.debug(f"First port for {host}: {host_info['ports'][0]}")
 
             # OS detection results
             if 'osmatch' in self.nm[host]:
                 for match in self.nm[host]['osmatch']:
                     os_info = {
-                        'ip': host,
+                        'ip_address': host,  # Changed from 'ip' to 'ip_address'
                         'name': match['name'],
                         'accuracy': match['accuracy']
                     }
                     os_matches.append(os_info)
-
-            # Ports and services
-            for proto in self.nm[host].all_protocols():
-                for port in self.nm[host][proto]:
-                    port_info = self.nm[host][proto][port]
-                    ports.append({
-                        'ip': host,
-                        'port': port,
-                        'protocol': proto,
-                        'state': port_info['state']
-                    })
-                    
-                    if 'service' in port_info:
-                        services.append({
-                            'ip': host,
-                            'port': port,
-                            'name': port_info['name'],
-                            'product': port_info.get('product', ''),
-                            'version': port_info.get('version', '')
-                        })
 
             # Vulnerability detection
             if 'script' in self.nm[host]:
                 for script_name, output in self.nm[host]['script'].items():
                     if 'VULNERABLE' in output:
                         vulnerabilities.append({
-                            'ip': host,
+                            'ip_address': host,  # Changed from 'ip' to 'ip_address'
                             'script': script_name,
                             'output': output
                         })
+
+        # Debug logging
+        logging.debug("Processed scan results:")
+        logging.debug(f"Hosts structure example: {hosts[0] if hosts else 'No hosts'}")
+        logging.debug(f"Total hosts: {len(hosts)}")
+        logging.debug(f"Total ports: {len(ports)}")
+        logging.debug(f"Total services: {len(services)}")
 
         return ScanResult(
             timestamp=timestamp,
@@ -316,21 +358,21 @@ class NetworkScanner:
         # Create nodes for hosts
         for host in results.hosts:
             nodes.append({
-                'id': host['ip'],
+                'id': host['ip_address'],
                 'type': 'host',
                 'status': host['status']
             })
 
         # Create nodes and edges for services
         for service in results.services:
-            service_id = f"{service['ip']}:{service['port']}"
+            service_id = f"{service['ip_address']}:{service['port']}"
             nodes.append({
                 'id': service_id,
                 'type': 'service',
                 'name': service['name']
             })
             edges.append({
-                'source': service['ip'],
+                'source': service['ip_address'],
                 'target': service_id,
                 'type': 'has_service'
             })

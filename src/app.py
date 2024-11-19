@@ -87,24 +87,29 @@ def format_scan_result(result: ScanResult) -> Dict[str, Any]:
     try:
         hosts_with_ports = []
         for host in result.hosts:
-            # Ensure ports are correctly formatted
-            if 'ports' in host:
-                formatted_ports = []
-                for port in host['ports']:
-                    if isinstance(port, dict):
-                        formatted_port = {
-                            'port': port.get('port', port.get('portid', 0)),
-                            'state': port.get('state', {}).get('state', port.get('state', 'unknown')),
-                            'service': port.get('service', {}).get('name', 'unknown')
-                        }
-                        formatted_ports.append(formatted_port)
-                host['ports'] = formatted_ports
-            hosts_with_ports.append(host)
+            # Start with the basic host info
+            formatted_host = {
+                'ip_address': host.get('ip_address', host.get('ip', '')),
+                'status': host.get('status', 'unknown'),
+                'hostnames': host.get('hostnames', []),
+                'ports': []
+            }
 
-        return {
+            # Add ports for this host
+            host_ports = [p for p in result.ports if p.get('ip_address', p.get('ip', '')) == formatted_host['ip_address']]
+            formatted_host['ports'] = [{
+                'port': p.get('port', 0),
+                'state': p.get('state', 'unknown'),
+                'service': p.get('service', 'unknown'),
+                'protocol': p.get('protocol', 'tcp')
+            } for p in host_ports]
+
+            hosts_with_ports.append(formatted_host)
+
+        formatted_result = {
             'timestamp': result.timestamp,
             'scan_type': result.scan_type,
-            'hosts': hosts_with_ports,  # Use the formatted hosts
+            'hosts': hosts_with_ports,
             'ports': result.ports,
             'services': result.services,
             'vulnerabilities': result.vulnerabilities,
@@ -118,8 +123,18 @@ def format_scan_result(result: ScanResult) -> Dict[str, Any]:
                 'total_vulnerabilities': len(result.vulnerabilities)
             }
         }
+
+        # Add debug logging
+        logging.debug(f"Formatted scan result summary:")
+        logging.debug(f"Total hosts: {len(hosts_with_ports)}")
+        logging.debug(f"Total ports: {len(result.ports)}")
+        logging.debug(f"First host example: {hosts_with_ports[0] if hosts_with_ports else 'No hosts'}")
+        logging.debug(f"First port example: {result.ports[0] if result.ports else 'No ports'}")
+
+        return formatted_result
+
     except Exception as e:
-        logger.error(f"Error formatting scan result: {str(e)}")
+        logging.error(f"Error formatting scan result: {str(e)}")
         raise
 
 @app.route('/')
@@ -138,7 +153,7 @@ def start_scan():
             return jsonify({'error': 'No data provided'}), 400
 
         target = data.get('target')
-        scan_type = data.get('scan_type', 'quick')
+        scan_type = data.get('scan_type', 'basic')
 
         if not target:
             return jsonify({'error': 'No target specified'}), 400
@@ -150,7 +165,9 @@ def start_scan():
         
         # Execute scan based on type
         if scan_type == 'quick':
-            results = scanner.quick_scan(target)
+            # For quick scan, still do basic but with limited ports
+            logger.info("Converting quick scan to basic scan for better results")
+            results = scanner.basic_scan(target)
         elif scan_type == 'basic':
             results = scanner.basic_scan(target)
         elif scan_type == 'full':
