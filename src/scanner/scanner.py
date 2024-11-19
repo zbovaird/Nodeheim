@@ -156,43 +156,250 @@ class NetworkScanner:
         return self._run_scan(target, '-sn', 'quick_scan')
 
     def basic_scan(self, target: str) -> ScanResult:
-        """
-        Basic port scan with enhanced service detection, optimized for mixed networks
-        """
-        logging.info(f"Starting optimized basic port scan on {target}")
+        """Enhanced basic port scan with OS and device type detection"""
+        logging.info(f"Starting enhanced basic port scan on {target}")
         
         try:
-            # Mixed network optimized parameters using standard nmap options
+            # Enhanced scan arguments for better OS and service detection
             arguments = (
-                '-sT '               # TCP connect scan (no admin required)
+                '-sT '               # TCP connect scan
                 '-sV '               # Version detection
+                '-O '               # OS detection
+                '--osscan-guess '    # Make aggressive OS guesses
                 '--version-intensity 7 '  # More aggressive service detection
                 '--version-light '    # Try light probes first
-                '--version-all '      # Try all probes for better service detection
+                '--version-all '      # Try all probes
                 '-p 1-1000 '         # Scan first 1000 ports
-                '-T3 '               # Normal timing template
-                '--min-rate 100 '    # Minimum number of packets per second
+                '-T3 '               # Normal timing
+                '--min-rate 100 '    # Minimum packet rate
                 '--max-retries 2 '   # Limit retries
                 '--host-timeout 15m ' # Host timeout
-                '--min-hostgroup 24 ' # Minimum hosts per group
-                '--min-parallelism 10 ' # Minimum probe parallelization
+                '-sC '               # Default scripts
+                '--script-args http.useragent="Mozilla/5.0" ' # Set user agent
+                '--script banner,ssh-hostkey,ssl-cert,http-title,http-headers,'
+                'smb-os-discovery,http-server-header,http-robots.txt'
             )
             
-            logging.info("Using optimized service detection")
+            logging.info("Using enhanced OS and service detection")
             result = self._run_scan(target, arguments, 'basic_scan')
             
-            # Log scan statistics
-            if result and hasattr(result, 'scan_stats'):
-                logging.info(f"Scan completed in {result.scan_stats.get('elapsed', 'unknown')} seconds")
-                logging.info(f"Found {len(result.hosts)} hosts")
-                up_hosts = [h for h in result.hosts if h.get('status') == 'up']
-                logging.info(f"Active hosts: {len(up_hosts)}")
-                
             return result
             
         except Exception as e:
             logging.error(f"Basic scan failed: {e}")
             raise
+
+    def _get_os_info(self, host: str) -> dict:
+        """Extract detailed OS information from scan results"""
+        os_info = {
+            'os_match': 'unknown',
+            'os_accuracy': 0,
+            'os_type': 'unknown',
+            'os_vendor': 'unknown',
+            'os_family': 'unknown',
+            'os_generation': 'unknown'
+        }
+        
+        try:
+            # Check for OS matches from nmap scan
+            if 'osmatch' in self.nm[host]:
+                os_matches = self.nm[host]['osmatch']
+                if os_matches and len(os_matches) > 0:
+                    best_match = os_matches[0]
+                    os_info['os_match'] = best_match.get('name', 'unknown')
+                    os_info['os_accuracy'] = int(best_match.get('accuracy', 0))
+                    
+                    # Get OS class information
+                    if 'osclass' in best_match and len(best_match['osclass']) > 0:
+                        os_class = best_match['osclass'][0]
+                        os_info['os_type'] = os_class.get('type', 'unknown')
+                        os_info['os_vendor'] = os_class.get('vendor', 'unknown')
+                        os_info['os_family'] = os_class.get('osfamily', 'unknown')
+                        os_info['os_generation'] = os_class.get('osgen', 'unknown')
+
+            # Try SMB OS discovery
+            if 'hostscript' in self.nm[host]:
+                for script in self.nm[host]['hostscript']:
+                    if script['id'] == 'smb-os-discovery':
+                        smb_os = script['output']
+                        if 'Windows' in smb_os:
+                            os_info['os_family'] = 'Windows'
+                            os_info['os_vendor'] = 'Microsoft'
+                            os_info['os_accuracy'] = 95
+
+            # Try service-based OS detection if still unknown
+            if os_info['os_family'] == 'unknown':
+                os_info = self._detect_os_from_services(host, os_info)
+
+        except Exception as e:
+            logging.warning(f"Error getting OS info for {host}: {e}")
+        
+        return os_info
+    
+    def _detect_os_from_services(self, host: str, os_info: dict) -> dict:
+        """Detect OS based on running services"""
+        try:
+            services = []
+            for proto in self.nm[host].all_protocols():
+                ports = self.nm[host][proto].keys()
+                for port in ports:
+                    service = self.nm[host][proto][port]
+                    if 'name' in service:
+                        services.append(service['name'].lower())
+
+            # Windows indicators
+            windows_indicators = ['microsoft-ds', 'netbios-ssn', 'ms-sql']
+            if any(svc in services for svc in windows_indicators):
+                os_info['os_family'] = 'Windows'
+                os_info['os_vendor'] = 'Microsoft'
+                os_info['os_accuracy'] = 75
+
+            # Linux indicators
+            linux_indicators = ['ssh', 'cups', 'nfs']
+            if any(svc in services for svc in linux_indicators):
+                os_info['os_family'] = 'Linux'
+                os_info['os_accuracy'] = 75
+
+            # Network device indicators
+            network_indicators = ['snmp', 'telnet', 'cisco']
+            if any(svc in services for svc in network_indicators):
+                os_info['os_family'] = 'Network Device'
+                os_info['os_type'] = 'Network Infrastructure'
+                os_info['os_accuracy'] = 80
+
+        except Exception as e:
+            logging.warning(f"Error in service-based OS detection: {e}")
+
+        return os_info
+    
+    def _determine_device_type(self, host_data: dict) -> str:
+        """Determine device type based on OS, ports, and services"""
+        try:
+            services = [p['service'].lower() for p in host_data.get('ports', [])]
+            os_info = host_data.get('os_info', {})
+            os_family = os_info.get('os_family', '').lower()
+            
+            # Network infrastructure devices
+            if any(s in services for s in ['snmp', 'telnet', 'cisco']):
+                if 'router' in str(services):
+                    return 'router'
+                if 'switch' in str(services):
+                    return 'switch'
+                return 'network_device'
+
+            # Domain controllers
+            if any(s in services for s in ['ldap', 'kerberos', 'msrpc']) and 'windows' in os_family:
+                return 'domain_controller'
+
+            # Servers
+            if 'windows' in os_family and 'server' in os_info.get('os_match', '').lower():
+                return 'windows_server'
+            if any(s in services for s in ['http', 'https', 'apache', 'nginx']):
+                return 'web_server'
+            if any(s in services for s in ['mysql', 'postgresql', 'oracle', 'mssql']):
+                return 'database_server'
+            if any(s in services for s in ['smtp', 'pop3', 'imap']):
+                return 'mail_server'
+            if any(s in services for s in ['ftp', 'smb', 'nfs']):
+                return 'file_server'
+
+            # Workstations
+            if 'windows' in os_family:
+                if any(v in os_info.get('os_match', '').lower() for v in ['10', '11']):
+                    return 'windows_workstation'
+            if 'linux' in os_family:
+                return 'linux_workstation'
+            if 'macos' in os_family or 'darwin' in os_family:
+                return 'mac_workstation'
+
+            # Printers
+            if any(s in services for s in ['printer', 'ipp', 'jetdirect']):
+                return 'printer'
+
+            # IoT/Embedded
+            if 'embedded' in os_info.get('os_type', '').lower():
+                return 'iot_device'
+
+            return 'unknown'
+
+        except Exception as e:
+            logging.warning(f"Error determining device type: {e}")
+            return 'unknown'
+        
+    def _process_results(self, scan_type: str, timestamp: str) -> ScanResult:
+        """Enhanced result processing with OS detection and device typing"""
+        hosts = []
+        ports = []
+        services = []
+        vulnerabilities = []
+        os_matches = []
+
+        for host in self.nm.all_hosts():
+            try:
+                logging.info(f"\nProcessing host: {host}")
+                
+                # Get OS information
+                os_info = self._get_os_info(host)
+                
+                # Basic host information
+                host_info = {
+                    'ip_address': host,
+                    'status': self.nm[host].state(),
+                    'hostnames': self.nm[host].hostnames(),
+                    'os_info': os_info,
+                    'ports': []
+                }
+
+                # Process ports and services
+                for proto in self.nm[host].all_protocols():
+                    port_list = list(self.nm[host][proto].keys())
+                    for port in port_list:
+                        try:
+                            port_info = self.nm[host][proto][port]
+                            if port_info['state'] == 'open':
+                                port_data = {
+                                    'port': int(port),
+                                    'protocol': proto,
+                                    'state': 'open',
+                                    'service': port_info.get('name', 'unknown'),
+                                    'product': port_info.get('product', ''),
+                                    'version': port_info.get('version', ''),
+                                    'extra_info': port_info.get('extrainfo', ''),
+                                    'tunnel_type': port_info.get('tunnel', ''),
+                                    'ip_address': host
+                                }
+                                host_info['ports'].append(port_data)
+                                ports.append(port_data)
+                                
+                        except Exception as e:
+                            logging.warning(f"Error processing port {port}: {e}")
+                            continue
+
+                # Determine device type
+                host_info['device_type'] = self._determine_device_type(host_info)
+                
+                hosts.append(host_info)
+                if os_info['os_match'] != 'unknown':
+                    os_matches.append({
+                        'ip_address': host,
+                        **os_info
+                    })
+
+            except Exception as e:
+                logging.error(f"Error processing host {host}: {e}")
+                continue
+
+        return ScanResult(
+            timestamp=timestamp,
+            scan_type=scan_type,
+            hosts=hosts,
+            ports=ports,
+            services=services,
+            vulnerabilities=vulnerabilities,
+            os_matches=os_matches,
+            scan_stats=self.nm.scanstats()
+        )
+
 
     def full_scan(self, target: str) -> ScanResult:
         """

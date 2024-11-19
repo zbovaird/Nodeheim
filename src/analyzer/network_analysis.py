@@ -1187,3 +1187,5 @@ class NetworkAnalyzer:
                 'high_impact_nodes': 0, 
                 'critical_by_type': Counter()
             }}
+        
+    

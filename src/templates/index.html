@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary-color: #1a1a1a;
@@ -196,6 +197,137 @@
 
         .metric-item:hover {
             background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .device-analysis-section {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+        .device-analysis-section .card {
+            background: #1a1a1a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .device-analysis-section .metric-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1.25rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            border-bottom: none;
+        }
+
+        .device-analysis-section .metric-label {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .device-analysis-section .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .bg-darker {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .chart-container {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .suspicious-devices-container {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .suspicious-devices-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .suspicious-devices-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .suspicious-devices-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .suspicious-device-alert {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .suspicious-device-alert .alert-title {
+            color: #dc2626;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .suspicious-device-alert .alert-content {
+            font-size: 0.875rem;
+        }
+
+        /* Device Table Styles */
+        .device-analysis-section .table-dark {
+            background-color: transparent;
+            margin-bottom: 0;
+        }
+
+        .device-analysis-section .table-dark thead th {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .device-analysis-section .table-dark td {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            vertical-align: middle;
+        }
+
+        /* Risk Level Colors */
+        .risk-level-high {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .risk-level-medium {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .risk-level-low {
+            color: #34d399;
+            font-weight: 600;
+        }
+
+        /* Chart Responsiveness */
+        @media (max-width: 768px) {
+            .device-analysis-section .chart-container {
+                height: 300px !important;
+                margin-bottom: 1.5rem;
+            }
+
+            .device-analysis-section .metric-item {
+                margin-bottom: 1rem;
+            }
         }
 
         .scan-status {
@@ -606,8 +738,89 @@
             </div>
         </div>    
 
-        <!-- Analysis Panel -->
-        <!-- Replace the current analysis-panel div with this new version -->
+        <div class="device-analysis-section p-4 mt-4">
+            <div class="card bg-dark">
+              <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Device & OS Analysis</h5>
+              </div>
+              <div class="card-body">
+                <!-- Device Summary Metrics -->
+                <div class="row mb-4">
+                  <div class="col-md-3">
+                    <div class="metric-item">
+                      <span class="metric-label">Total Devices</span>
+                      <span id="total-devices-metric" class="metric-value">0</span>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="metric-item">
+                      <span class="metric-label">Identified Devices</span>
+                      <span id="identified-devices-metric" class="metric-value">0</span>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="metric-item">
+                      <span class="metric-label">Unknown Devices</span>
+                      <span id="unknown-devices-metric" class="metric-value">0</span>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="metric-item">
+                      <span class="metric-label">Suspicious Devices</span>
+                      <span id="suspicious-devices-metric" class="metric-value">0</span>
+                    </div>
+                  </div>
+                </div>
+          
+                <!-- Device Distribution Charts -->
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="chart-container bg-darker p-3 rounded">
+                      <h6 class="text-light mb-3">Device Type Distribution</h6>
+                      <canvas id="deviceTypeChart" height="250"></canvas>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="chart-container bg-darker p-3 rounded">
+                      <h6 class="text-light mb-3">Operating System Distribution</h6>
+                      <canvas id="osDistributionChart" height="250"></canvas>
+                    </div>
+                  </div>
+                </div>
+          
+                <!-- Suspicious Devices Panel -->
+                <div id="suspicious-devices-panel" class="mt-4">
+                  <h6 class="text-light mb-3">Suspicious Devices</h6>
+                  <div id="suspicious-devices-list" class="suspicious-devices-container">
+                    <!-- Suspicious devices will be inserted here -->
+                  </div>
+                </div>
+          
+                <!-- Device Details Table -->
+                <div class="mt-4">
+                  <h6 class="text-light mb-3">Device Details</h6>
+                  <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="device-details-table">
+                      <thead>
+                        <tr>
+                          <th>IP Address</th>
+                          <th>Device Type</th>
+                          <th>OS</th>
+                          <th>Open Ports</th>
+                          <th>Status</th>
+                          <th>Risk Level</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <!-- Device rows will be inserted here -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>        <!-- Analysis Panel -->
+        
 <div class="analysis-section p-4 mt-4">
     <div class="card bg-dark">
         <div class="card-header bg-secondary text-white">
@@ -771,6 +984,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadNetworks();
             updateNetworkInfo();
+
+            // Add global Chart.js configuration for dark theme
+            Chart.defaults.color = '#fff';
+            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+            Chart.defaults.plugins.legend.labels.color = '#fff';
+            
+            // Initialize device analysis dashboard
+            window.deviceAnalysisDashboard = new DeviceAnalysisDashboard();
         });
 
         async function loadNetworks() {
@@ -1293,6 +1514,13 @@
                 const data = await response.json();
                 displayAnalysisResults(data.analysis);
                 document.getElementById('analysisResults').classList.remove('d-none');
+
+                // Dispatch event for device analysis
+                document.dispatchEvent(new CustomEvent('analysisComplete', {
+                    detail: {
+                        analysisData: data.analysis
+                    }
+                }));
 
             } catch (error) {
                 updateScanStatus('Analysis failed: ' + error.message, true);
