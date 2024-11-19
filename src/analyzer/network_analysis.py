@@ -868,10 +868,15 @@ class NetworkAnalyzer:
                 'high_risk': [21, 23, 445, 135, 137, 138, 139]
             }
 
+            # Log analysis start
+            logging.info(f"\nStarting port analysis:")
+            logging.info(f"Total hosts in scan: {len(scan_result.hosts)}")
+
             # Process each host
             for host in scan_result.hosts:
                 host_ip = host.get('ip_address')
                 if not host_ip:
+                    logging.warning(f"Found host without IP address: {host}")
                     continue
 
                 # Initialize host entry
@@ -882,18 +887,28 @@ class NetworkAnalyzer:
                 }
 
                 # Process ports for this host
+                logging.info(f"\nAnalyzing ports for host {host_ip}")
                 for port_info in host.get('ports', []):
                     if isinstance(port_info, dict):
                         port_num = port_info.get('port')
                         state = port_info.get('state')
                         service = port_info.get('service', 'unknown')
+                        service_details = port_info.get('service_details', '')
+                        product = port_info.get('product', '')
+                        version = port_info.get('version', '')
 
                         if state == 'open':
-                            # Add to host's open ports
-                            port_analysis['hosts_with_ports'][host_ip]['open_ports'].append({
+                            # Create detailed port entry
+                            port_entry = {
                                 'port': port_num,
-                                'service': service
-                            })
+                                'service': service,
+                                'service_details': service_details,
+                                'product': product,
+                                'version': version
+                            }
+
+                            # Add to host's open ports
+                            port_analysis['hosts_with_ports'][host_ip]['open_ports'].append(port_entry)
 
                             # Update total open ports
                             port_analysis['total_open_ports'] += 1
@@ -902,9 +917,16 @@ class NetworkAnalyzer:
                             port_analysis['common_ports'][port_num] = \
                                 port_analysis['common_ports'].get(port_num, 0) + 1
 
-                            # Count services
-                            port_analysis['services'][service] = \
-                                port_analysis['services'].get(service, 0) + 1
+                            # Count services with details
+                            service_key = f"{service}"
+                            if product:
+                                service_key += f" ({product}"
+                                if version:
+                                    service_key += f" {version}"
+                                service_key += ")"
+                            
+                            port_analysis['services'][service_key] = \
+                                port_analysis['services'].get(service_key, 0) + 1
 
                             # Categorize ports
                             for category, port_list in port_categories.items():
@@ -912,23 +934,37 @@ class NetworkAnalyzer:
                                     port_data = {
                                         'host': host_ip,
                                         'port': port_num,
-                                        'service': service
+                                        'service': service,
+                                        'service_details': service_details
                                     }
                                     port_analysis['interesting_ports'][category].append(port_data)
                                     
                                     if category == 'high_risk':
                                         port_analysis['hosts_with_ports'][host_ip]['high_risk_ports'].append(port_num)
 
-            # Log detailed results
+                            logging.info(f"Added open port for {host_ip}: {port_num} - {service_key}")
+
+            # Generate detailed summary
+            logging.info("\nPort Analysis Summary:")
             for host_ip, host_data in port_analysis['hosts_with_ports'].items():
                 if host_data['open_ports']:
-                    logging.info(f"Host {host_ip} open ports: " + 
-                            ', '.join(str(p['port']) for p in host_data['open_ports']))
+                    logging.info(f"\nHost {host_ip}:")
+                    for port in host_data['open_ports']:
+                        service_str = port['service']
+                        if port.get('service_details'):
+                            service_str = port['service_details']
+                        logging.info(f"  Port {port['port']}: {service_str}")
+
+            # Log statistics
+            logging.info(f"\nTotal Statistics:")
+            logging.info(f"Total open ports found: {port_analysis['total_open_ports']}")
+            logging.info(f"Unique services found: {len(port_analysis['services'])}")
+            logging.info(f"Hosts with open ports: {len([h for h in port_analysis['hosts_with_ports'].values() if h['open_ports']])}")
 
             return port_analysis
 
         except Exception as e:
-            logging.error(f"Error analyzing port data: {e}")
+            logging.error(f"Error analyzing port data: {e}", exc_info=True)
             return {
                 'total_open_ports': 0,
                 'hosts_with_ports': {},
@@ -943,4 +979,3 @@ class NetworkAnalyzer:
                     'high_risk': []
                 }
             }
-    

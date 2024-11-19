@@ -266,7 +266,7 @@ class NetworkScanner:
 
         for host in self.nm.all_hosts():
             try:
-                logging.debug(f"Processing host: {host}")
+                logging.info(f"\nProcessing host: {host}")
                 
                 # Basic host information
                 host_info = {
@@ -279,8 +279,8 @@ class NetworkScanner:
                 # Process ports and services for this host
                 host_ports = []  # Track ports for this specific host
                 for proto in self.nm[host].all_protocols():
-                    port_list = self.nm[host][proto].keys()
-                    logging.debug(f"Found ports for {host}: {port_list}")
+                    port_list = list(self.nm[host][proto].keys())
+                    logging.info(f"Host {host} has {len(port_list)} ports for protocol {proto}")
                     
                     for port in port_list:
                         try:
@@ -288,37 +288,59 @@ class NetworkScanner:
                             port_info = self.nm[host][proto][port]
                             port_state = port_info.get('state', 'unknown')
                             
+                            # Log raw port info for debugging
+                            logging.debug(f"Raw port info for {host}:{port} - {port_info}")
+                            
                             # Only process open ports
                             if port_state == 'open':
+                                # Get detailed service information
+                                service_name = port_info.get('name', 'unknown')
+                                service_product = port_info.get('product', '')
+                                service_version = port_info.get('version', '')
+                                service_extra = port_info.get('extrainfo', '')
+                                
+                                # Create detailed service string
+                                service_details = service_name
+                                if service_product:
+                                    service_details += f" ({service_product}"
+                                    if service_version:
+                                        service_details += f" {service_version}"
+                                    if service_extra:
+                                        service_details += f" - {service_extra}"
+                                    service_details += ")"
+                                
                                 port_data = {
                                     'port': port_num,
                                     'protocol': proto,
                                     'state': port_state,
-                                    'service': port_info.get('name', 'unknown')
+                                    'service': service_name,
+                                    'service_details': service_details,
+                                    'product': service_product,
+                                    'version': service_version,
+                                    'extra_info': service_extra,
+                                    'ip_address': host  # Ensure IP address is included
                                 }
+                                
+                                # Log each open port as we find it
+                                logging.info(f"Found open port on {host}: {port_num} - {service_details}")
                                 
                                 # Add to host's ports list
                                 host_ports.append(port_data)
                                 
                                 # Add to global ports list with host information
-                                ports.append({
+                                ports.append(port_data)
+                                
+                                # Add detailed service information
+                                services.append({
                                     'ip_address': host,
                                     'port': port_num,
+                                    'name': service_name,
+                                    'product': service_product,
+                                    'version': service_version,
+                                    'extra_info': service_extra,
                                     'protocol': proto,
-                                    'state': port_state
+                                    'service_details': service_details
                                 })
-                                
-                                # Add service information if available
-                                if 'service' in port_info:
-                                    services.append({
-                                        'ip_address': host,
-                                        'port': port_num,
-                                        'name': port_info.get('name', 'unknown'),
-                                        'product': port_info.get('product', ''),
-                                        'version': port_info.get('version', '')
-                                    })
-                                    
-                                logging.debug(f"Added open port {port_num} for host {host}")
                                 
                         except (ValueError, TypeError) as e:
                             logging.warning(f"Error processing port {port} for host {host}: {e}")
@@ -328,9 +350,12 @@ class NetworkScanner:
                 host_info['ports'] = host_ports
                 host_info['open_ports_count'] = len(host_ports)
                 
+                # Log summary for this host
                 if host_ports:
-                    logging.info(f"Host {host} has {len(host_ports)} open ports: " + 
-                            ', '.join(str(p['port']) for p in host_ports))
+                    logging.info(f"\nHost {host} summary:")
+                    logging.info(f"Open ports count: {len(host_ports)}")
+                    for port in host_ports:
+                        logging.info(f"  Port {port['port']}/{port['protocol']}: {port.get('service_details', 'unknown')}")
 
                 hosts.append(host_info)
 
@@ -338,13 +363,17 @@ class NetworkScanner:
                 logging.error(f"Error processing host {host}: {e}")
                 continue
 
-        # Log summary
-        logging.info(f"Scan summary:")
-        logging.info(f"Total hosts: {len(hosts)}")
-        logging.info(f"Total open ports: {len(ports)}")
+        # Log final summary
+        logging.info(f"\nFinal Scan Summary:")
+        logging.info(f"Total hosts scanned: {len(hosts)}")
+        logging.info(f"Total open ports found: {len(ports)}")
+        logging.info(f"Total services identified: {len(services)}")
+        logging.info("\nPorts by host:")
         for host_info in hosts:
             if host_info['open_ports_count'] > 0:
-                logging.info(f"Host {host_info['ip_address']}: {host_info['open_ports_count']} open ports")
+                logging.info(f"\nHost {host_info['ip_address']}:")
+                for port in host_info['ports']:
+                    logging.info(f"  {port['port']}/{port['protocol']} - {port.get('service_details', 'unknown')}")
 
         return ScanResult(
             timestamp=timestamp,

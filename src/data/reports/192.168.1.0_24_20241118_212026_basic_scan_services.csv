@@ -1,0 +1,7 @@
+ip_address,port,name,product,version,extra_info,protocol,service_details
+192.168.1.1,53,domain,dnsmasq,2.85,,tcp,domain (dnsmasq 2.85)
+192.168.1.1,80,http,,,,tcp,http
+192.168.1.1,443,https,,,,tcp,https
+192.168.1.5,53,domain,dnsmasq,2.85,,tcp,domain (dnsmasq 2.85)
+192.168.1.5,80,http,,,,tcp,http
+192.168.1.5,443,https,,,,tcp,https
