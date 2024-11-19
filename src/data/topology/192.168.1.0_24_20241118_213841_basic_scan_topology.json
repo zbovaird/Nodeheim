@@ -1,0 +1,116 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.1.1",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.10",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.12",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.19",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.2",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.21",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.3",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.5",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.7",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.9",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.1:53",
+      "type": "service",
+      "name": "domain"
+    },
+    {
+      "id": "192.168.1.1:80",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.1:443",
+      "type": "service",
+      "name": "https"
+    },
+    {
+      "id": "192.168.1.5:53",
+      "type": "service",
+      "name": "domain"
+    },
+    {
+      "id": "192.168.1.5:80",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.5:443",
+      "type": "service",
+      "name": "https"
+    }
+  ],
+  "edges": [
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.1:53",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.1:80",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.1:443",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.5",
+      "target": "192.168.1.5:53",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.5",
+      "target": "192.168.1.5:80",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.5",
+      "target": "192.168.1.5:443",
+      "type": "has_service"
+    }
+  ]
+}

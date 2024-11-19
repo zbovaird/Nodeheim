@@ -896,15 +896,37 @@ class NetworkAnalyzer:
                         service_details = port_info.get('service_details', '')
                         product = port_info.get('product', '')
                         version = port_info.get('version', '')
+                        extra_info = port_info.get('extra_info', '')
+                        tunnel_type = port_info.get('tunnel_type', '')
+                        protocol = port_info.get('protocol', 'tcp')
 
                         if state == 'open':
+                            # Build detailed service string
+                            service_key = service
+                            details_parts = []
+
+                            if tunnel_type:
+                                service_key = f"{tunnel_type}/{service}"
+
+                            if product or version or extra_info:
+                                if product:
+                                    details_parts.append(product)
+                                    if version:
+                                        details_parts[-1] += f" {version}"
+                                if extra_info:
+                                    details_parts.append(extra_info)
+                                service_key += f" ({'; '.join(details_parts)})"
+
                             # Create detailed port entry
                             port_entry = {
                                 'port': port_num,
                                 'service': service,
-                                'service_details': service_details,
+                                'service_details': service_key,
                                 'product': product,
-                                'version': version
+                                'version': version,
+                                'extra_info': extra_info,
+                                'tunnel_type': tunnel_type,
+                                'protocol': protocol
                             }
 
                             # Add to host's open ports
@@ -918,13 +940,6 @@ class NetworkAnalyzer:
                                 port_analysis['common_ports'].get(port_num, 0) + 1
 
                             # Count services with details
-                            service_key = f"{service}"
-                            if product:
-                                service_key += f" ({product}"
-                                if version:
-                                    service_key += f" {version}"
-                                service_key += ")"
-                            
                             port_analysis['services'][service_key] = \
                                 port_analysis['services'].get(service_key, 0) + 1
 
@@ -935,7 +950,11 @@ class NetworkAnalyzer:
                                         'host': host_ip,
                                         'port': port_num,
                                         'service': service,
-                                        'service_details': service_details
+                                        'service_details': service_key,
+                                        'product': product,
+                                        'version': version,
+                                        'protocol': protocol,
+                                        'tunnel_type': tunnel_type
                                     }
                                     port_analysis['interesting_ports'][category].append(port_data)
                                     
@@ -950,10 +969,8 @@ class NetworkAnalyzer:
                 if host_data['open_ports']:
                     logging.info(f"\nHost {host_ip}:")
                     for port in host_data['open_ports']:
-                        service_str = port['service']
-                        if port.get('service_details'):
-                            service_str = port['service_details']
-                        logging.info(f"  Port {port['port']}: {service_str}")
+                        service_str = port['service_details'] if port.get('service_details') else port['service']
+                        logging.info(f"  Port {port['port']}/{port['protocol']}: {service_str}")
 
             # Log statistics
             logging.info(f"\nTotal Statistics:")

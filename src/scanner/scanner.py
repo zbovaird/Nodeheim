@@ -157,26 +157,28 @@ class NetworkScanner:
 
     def basic_scan(self, target: str) -> ScanResult:
         """
-        Basic port scan with service detection, optimized for mixed networks
+        Basic port scan with enhanced service detection, optimized for mixed networks
         """
         logging.info(f"Starting optimized basic port scan on {target}")
         
         try:
             # Mixed network optimized parameters using standard nmap options
             arguments = (
-                '-sT '               # TCP connect scan
+                '-sT '               # TCP connect scan (no admin required)
                 '-sV '               # Version detection
-                '-p 1-1024 '         # Scan first 1024 ports
+                '--version-intensity 7 '  # More aggressive service detection
+                '--version-light '    # Try light probes first
+                '--version-all '      # Try all probes for better service detection
+                '-p 1-1000 '         # Scan first 1000 ports
                 '-T3 '               # Normal timing template
                 '--min-rate 100 '    # Minimum number of packets per second
                 '--max-retries 2 '   # Limit retries
                 '--host-timeout 15m ' # Host timeout
-                '--initial-rtt-timeout 500ms '  # Initial round-trip timeout
-                '--min-hostgroup 24 '  # Minimum hosts per group
-                '--min-parallelism 10'  # Minimum probe parallelization
+                '--min-hostgroup 24 ' # Minimum hosts per group
+                '--min-parallelism 10 ' # Minimum probe parallelization
             )
             
-            logging.info("Using optimized timing for mixed network environments")
+            logging.info("Using optimized service detection")
             result = self._run_scan(target, arguments, 'basic_scan')
             
             # Log scan statistics
@@ -298,16 +300,27 @@ class NetworkScanner:
                                 service_product = port_info.get('product', '')
                                 service_version = port_info.get('version', '')
                                 service_extra = port_info.get('extrainfo', '')
+                                tunnel_type = port_info.get('tunnel', '')  # For SSL/TLS services
                                 
-                                # Create detailed service string
+                                # Build detailed service string
                                 service_details = service_name
-                                if service_product:
-                                    service_details += f" ({service_product}"
-                                    if service_version:
-                                        service_details += f" {service_version}"
+                                if any([service_product, service_version, service_extra, tunnel_type]):
+                                    service_details += " ("
+                                    details_parts = []
+                                    
+                                    if tunnel_type:
+                                        service_details = f"{tunnel_type}/{service_name}"
+                                        
+                                    if service_product:
+                                        details_parts.append(service_product)
+                                        if service_version:
+                                            details_parts[-1] += f" {service_version}"
+                                            
                                     if service_extra:
-                                        service_details += f" - {service_extra}"
-                                    service_details += ")"
+                                        details_parts.append(service_extra)
+                                        
+                                    if details_parts:
+                                        service_details += f" ({'; '.join(details_parts)})"
                                 
                                 port_data = {
                                     'port': port_num,
@@ -318,10 +331,10 @@ class NetworkScanner:
                                     'product': service_product,
                                     'version': service_version,
                                     'extra_info': service_extra,
-                                    'ip_address': host  # Ensure IP address is included
+                                    'tunnel_type': tunnel_type,
+                                    'ip_address': host
                                 }
                                 
-                                # Log each open port as we find it
                                 logging.info(f"Found open port on {host}: {port_num} - {service_details}")
                                 
                                 # Add to host's ports list
