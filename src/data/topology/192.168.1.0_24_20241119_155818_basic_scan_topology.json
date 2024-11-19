@@ -1,0 +1,291 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.1.1",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.103",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.123",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.127",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.130",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.145",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.152",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.154",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.197",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.214",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.220",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.82",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.84",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.1:53",
+      "type": "service",
+      "name": "domain"
+    },
+    {
+      "id": "192.168.1.1:80",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.1:443",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.127:135",
+      "type": "service",
+      "name": "msrpc"
+    },
+    {
+      "id": "192.168.1.127:139",
+      "type": "service",
+      "name": "netbios-ssn"
+    },
+    {
+      "id": "192.168.1.127:445",
+      "type": "service",
+      "name": "microsoft-ds"
+    },
+    {
+      "id": "192.168.1.152:80",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.152:443",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.152:515",
+      "type": "service",
+      "name": "printer"
+    },
+    {
+      "id": "192.168.1.152:631",
+      "type": "service",
+      "name": "http"
+    },
+    {
+      "id": "192.168.1.154:135",
+      "type": "service",
+      "name": "msrpc"
+    },
+    {
+      "id": "192.168.1.154:139",
+      "type": "service",
+      "name": "netbios-ssn"
+    },
+    {
+      "id": "192.168.1.154:445",
+      "type": "service",
+      "name": "microsoft-ds"
+    },
+    {
+      "id": "192.168.1.197:135",
+      "type": "service",
+      "name": "msrpc"
+    },
+    {
+      "id": "192.168.1.197:139",
+      "type": "service",
+      "name": "netbios-ssn"
+    },
+    {
+      "id": "192.168.1.197:445",
+      "type": "service",
+      "name": "microsoft-ds"
+    },
+    {
+      "id": "192.168.1.220:135",
+      "type": "service",
+      "name": "msrpc"
+    },
+    {
+      "id": "192.168.1.220:139",
+      "type": "service",
+      "name": "netbios-ssn"
+    },
+    {
+      "id": "192.168.1.220:445",
+      "type": "service",
+      "name": "microsoft-ds"
+    },
+    {
+      "id": "192.168.1.84:135",
+      "type": "service",
+      "name": "msrpc"
+    },
+    {
+      "id": "192.168.1.84:139",
+      "type": "service",
+      "name": "netbios-ssn"
+    },
+    {
+      "id": "192.168.1.84:445",
+      "type": "service",
+      "name": "microsoft-ds"
+    }
+  ],
+  "edges": [
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.1:53",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.1:80",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.1:443",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.127:135",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.127:139",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.127:445",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.152:80",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.152:443",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.152:515",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.152:631",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.154:135",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.154:139",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.154:445",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.197:135",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.197:139",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.197:445",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.220:135",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.220:139",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.220:445",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.84",
+      "target": "192.168.1.84:135",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.84",
+      "target": "192.168.1.84:139",
+      "type": "has_service"
+    },
+    {
+      "source": "192.168.1.84",
+      "target": "192.168.1.84:445",
+      "type": "has_service"
+    }
+  ]
+}

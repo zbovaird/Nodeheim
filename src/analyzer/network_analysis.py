@@ -12,9 +12,10 @@ import json
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
-from collections import Counter
+from collections import Counter, defaultdict
 import warnings
 from itertools import combinations
+
 
 warnings.filterwarnings('ignore')
 
@@ -1217,3 +1218,131 @@ class NetworkAnalyzer:
             )
         except:
             return False
+        
+    def analyze_device_types(self):
+        """Analyze device types and their distributions in the network"""
+        try:
+            device_analysis = {
+                'device_counts': Counter(),
+                'os_counts': Counter(),
+                'device_by_zone': defaultdict(Counter),
+                'os_by_zone': defaultdict(Counter),
+                'unidentified_devices': [],
+                'suspicious_devices': [],
+                'device_services': defaultdict(list)
+            }
+
+            for node in self.G.nodes():
+                node_data = self.G.nodes[node]
+                device_type = node_data.get('device_type', 'unknown')
+                os_info = node_data.get('os_info', {}).get('os_match', 'unknown')
+                services = node_data.get('services', [])
+                zone = self._determine_zone(node_data)
+
+                # Update counters
+                device_analysis['device_counts'][device_type] += 1
+                device_analysis['os_counts'][os_info] += 1
+                device_analysis['device_by_zone'][zone][device_type] += 1
+                device_analysis['os_by_zone'][zone][os_info] += 1
+
+                # Track unidentified devices
+                if device_type == 'unknown':
+                    device_analysis['unidentified_devices'].append({
+                        'node': node,
+                        'services': services,
+                        'os_info': os_info
+                    })
+
+                # Identify suspicious devices (e.g., unexpected services for device type)
+                suspicious = self._check_suspicious_services(device_type, services)
+                if suspicious:
+                    device_analysis['suspicious_devices'].append({
+                        'node': node,
+                        'device_type': device_type,
+                        'suspicious_services': suspicious
+                    })
+
+                # Track services by device type
+                device_analysis['device_services'][device_type].extend(services)
+
+            # Calculate additional metrics
+            device_analysis['summary'] = {
+                'total_devices': len(self.G.nodes()),
+                'identified_ratio': (len(self.G.nodes()) - 
+                                len(device_analysis['unidentified_devices'])) / len(self.G.nodes()),
+                'suspicious_ratio': len(device_analysis['suspicious_devices']) / len(self.G.nodes()),
+                'most_common_devices': device_analysis['device_counts'].most_common(5),
+                'most_common_os': device_analysis['os_counts'].most_common(5)
+            }
+
+            return device_analysis
+
+        except Exception as e:
+            self.logger.error(f"Error in device type analysis: {e}")
+            return {
+                'device_counts': Counter(),
+                'os_counts': Counter(),
+                'device_by_zone': defaultdict(Counter),
+                'os_by_zone': defaultdict(Counter),
+                'unidentified_devices': [],
+                'suspicious_devices': [],
+                'device_services': defaultdict(list),
+                'summary': {
+                    'total_devices': 0,
+                    'identified_ratio': 0,
+                    'suspicious_ratio': 0,
+                    'most_common_devices': [],
+                    'most_common_os': []
+                }
+            }
+
+    def _check_suspicious_services(self, device_type: str, services: list) -> list:
+        """Check for suspicious services based on device type"""
+        suspicious = []
+        
+        # Define expected services by device type
+        expected_services = {
+            'workstation': ['rdp', 'smb', 'netbios'],
+            'web_server': ['http', 'https', 'ssh'],
+            'database_server': ['mysql', 'postgresql', 'mongodb', 'oracle', 'mssql'],
+            'domain_controller': ['ldap', 'kerberos', 'dns', 'msrpc'],
+            'router': ['snmp', 'ssh', 'telnet'],
+            'firewall': ['https', 'ssh'],
+            'printer': ['ipp', 'http', 'snmp']
+        }
+        
+        # Define suspicious services by device type
+        suspicious_services = {
+            'workstation': ['mysql', 'pgsql', 'mongodb', 'redis', 'ftp-data'],
+            'printer': ['rdp', 'ssh', 'telnet', 'ftp'],
+            'router': ['rdp', 'http', 'mysql'],
+            'firewall': ['rdp', 'mysql', 'smb']
+        }
+        
+        if device_type in suspicious_services:
+            for service in services:
+                service_name = service.get('name', '').lower()
+                if service_name in suspicious_services[device_type]:
+                    suspicious.append({
+                        'service': service_name,
+                        'reason': f"Unexpected service for {device_type}"
+                    })
+                    
+        return suspicious
+
+    def _determine_zone(self, node_data: dict) -> str:
+        """Determine the network zone of a device based on its attributes"""
+        device_type = node_data.get('device_type', '').lower()
+        services = node_data.get('services', [])
+        
+        # Zone determination logic
+        if any(s in device_type for s in ['firewall', 'proxy', 'gateway']):
+            return 'DMZ'
+        elif any(s in device_type for s in ['domain_controller', 'admin']):
+            return 'Management'
+        elif any(s in device_type for s in ['server', 'database']):
+            return 'Internal'
+        elif any(s in device_type for s in ['workstation', 'desktop']):
+            return 'User'
+        
+        return 'Unknown'
