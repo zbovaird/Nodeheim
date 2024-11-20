@@ -3,51 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nodeheim - Network Comparison</title>
-    <!-- Use the same CSS and JS imports as index.html -->
+    <title>Nodeheim - Network Comparison Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Copy the styles from index.html -->
     <style>
         /* Copy all the styles from index.html */
+        :root {
+            --primary-color: #1a1a1a;
+            --secondary-color: #2d2d2d;
+            --accent-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --error-color: #dc3545;
+            --text-color: #ffffff;
+            --border-color: #404040;
+            --hover-color: #0056b3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--secondary-color);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Add comparison-specific styles */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-card {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .snapshot-selector {
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .comparison-visualization {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric-card {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+            padding: 15px;
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            margin-top: 5px;
+        }
+
+        /* Keep all other styles from index.html */
+        /* ... (copy all other relevant styles from index.html) ... */
     </style>
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/comparison">Comparison</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
     <header>
         <div class="container">
             <div class="dashboard-header">
-                <h1>Network Comparison</h1>
-                <div class="dashboard-controls">
-                    <a href="/" class="btn btn-primary">Back to Dashboard</a>
-                </div>
+                <h1>Network Comparison Dashboard</h1>
             </div>
         </div>
     </header>
 
     <main class="container">
-        <div class="comparison-section p-4 mt-4">
+        <div class="comparison-section">
             <div class="card bg-dark">
                 <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Network Comparison</h5>
+                    <h5 class="mb-0">Network Snapshot Comparison</h5>
                 </div>
                 <div class="card-body">
                     <div class="row mb-4">
                         <div class="col-md-8">
-                            <h4>Select Network Snapshots</h4>
+                            <h4 class="text-light">Select Network Snapshots</h4>
                             <select multiple id="snapshotSelect" class="form-select bg-dark text-white mb-3" size="5">
                                 <!-- Populated dynamically -->
                             </select>
-                            <button id="compareButton" class="btn btn-primary me-2">Compare Networks</button>
-                            <button id="resetButton" class="btn btn-secondary">Reset</button>
+                            <button id="compareButton" class="btn btn-primary me-2" onclick="compareSnapshots()">
+                                Compare Networks
+                            </button>
+                            <button id="resetButton" class="btn btn-secondary" onclick="resetComparison()">
+                                Reset
+                            </button>
                         </div>
                         <div class="col-md-4">
                             <div class="selected-files bg-darker p-3 rounded">
-                                <h5>Selected Snapshots:</h5>
-                                <ul id="selectedFiles" class="list-unstyled">
+                                <h5 class="text-light">Selected Snapshots:</h5>
+                                <ul id="selectedFiles" class="list-unstyled text-light">
                                     <!-- Populated dynamically -->
                                 </ul>
                             </div>
@@ -57,22 +171,60 @@
                     <div id="comparisonResults" class="comparison-results" style="display: none;">
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="visualization-container">
-                                    <h5>Network Before</h5>
-                                    <div id="networkBefore" style="height: 400px;"></div>
+                                <div class="card bg-darker mb-3">
+                                    <div class="card-header">Network Before</div>
+                                    <div class="card-body">
+                                        <img id="networkBefore" class="img-fluid" alt="Network Before">
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="visualization-container">
-                                    <h5>Network After</h5>
-                                    <div id="networkAfter" style="height: 400px;"></div>
+                                <div class="card bg-darker mb-3">
+                                    <div class="card-header">Network After</div>
+                                    <div class="card-body">
+                                        <img id="networkAfter" class="img-fluid" alt="Network After">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="changes-summary mt-4">
-                            <h5>Network Changes</h5>
-                            <div id="changesSummary"></div>
+                        <div class="card bg-darker mb-3">
+                            <div class="card-header">Changes Summary</div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="metric-card">
+                                            <div class="metric-title">New Nodes</div>
+                                            <div id="newNodes" class="metric-value">0</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="metric-card">
+                                            <div class="metric-title">Removed Nodes</div>
+                                            <div id="removedNodes" class="metric-value">0</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="metric-card">
+                                            <div class="metric-title">New Connections</div>
+                                            <div id="newEdges" class="metric-value">0</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="metric-card">
+                                            <div class="metric-title">Removed Connections</div>
+                                            <div id="removedEdges" class="metric-value">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-darker">
+                            <div class="card-header">Critical Infrastructure Analysis</div>
+                            <div class="card-body">
+                                <img id="criticalInfrastructure" class="img-fluid" alt="Critical Infrastructure">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -81,10 +233,7 @@
     </main>
 
     <script>
-        // Add your comparison page JavaScript here
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSnapshots();
-        });
+        document.addEventListener('DOMContentLoaded', loadSnapshots);
 
         async function loadSnapshots() {
             try {
@@ -94,19 +243,124 @@
                 const select = document.getElementById('snapshotSelect');
                 select.innerHTML = '';
                 
+                data.snapshots.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
                 data.snapshots.forEach(snapshot => {
                     const option = document.createElement('option');
                     option.value = snapshot.id;
                     option.textContent = `${new Date(snapshot.timestamp).toLocaleString()} - ${snapshot.type}`;
                     select.appendChild(option);
                 });
+                
+                updateSelectedFiles();
             } catch (error) {
                 console.error('Error loading snapshots:', error);
             }
         }
 
-        // Add the rest of your comparison functionality here
-        // (Copy the comparison-related functions from index.html)
+        function updateSelectedFiles() {
+            const select = document.getElementById('snapshotSelect');
+            const selectedList = document.getElementById('selectedFiles');
+            selectedList.innerHTML = '';
+            
+            Array.from(select.selectedOptions).forEach(option => {
+                const li = document.createElement('li');
+                li.textContent = option.text;
+                selectedList.appendChild(li);
+            });
+        }
+
+        document.getElementById('snapshotSelect').addEventListener('change', updateSelectedFiles);
+
+        async function compareSnapshots() {
+            const select = document.getElementById('snapshotSelect');
+            const selectedFiles = Array.from(select.selectedOptions).map(option => option.value);
+            
+            if (selectedFiles.length < 2) {
+                alert('Please select at least 2 snapshots to compare');
+                return;
+            }
+
+            console.log('Starting comparison with files:', selectedFiles); // Debug log
+
+            try {
+                const response = await fetch('/api/compare', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ files: selectedFiles })
+                });
+
+                console.log('Response status:', response.status); // Debug log
+                const data = await response.json();
+                console.log('Received comparison data:', data); // Debug log
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                displayComparisonResults(data);
+            } catch (error) {
+                console.error('Comparison failed:', error);
+                alert('Comparison failed: ' + error.message);
+            }
+        }
+
+        function displayComparisonResults(data) {
+            console.log('Displaying comparison results:', data); // Debug log
+            const resultsDiv = document.getElementById('comparisonResults');
+            resultsDiv.style.display = 'block';
+
+            // Update metrics
+            document.getElementById('newNodes').textContent = data.structural_changes.New_Nodes;
+            document.getElementById('removedNodes').textContent = data.structural_changes.Removed_Nodes;
+            document.getElementById('newEdges').textContent = data.structural_changes.New_Edges;
+            document.getElementById('removedEdges').textContent = data.structural_changes.Removed_Edges;
+
+            const comparisonId = data.comparison_id;
+            console.log('Comparison ID:', comparisonId); // Debug log
+            
+            // Helper function to load images with error handling
+            function loadImage(elementId, imageName) {
+                const img = document.getElementById(elementId);
+                const loadingDiv = document.createElement('div');
+                loadingDiv.textContent = 'Loading visualization...';
+                loadingDiv.style.textAlign = 'center';
+                loadingDiv.style.padding = '20px';
+                loadingDiv.className = 'loading-indicator';
+                img.parentNode.insertBefore(loadingDiv, img);
+
+                const imageUrl = `/api/comparison/${comparisonId}/${imageName}`;
+                console.log(`Loading image ${elementId} from: ${imageUrl}`); // Debug log
+
+                img.onload = () => {
+                    console.log(`Successfully loaded image: ${imageName}`); // Debug log
+                    loadingDiv.remove();
+                    img.style.display = 'block';
+                };
+
+                img.onerror = () => {
+                    console.error(`Failed to load image: ${imageName}`); // Debug log
+                    loadingDiv.textContent = 'Visualization unavailable';
+                    loadingDiv.className = 'error-indicator';
+                    img.style.display = 'none';
+                };
+
+                img.src = imageUrl;
+            }
+
+            // Load all visualizations
+            loadImage('networkBefore', 'network_overview_before.png');
+            loadImage('networkAfter', 'network_overview_after.png');
+            loadImage('criticalInfrastructure', 'critical_infrastructure.png');
+        }
+
+        function resetComparison() {
+            document.getElementById('snapshotSelect').selectedIndex = -1;
+            document.getElementById('selectedFiles').innerHTML = '';
+            document.getElementById('comparisonResults').style.display = 'none';
+        }
     </script>
 </body>
 </html> 

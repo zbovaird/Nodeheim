@@ -1,0 +1,27 @@
+{
+  "structural_changes": {
+    "New_Nodes": 4,
+    "Removed_Nodes": 2,
+    "New_Edges": 0,
+    "Removed_Edges": 0,
+    "Degree_Distribution_Change": 2
+  },
+  "metric_changes": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 2
+  },
+  "before_metrics": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 14
+  },
+  "after_metrics": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 16
+  }
+}
