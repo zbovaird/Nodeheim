@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nodeheim - Network Comparison</title>
+    <!-- Use the same CSS and JS imports as index.html -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Copy the styles from index.html -->
+    <style>
+        /* Copy all the styles from index.html */
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Network Comparison</h1>
+                <div class="dashboard-controls">
+                    <a href="/" class="btn btn-primary">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="comparison-section p-4 mt-4">
+            <div class="card bg-dark">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Network Comparison</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <h4>Select Network Snapshots</h4>
+                            <select multiple id="snapshotSelect" class="form-select bg-dark text-white mb-3" size="5">
+                                <!-- Populated dynamically -->
+                            </select>
+                            <button id="compareButton" class="btn btn-primary me-2">Compare Networks</button>
+                            <button id="resetButton" class="btn btn-secondary">Reset</button>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="selected-files bg-darker p-3 rounded">
+                                <h5>Selected Snapshots:</h5>
+                                <ul id="selectedFiles" class="list-unstyled">
+                                    <!-- Populated dynamically -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="comparisonResults" class="comparison-results" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="visualization-container">
+                                    <h5>Network Before</h5>
+                                    <div id="networkBefore" style="height: 400px;"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="visualization-container">
+                                    <h5>Network After</h5>
+                                    <div id="networkAfter" style="height: 400px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="changes-summary mt-4">
+                            <h5>Network Changes</h5>
+                            <div id="changesSummary"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Add your comparison page JavaScript here
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSnapshots();
+        });
+
+        async function loadSnapshots() {
+            try {
+                const response = await fetch('/api/snapshots');
+                const data = await response.json();
+                
+                const select = document.getElementById('snapshotSelect');
+                select.innerHTML = '';
+                
+                data.snapshots.forEach(snapshot => {
+                    const option = document.createElement('option');
+                    option.value = snapshot.id;
+                    option.textContent = `${new Date(snapshot.timestamp).toLocaleString()} - ${snapshot.type}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading snapshots:', error);
+            }
+        }
+
+        // Add the rest of your comparison functionality here
+        // (Copy the comparison-related functions from index.html)
+    </script>
+</body>
+</html> 
