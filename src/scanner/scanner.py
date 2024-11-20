@@ -166,7 +166,7 @@ class NetworkScanner:
                 '-sV '               # Version detection
                 '-O '               # OS detection
                 '--osscan-guess '    # Make aggressive OS guesses
-                '--version-intensity 7 '  # More aggressive service detection
+                '--version-intensity 9 '  # More aggressive service detection
                 '--version-light '    # Try light probes first
                 '--version-all '      # Try all probes
                 '-p 1-1000 '         # Scan first 1000 ports
