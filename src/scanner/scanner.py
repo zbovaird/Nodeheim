@@ -165,6 +165,7 @@ class NetworkScanner:
                 '-sT '               # TCP connect scan
                 '-sV '               # Version detection
                 '-O '               # OS detection
+                '--privileged '      #run with privleges
                 '--osscan-guess '    # Make aggressive OS guesses
                 '--version-intensity 9 '  # More aggressive service detection
                 '--version-light '    # Try light probes first
@@ -326,84 +327,7 @@ class NetworkScanner:
             logging.warning(f"Error determining device type: {e}")
             return 'unknown'
         
-    def _process_results(self, scan_type: str, timestamp: str) -> ScanResult:
-        """Enhanced result processing with OS detection and device typing"""
-        hosts = []
-        ports = []
-        services = []
-        vulnerabilities = []
-        os_matches = []
-
-        for host in self.nm.all_hosts():
-            try:
-                logging.info(f"\nProcessing host: {host}")
-                
-                # Get OS information
-                os_info = self._get_os_info(host)
-                
-                # Basic host information
-                host_info = {
-                    'ip_address': host,
-                    'status': self.nm[host].state(),
-                    'hostnames': self.nm[host].hostnames(),
-                    'os_info': os_info,  # Add OS info here
-                    'device_type': self._determine_device_type({  # And determine device type
-                        'os_info': os_info,
-                        'ports': [],  # Will be filled below
-                    }),
-                    'ports': []
-                }
-
-                # Process ports and services
-                for proto in self.nm[host].all_protocols():
-                    port_list = list(self.nm[host][proto].keys())
-                    for port in port_list:
-                        try:
-                            port_info = self.nm[host][proto][port]
-                            if port_info['state'] == 'open':
-                                port_data = {
-                                    'port': int(port),
-                                    'protocol': proto,
-                                    'state': 'open',
-                                    'service': port_info.get('name', 'unknown'),
-                                    'product': port_info.get('product', ''),
-                                    'version': port_info.get('version', ''),
-                                    'extra_info': port_info.get('extrainfo', ''),
-                                    'tunnel_type': port_info.get('tunnel', ''),
-                                    'ip_address': host
-                                }
-                                host_info['ports'].append(port_data)
-                                ports.append(port_data)
-                                
-                        except Exception as e:
-                            logging.warning(f"Error processing port {port}: {e}")
-                            continue
-
-                # Determine device type
-                host_info['device_type'] = self._determine_device_type(host_info)
-                
-                hosts.append(host_info)
-                if os_info['os_match'] != 'unknown':
-                    os_matches.append({
-                        'ip_address': host,
-                        **os_info
-                    })
-
-            except Exception as e:
-                logging.error(f"Error processing host {host}: {e}")
-                continue
-
-        return ScanResult(
-            timestamp=timestamp,
-            scan_type=scan_type,
-            hosts=hosts,
-            ports=ports,
-            services=services,
-            vulnerabilities=vulnerabilities,
-            os_matches=os_matches,
-            scan_stats=self.nm.scanstats()
-        )
-
+    
 
     def full_scan(self, target: str) -> ScanResult:
         """
@@ -481,11 +405,15 @@ class NetworkScanner:
             try:
                 logging.info(f"\nProcessing host: {host}")
                 
+                # Get OS information first
+                os_info = self._get_os_info(host)
+                
                 # Basic host information
                 host_info = {
                     'ip_address': host,
                     'status': self.nm[host].state(),
                     'hostnames': self.nm[host].hostnames(),
+                    'os_info': os_info,
                     'ports': []
                 }
 
@@ -573,11 +501,26 @@ class NetworkScanner:
                 # Add ports to host info
                 host_info['ports'] = host_ports
                 host_info['open_ports_count'] = len(host_ports)
+
+                # Determine device type after processing ports
+                host_info['device_type'] = self._determine_device_type({
+                    'ports': host_ports,
+                    'os_info': os_info
+                })
+
+                # Add to os_matches if we got valid OS info
+                if os_info['os_match'] != 'unknown':
+                    os_matches.append({
+                        'ip_address': host,
+                        **os_info
+                    })
                 
                 # Log summary for this host
                 if host_ports:
                     logging.info(f"\nHost {host} summary:")
                     logging.info(f"Open ports count: {len(host_ports)}")
+                    logging.info(f"OS Info: {os_info['os_match']} ({os_info['os_accuracy']}% accuracy)")
+                    logging.info(f"Device Type: {host_info['device_type']}")
                     for port in host_ports:
                         logging.info(f"  Port {port['port']}/{port['protocol']}: {port.get('service_details', 'unknown')}")
 
@@ -592,10 +535,13 @@ class NetworkScanner:
         logging.info(f"Total hosts scanned: {len(hosts)}")
         logging.info(f"Total open ports found: {len(ports)}")
         logging.info(f"Total services identified: {len(services)}")
+        logging.info(f"OS matches found: {len(os_matches)}")
         logging.info("\nPorts by host:")
         for host_info in hosts:
             if host_info['open_ports_count'] > 0:
                 logging.info(f"\nHost {host_info['ip_address']}:")
+                logging.info(f"Device Type: {host_info['device_type']}")
+                logging.info(f"OS: {host_info['os_info']['os_match']}")
                 for port in host_info['ports']:
                     logging.info(f"  {port['port']}/{port['protocol']} - {port.get('service_details', 'unknown')}")
 

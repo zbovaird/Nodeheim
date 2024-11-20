@@ -962,7 +962,39 @@
         </div>
     </div>
 </div>
+           
+<div class="comparison-section p-4 mt-4"></div>
+    <div class="card bg-dark">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Network Comparison</h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h4>Select Network Snapshots</h4>
+                    <select multiple id="snapshotSelect" class="form-select bg-dark text-white mb-3" size="5">
+                        <!-- Populated dynamically -->
+                    </select>
+                    <button id="compareButton" class="btn btn-primary me-2">Compare Networks</button>
+                    <button id="resetButton" class="btn btn-secondary">Reset</button>
+                </div>
+                <div class="col-md-4">
+                    <div class="selected-files bg-darker p-3 rounded">
+                        <h5>Selected Snapshots:</h5>
+                        <ul id="selectedFiles" class="list-unstyled">
+                            <!-- Populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
             
+            <div id="comparisonResults" class="comparison-results" style="display: none;">
+                <!-- Results content (from previous HTML) goes here -->
+            </div>
+        </div>
+    </div>
+</div>
+
             <div class="recommendations">
                 <div class="card-header">Security Recommendations</div>
                 <div id="recommendations-list">

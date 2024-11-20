@@ -9,6 +9,16 @@ from datetime import datetime
 from uuid import uuid4
 import networkx as nx
 import inspect
+import base64
+from io import BytesIO
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+from typing import Dict, List
+from collections import Counter
+import numpy as np
+
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -53,6 +63,63 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize analyzer: {str(e)}")
     raise
+
+def calculate_network_metrics(G: nx.Graph) -> Dict:
+    """Calculate comprehensive network metrics"""
+    metrics = {
+        'Average_Clustering': nx.average_clustering(G),
+        'Network_Density': nx.density(G),
+        'Average_Degree': sum(dict(G.degree()).values()) / G.number_of_nodes(),
+        'Components': nx.number_connected_components(G)
+    }
+    
+    if nx.is_connected(G):
+        metrics.update({
+            'Average_Path_Length': nx.average_shortest_path_length(G),
+            'Network_Diameter': nx.diameter(G)
+        })
+        
+        # Calculate spectral metrics
+        try:
+            L = nx.laplacian_matrix(G).todense()
+            eigvals = np.linalg.eigvalsh(L)
+            metrics['Spectral_Radius'] = float(max(abs(eigvals)))
+            if len(eigvals) >= 2:
+                metrics['Fiedler_Value'] = float(eigvals[1])
+        except:
+            metrics['Spectral_Radius'] = 0.0
+            metrics['Fiedler_Value'] = 0.0
+    
+    return metrics
+
+
+def analyze_network_changes(G1: nx.Graph, G2: nx.Graph) -> Dict:
+    """Analyze changes between two network snapshots"""
+    changes = {
+        'New_Nodes': len(set(G2.nodes()) - set(G1.nodes())),
+        'Removed_Nodes': len(set(G1.nodes()) - set(G2.nodes())),
+        'New_Edges': len(set(G2.edges()) - set(G1.edges())),
+        'Removed_Edges': len(set(G1.edges()) - set(G2.edges())),
+    }
+    
+    degrees1 = Counter(dict(G1.degree()).values())
+    degrees2 = Counter(dict(G2.degree()).values())
+    changes['Degree_Distribution_Change'] = sum((degrees2 - degrees1).values())
+    
+    metrics1 = calculate_network_metrics(G1)
+    metrics2 = calculate_network_metrics(G2)
+    
+    metric_changes = {}
+    for key in metrics1:
+        if key in metrics2:
+            metric_changes[key] = metrics2[key] - metrics1[key]
+    
+    return {
+        'structural_changes': changes,
+        'metric_changes': metric_changes,
+        'before_metrics': metrics1,
+        'after_metrics': metrics2
+    }
 
 
 
@@ -633,6 +700,196 @@ def analyze_network():
 
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    
+# Add to app.py after existing imports
+import base64
+from io import BytesIO
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+@app.route('/comparison')
+def comparison_page():
+    return render_template('comparison.html')
+
+@app.route('/api/snapshots')
+def get_snapshots():
+    """Get list of available network snapshots"""
+    try:
+        scans_dir = os.path.join('src', 'data', 'scans')
+        if not os.path.exists(scans_dir):
+            return jsonify({'snapshots': []})
+
+        snapshots = []
+        for file in os.listdir(scans_dir):
+            if file.endswith('.json'):
+                with open(os.path.join(scans_dir, file), 'r') as f:
+                    data = json.load(f)
+                    snapshots.append({
+                        'id': file.replace('.json', ''),
+                        'timestamp': data.get('timestamp'),
+                        'type': data.get('scan_type')
+                    })
+
+        return jsonify({'snapshots': snapshots})
+    except Exception as e:
+        logger.error(f"Error getting snapshots: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/compare', methods=['POST'])
+def compare_networks():
+    """Compare multiple network snapshots"""
+    try:
+        data = request.json
+        if not data or 'files' not in data:
+            return jsonify({'error': 'No files specified'}), 400
+
+        file_ids = data['files']
+        if len(file_ids) < 2:
+            return jsonify({'error': 'At least 2 files required'}), 400
+
+        # Load scan results
+        networks = []
+        for file_id in file_ids:
+            scan_file = os.path.join('src', 'data', 'scans', f'{file_id}.json')
+            if not os.path.exists(scan_file):
+                return jsonify({'error': f'Scan file not found: {file_id}'}), 404
+
+            with open(scan_file, 'r') as f:
+                scan_data = json.load(f)
+                networks.append(create_network_from_scan(scan_data))
+
+        # Generate comparison ID
+        comparison_id = f"comparison_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        output_dir = os.path.join('src', 'data', 'comparisons', comparison_id)
+        os.makedirs(output_dir, exist_ok=True)
+
+        def identify_critical_paths(G: nx.Graph) -> Dict:
+            """Identify critical paths between high-centrality nodes"""
+            betweenness = nx.betweenness_centrality(G)
+            threshold = np.percentile(list(betweenness.values()), 90)
+            critical_nodes = [n for n, c in betweenness.items() if c >= threshold]
+            
+            critical_paths = {}
+            for source in critical_nodes:
+                for target in critical_nodes:
+                    if source != target:
+                        try:
+                            path = nx.shortest_path(G, source, target)
+                            if len(path) > 2:
+                                critical_paths[f"{source}->{target}"] = path
+                        except nx.NetworkXNoPath:
+                            continue
+            return critical_paths
+
+        def identify_bridge_nodes(G: nx.Graph) -> List:
+            """Find nodes that would fragment the network if removed"""
+            bridges = []
+            for node in G.nodes():
+                G_temp = G.copy()
+                G_temp.remove_node(node)
+                original_components = nx.number_connected_components(G)
+                new_components = nx.number_connected_components(G_temp)
+                if new_components > original_components:
+                    bridges.append((node, new_components - original_components))
+            return sorted(bridges, key=lambda x: x[1], reverse=True)
+
+        def visualize_network_overview(G1: nx.Graph, G2: nx.Graph, output_folder: str):
+            """Generate network overview visualization"""
+            plt.figure(figsize=(20, 15))
+            
+            plt.subplot(221)
+            nx.draw(G1, node_size=50, with_labels=False, node_color='blue', alpha=0.6)
+            plt.title('Network Before')
+            
+            plt.subplot(222)
+            nx.draw(G2, node_size=50, with_labels=False, node_color='green', alpha=0.6)
+            plt.title('Network After')
+            
+            plt.savefig(os.path.join(output_folder, 'network_overview.png'))
+            plt.close()
+
+        def visualize_critical_infrastructure(G: nx.Graph, bridge_nodes: List, 
+                                            critical_paths: Dict, output_folder: str):
+            """Visualize critical infrastructure components"""
+            plt.figure(figsize=(15, 10))
+            pos = nx.spring_layout(G)
+            
+            # Draw base network
+            nx.draw_networkx_edges(G, pos, alpha=0.2, edge_color='gray')
+            
+            # Highlight bridge nodes
+            bridge_nodes_set = {node for node, _ in bridge_nodes}
+            node_colors = ['red' if node in bridge_nodes_set else 'lightblue' 
+                        for node in G.nodes()]
+            nx.draw_networkx_nodes(G, pos, node_color=node_colors, 
+                                node_size=[300 if node in bridge_nodes_set else 100 
+                                        for node in G.nodes()])
+            
+            # Highlight critical paths
+            for path in list(critical_paths.values())[:3]:
+                path_edges = list(zip(path[:-1], path[1:]))
+                nx.draw_networkx_edges(G, pos, edgelist=path_edges, 
+                                    edge_color='red', width=2)
+            
+            plt.title("Critical Infrastructure Analysis")
+            plt.savefig(os.path.join(output_folder, 'critical_infrastructure.png'))
+            plt.close()
+        
+        # Run comparison analysis
+        results = analyze_network_changes(networks[0], networks[-1])
+        
+        # Generate and save visualizations
+        visualize_network_overview(networks[0], networks[-1], output_dir)
+        bridge_nodes = identify_bridge_nodes(networks[-1])
+        critical_paths = identify_critical_paths(networks[-1])
+        visualize_critical_infrastructure(networks[-1], bridge_nodes, critical_paths, output_dir)
+
+        # Save results
+        with open(os.path.join(output_dir, 'results.json'), 'w') as f:
+            json.dump(results, f, indent=2)
+
+        return jsonify({
+            'comparison_id': comparison_id,
+            **results
+        })
+
+    except Exception as e:
+        logger.error(f"Comparison failed: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def create_network_from_scan(scan_data):
+    """Convert scan data to NetworkX graph"""
+    G = nx.Graph()
+    
+    # Add nodes
+    for host in scan_data.get('hosts', []):
+        G.add_node(host['ip_address'], **{
+            'type': host.get('device_type', 'unknown'),
+            'services': host.get('services', []),
+            'os': host.get('os_info', {}).get('os_match', 'unknown')
+        })
+    
+    # Add edges based on network topology
+    for host in scan_data.get('hosts', []):
+        source = host['ip_address']
+        for port in host.get('ports', []):
+            if 'connections' in port:
+                for target in port['connections']:
+                    if target in G:
+                        G.add_edge(source, target)
+    
+    return G
+
+@app.route('/api/comparison/<comparison_id>/<image_name>')
+def get_comparison_image(comparison_id, image_name):
+    """Serve comparison visualization images"""
+    try:
+        image_path = os.path.join('src', 'data', 'comparisons', comparison_id, image_name)
+        return send_file(image_path, mimetype='image/png')
+    except Exception as e:
+        logger.error(f"Error serving comparison image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
