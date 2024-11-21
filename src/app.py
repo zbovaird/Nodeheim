@@ -1,5 +1,5 @@
 # src/app.py
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, render_template, jsonify, request, send_file, make_response
 import sys
 import os
 import json
@@ -19,6 +19,8 @@ from typing import Dict, List
 from collections import Counter
 import os.path
 import community  # For community detection
+import pandas as pd
+import seaborn as sns
 
 # Configure logging first
 logging.basicConfig(
@@ -440,6 +442,176 @@ def analyze_network_robustness(G: nx.Graph) -> Dict:
         logger.error(f"Error in network robustness analysis: {str(e)}")
         return {}
 
+def analyze_kcore_security(G: nx.Graph) -> Dict:
+    """Enhanced k-core analysis for security insights"""
+    try:
+        # Calculate k-core decomposition
+        core_numbers = nx.core_number(G)
+        max_core = max(core_numbers.values()) if core_numbers else 0
+        
+        # Get all k-cores
+        cores = {k: nx.k_core(G, k) for k in range(1, max_core + 1)}
+        
+        # Calculate core metrics
+        core_metrics = {}
+        for k, subgraph in cores.items():
+            metrics = {
+                'size': len(subgraph),
+                'density': nx.density(subgraph),
+                'avg_degree': sum(dict(subgraph.degree()).values()) / len(subgraph) if len(subgraph) > 0 else 0,
+                'nodes': list(subgraph.nodes()),
+                'connectivity': nx.node_connectivity(subgraph) if len(subgraph) > 1 else 0
+            }
+            core_metrics[k] = metrics
+        
+        # Identify critical cores
+        critical_cores = {}
+        for k, metrics in core_metrics.items():
+            if k >= max_core - 1:  # Focus on highest cores
+                critical_cores[k] = {
+                    'nodes': metrics['nodes'],
+                    'risk_score': calculate_core_risk(G, metrics, k, max_core)
+                }
+        
+        return {
+            'core_numbers': core_numbers,
+            'core_metrics': core_metrics,
+            'critical_cores': critical_cores,
+            'max_core': max_core
+        }
+    except Exception as e:
+        logger.error(f"Error in k-core analysis: {str(e)}")
+        return {}
+
+def calculate_core_risk(G: nx.Graph, metrics: Dict, k: int, max_core: int) -> float:
+    """Calculate risk score for a k-core"""
+    try:
+        # Normalize factors
+        core_level = k / max_core if max_core > 0 else 0
+        density = metrics['density']
+        size_ratio = metrics['size'] / G.number_of_nodes() if G.number_of_nodes() > 0 else 0
+        connectivity = metrics['connectivity'] / (G.number_of_nodes() - 1) if G.number_of_nodes() > 1 else 0
+        
+        # Weighted risk calculation
+        risk_score = (
+            0.35 * core_level +      # Higher cores are more critical
+            0.25 * density +         # Denser cores are more vulnerable
+            0.20 * size_ratio +      # Larger cores have more impact
+            0.20 * connectivity      # Higher connectivity means more attack paths
+        ) * 100
+        
+        return risk_score
+    except Exception as e:
+        logger.error(f"Error calculating core risk: {str(e)}")
+        return 0.0
+
+def visualize_kcore_security(G: nx.Graph, core_analysis: Dict, output_path: str):
+    """Generate security-focused k-core visualizations"""
+    try:
+        # Create figure with multiple subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+        
+        # 1. Core distribution heatmap
+        core_numbers = core_analysis['core_numbers']
+        pos = nx.spring_layout(G)
+        nodes = list(G.nodes())
+        adjacency_matrix = nx.adjacency_matrix(G).todense()
+        
+        # Create core relationship matrix
+        core_matrix = np.zeros((len(nodes), len(nodes)))
+        for i, node1 in enumerate(nodes):
+            for j, node2 in enumerate(nodes):
+                if adjacency_matrix[i,j]:
+                    core_matrix[i,j] = min(core_numbers[node1], core_numbers[node2])
+        
+        sns.heatmap(core_matrix, ax=ax1, cmap='YlOrRd')
+        ax1.set_title('K-Core Connectivity Heatmap', color='white')
+        
+        # 2. Risk-based core visualization
+        node_colors = [core_numbers[node] for node in G.nodes()]
+        nx.draw(G, pos, node_color=node_colors, cmap=plt.cm.YlOrRd,
+                node_size=500, ax=ax2)
+        ax2.set_title('Network K-Core Structure', color='white')
+        
+        plt.tight_layout()
+        plt.savefig(output_path, facecolor='#1a1a1a', bbox_inches='tight')
+        plt.close()
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error visualizing k-core security: {str(e)}")
+        return False
+
+def generate_kcore_security_report(core_analysis: Dict) -> pd.DataFrame:
+    """Generate security-focused k-core report"""
+    try:
+        core_metrics = core_analysis['core_metrics']
+        critical_cores = core_analysis['critical_cores']
+        
+        report_data = []
+        for k, metrics in core_metrics.items():
+            risk_level = 'HIGH' if k in critical_cores else 'MEDIUM' if k >= core_analysis['max_core']/2 else 'LOW'
+            
+            report_data.append({
+                'Core_Level': k,
+                'Size': metrics['size'],
+                'Density': f"{metrics['density']:.2f}",
+                'Avg_Degree': f"{metrics['avg_degree']:.2f}",
+                'Risk_Level': risk_level,
+                'Risk_Score': f"{critical_cores.get(k, {}).get('risk_score', 0):.1f}",
+                'Monitoring_Priority': 'Critical' if risk_level == 'HIGH' else 'Standard',
+                'Recommended_Actions': get_core_recommendations(k, metrics, risk_level)
+            })
+        
+        return pd.DataFrame(report_data)
+    except Exception as e:
+        logger.error(f"Error generating k-core report: {str(e)}")
+        return pd.DataFrame()
+
+def get_core_recommendations(k: int, metrics: Dict, risk_level: str) -> str:
+    """Generate security recommendations based on core characteristics"""
+    try:
+        if risk_level == 'HIGH':
+            return (f"Implement strict monitoring; "
+                    f"Consider network segmentation; "
+                    f"Monitor all {metrics['size']} nodes for suspicious activity")
+        elif risk_level == 'MEDIUM':
+            return (f"Regular monitoring; "
+                    f"Review access controls; "
+                    f"Document communication patterns")
+        else:
+            return "Standard security controls; Periodic review"
+    except Exception as e:
+        logger.error(f"Error generating recommendations: {str(e)}")
+        return "Error generating recommendations"
+
+def track_kcore_changes(G1: nx.Graph, G2: nx.Graph) -> pd.DataFrame:
+    """Track changes in k-core structure between two network states"""
+    try:
+        cores1 = nx.core_number(G1)
+        cores2 = nx.core_number(G2)
+        
+        changes = []
+        all_nodes = set(G1.nodes()) | set(G2.nodes())
+        
+        for node in all_nodes:
+            old_core = cores1.get(node, 0)
+            new_core = cores2.get(node, 0)
+            if old_core != new_core:
+                changes.append({
+                    'Node': node,
+                    'Old_Core': old_core,
+                    'New_Core': new_core,
+                    'Change': new_core - old_core,
+                    'Impact': 'High' if abs(new_core - old_core) > 1 else 'Medium',
+                    'Action_Required': 'Yes' if new_core > old_core else 'Monitor'
+                })
+        
+        return pd.DataFrame(changes)
+    except Exception as e:
+        logger.error(f"Error tracking k-core changes: {str(e)}")
+        return pd.DataFrame()
+
 # Routes
 @app.route('/')
 def home():
@@ -475,7 +647,6 @@ def get_snapshots():
 
 @app.route('/api/compare', methods=['POST'])
 def compare_networks():
-    """Compare multiple network snapshots"""
     try:
         data = request.json
         logger.info(f"Received comparison request with data: {data}")
@@ -507,9 +678,16 @@ def compare_networks():
         os.makedirs(output_dir, exist_ok=True)
         logger.info(f"Created output directory: {output_dir}")
 
+        # Generate all analysis results
         results = analyze_network_changes(networks[0], networks[-1])
-        logger.info(f"Analysis results: {results}")
+        centrality_before = calculate_node_centrality_metrics(networks[0])
+        centrality_after = calculate_node_centrality_metrics(networks[-1])
+        metric_changes = calculate_node_metrics_comparison(networks[0], networks[-1])
+        robustness_analysis = analyze_network_robustness(networks[-1])
+        kcore_analysis = analyze_kcore_security(networks[-1])
+        kcore_changes = track_kcore_changes(networks[0], networks[-1])
 
+        # Generate visualizations
         viz_success = visualize_network_overview(networks[0], networks[-1], output_dir)
         logger.info(f"Network overview visualization success: {viz_success}")
 
@@ -518,27 +696,33 @@ def compare_networks():
         infra_success = visualize_critical_infrastructure(networks[-1], bridge_nodes, critical_paths, output_dir)
         logger.info(f"Critical infrastructure visualization success: {infra_success}")
 
-        # Calculate centrality metrics
-        centrality_before = calculate_node_centrality_metrics(networks[0])
-        centrality_after = calculate_node_centrality_metrics(networks[-1])
-        
-        # Add heatmap metrics
-        metric_changes = calculate_node_metrics_comparison(networks[0], networks[-1])
-        
-        # Add robustness analysis
-        robustness_analysis = analyze_network_robustness(networks[-1])
-        response_data = {
+        kcore_viz_path = os.path.join(output_dir, 'kcore_analysis.png')
+        visualize_kcore_security(networks[-1], kcore_analysis, kcore_viz_path)
+
+        # Prepare complete analysis results
+        complete_results = {
             'comparison_id': comparison_id,
+            'timestamp': datetime.now().isoformat(),
+            'structural_changes': results['structural_changes'],
+            'metric_changes': metric_changes,
+            'before_metrics': results['before_metrics'],
+            'after_metrics': results['after_metrics'],
             'centrality_before': centrality_before,
             'centrality_after': centrality_after,
-            'metric_changes': metric_changes,
-            **results,
-            'robustness_analysis': robustness_analysis
+            'robustness_analysis': robustness_analysis,
+            'kcore_analysis': kcore_analysis,
+            'kcore_changes': kcore_changes.to_dict('records') if not kcore_changes.empty else [],
+            'bridge_nodes': bridge_nodes,
+            'critical_paths': critical_paths
         }
-        
-        logger.info(f"Sending response with metric changes for heatmap")
-        logger.info(f"Completed robustness analysis")
-        return jsonify(response_data)
+
+        # Save complete results
+        results_file = os.path.join(output_dir, 'results.json')
+        with open(results_file, 'w') as f:
+            json.dump(complete_results, f, indent=2, default=str)
+        logger.info(f"Saved complete analysis results to {results_file}")
+
+        return jsonify(complete_results)
 
     except Exception as e:
         logger.error(f"Comparison failed: {str(e)}", exc_info=True)
@@ -577,6 +761,40 @@ def get_networks():
             'status': 'error',
             'message': str(e)
         }), 500
+
+@app.route('/api/comparison/<comparison_id>/report', methods=['GET'])
+def download_analysis_report(comparison_id):
+    try:
+        report_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
+        
+        # Load analysis results
+        with open(os.path.join(report_dir, 'results.json'), 'r') as f:
+            results = json.load(f)
+        
+        # Generate comprehensive report
+        report = {
+            'timestamp': datetime.now().isoformat(),
+            'comparison_id': comparison_id,
+            'structural_changes': results.get('structural_changes', {}),
+            'metric_changes': results.get('metric_changes', {}),
+            'kcore_analysis': results.get('kcore_analysis', {}),
+            'kcore_changes': results.get('kcore_changes', []),
+            'robustness_analysis': results.get('robustness_analysis', {})
+        }
+        
+        # Convert to JSON
+        report_json = json.dumps(report, indent=2)
+        
+        # Create response
+        response = make_response(report_json)
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = f'attachment; filename=analysis_report_{comparison_id}.json'
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5050, debug=True)
