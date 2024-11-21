@@ -220,6 +220,61 @@
                             </div>
                         </div>
                         
+                        <div class="card bg-dark mb-3">
+                            <div class="card-header">
+                                <h5>Network Metrics Comparison</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <canvas id="metricsChart"></canvas>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <table class="table table-dark table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Metric</th>
+                                                    <th>Before</th>
+                                                    <th>After</th>
+                                                    <th>Change</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="metricsTable"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-dark mb-3">
+                            <div class="card-header">
+                                <h5>Node Centrality Analysis</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <canvas id="centralityChart"></canvas>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="table-responsive">
+                                            <table class="table table-dark table-striped">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Node</th>
+                                                        <th>Metric</th>
+                                                        <th>Before</th>
+                                                        <th>After</th>
+                                                        <th>Change</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="centralityTable"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="card bg-darker">
                             <div class="card-header">Critical Infrastructure Analysis</div>
                             <div class="card-body">
@@ -308,18 +363,26 @@
         }
 
         function displayComparisonResults(data) {
-            console.log('Displaying comparison results:', data); // Debug log
+            console.log('Displaying comparison results:', data);
             const resultsDiv = document.getElementById('comparisonResults');
             resultsDiv.style.display = 'block';
 
-            // Update metrics
+            // Update structural metrics
             document.getElementById('newNodes').textContent = data.structural_changes.New_Nodes;
             document.getElementById('removedNodes').textContent = data.structural_changes.Removed_Nodes;
             document.getElementById('newEdges').textContent = data.structural_changes.New_Edges;
             document.getElementById('removedEdges').textContent = data.structural_changes.Removed_Edges;
 
+            // Update network metrics visualization
+            updateNetworkMetrics(data.before_metrics, data.after_metrics);
+
+            // Add centrality visualization
+            if (data.centrality_before && data.centrality_after) {
+                updateCentralityVisualization(data.centrality_before, data.centrality_after);
+            }
+
             const comparisonId = data.comparison_id;
-            console.log('Comparison ID:', comparisonId); // Debug log
+            console.log('Comparison ID:', comparisonId);
             
             // Helper function to load images with error handling
             function loadImage(elementId, imageName) {
@@ -332,16 +395,16 @@
                 img.parentNode.insertBefore(loadingDiv, img);
 
                 const imageUrl = `/api/comparison/${comparisonId}/${imageName}`;
-                console.log(`Loading image ${elementId} from: ${imageUrl}`); // Debug log
+                console.log(`Loading image ${elementId} from: ${imageUrl}`);
 
                 img.onload = () => {
-                    console.log(`Successfully loaded image: ${imageName}`); // Debug log
+                    console.log(`Successfully loaded image: ${imageName}`);
                     loadingDiv.remove();
                     img.style.display = 'block';
                 };
 
                 img.onerror = () => {
-                    console.error(`Failed to load image: ${imageName}`); // Debug log
+                    console.error(`Failed to load image: ${imageName}`);
                     loadingDiv.textContent = 'Visualization unavailable';
                     loadingDiv.className = 'error-indicator';
                     img.style.display = 'none';
@@ -354,6 +417,273 @@
             loadImage('networkBefore', 'network_overview_before.png');
             loadImage('networkAfter', 'network_overview_after.png');
             loadImage('criticalInfrastructure', 'critical_infrastructure.png');
+        }
+
+        function updateNetworkMetrics(beforeMetrics, afterMetrics) {
+            const chartElement = document.getElementById('metricsChart');
+            const ctx = chartElement.getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (window.metricsChart instanceof Chart) {
+                window.metricsChart.destroy();
+            }
+
+            const metrics = Object.keys(beforeMetrics).map(key => ({
+                name: key.replace(/_/g, ' '),
+                before: beforeMetrics[key],
+                after: afterMetrics[key],
+                change: afterMetrics[key] - beforeMetrics[key]
+            }));
+
+            // Create new chart
+            window.metricsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: metrics.map(m => m.name),
+                    datasets: [
+                        {
+                            label: 'Before',
+                            data: metrics.map(m => m.before),
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'After',
+                            data: metrics.map(m => m.after),
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#fff',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Network Metrics Comparison',
+                            color: '#fff',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#fff'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#fff',
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update table
+            const tableBody = document.getElementById('metricsTable');
+            tableBody.innerHTML = '';
+            
+            metrics.forEach(metric => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${metric.name}</td>
+                    <td>${metric.before.toFixed(3)}</td>
+                    <td>${metric.after.toFixed(3)}</td>
+                    <td class="${metric.change > 0 ? 'text-success' : 'text-danger'}">
+                        ${metric.change > 0 ? '+' : ''}${metric.change.toFixed(3)}
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function updateCentralityVisualization(centralityBefore, centralityAfter) {
+            console.log('Centrality data:', { before: centralityBefore, after: centralityAfter });
+            
+            const chartElement = document.getElementById('centralityChart');
+            const ctx = chartElement.getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (window.centralityChart instanceof Chart) {
+                window.centralityChart.destroy();
+            }
+
+            // Ensure we have valid data
+            if (!centralityBefore || !centralityAfter || !centralityBefore.degree_centrality) {
+                console.error('Invalid centrality data received');
+                chartElement.style.display = 'none';
+                document.getElementById('centralityTable').innerHTML = 
+                    '<tr><td colspan="5" class="text-center">No centrality data available</td></tr>';
+                return;
+            }
+
+            // Process centrality data
+            const metrics = [
+                { id: 'degree_centrality', label: 'Degree' },
+                { id: 'betweenness_centrality', label: 'Betweenness' },
+                { id: 'closeness_centrality', label: 'Closeness' },
+                { id: 'eigenvector_centrality', label: 'Eigenvector' }
+            ];
+            
+            const nodes = Object.keys(centralityBefore.degree_centrality || {});
+            
+            if (nodes.length === 0) {
+                console.error('No nodes found in centrality data');
+                return;
+            }
+
+            // Calculate averages for each metric with safety checks
+            const beforeAverages = metrics.map(metric => {
+                if (!centralityBefore[metric.id]) return 0;
+                const values = nodes.map(node => centralityBefore[metric.id][node] || 0);
+                return values.reduce((sum, val) => sum + val, 0) / values.length;
+            });
+            
+            const afterAverages = metrics.map(metric => {
+                if (!centralityAfter[metric.id]) return 0;
+                const values = nodes.map(node => centralityAfter[metric.id][node] || 0);
+                return values.reduce((sum, val) => sum + val, 0) / values.length;
+            });
+
+            // Create chart with improved styling
+            window.centralityChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: metrics.map(m => m.label),
+                    datasets: [
+                        {
+                            label: 'Before',
+                            data: beforeAverages,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'After',
+                            data: afterAverages,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            pointRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { 
+                                color: '#fff',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                },
+                                padding: 20
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Network Centrality Metrics',
+                            color: '#fff',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: 20
+                        }
+                    },
+                    scales: {
+                        r: {
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                circular: true
+                            },
+                            pointLabels: { 
+                                color: '#fff',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            angleLines: { 
+                                color: 'rgba(255, 255, 255, 0.2)' 
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 1,
+                            ticks: {
+                                color: '#fff',
+                                backdropColor: 'transparent'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update table with improved formatting
+            const tableBody = document.getElementById('centralityTable');
+            tableBody.innerHTML = '';
+            
+            // Sort nodes by average centrality change
+            const nodeChanges = nodes.map(node => {
+                const avgBefore = metrics.reduce((sum, metric) => 
+                    sum + (centralityBefore[metric.id]?.[node] || 0), 0) / metrics.length;
+                const avgAfter = metrics.reduce((sum, metric) => 
+                    sum + (centralityAfter[metric.id]?.[node] || 0), 0) / metrics.length;
+                return { node, change: avgAfter - avgBefore };
+            }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+
+            // Show top 10 nodes with most significant changes
+            nodeChanges.slice(0, 10).forEach(({ node }) => {
+                metrics.forEach(metric => {
+                    const before = (centralityBefore[metric.id]?.[node] || 0);
+                    const after = (centralityAfter[metric.id]?.[node] || 0);
+                    const change = after - before;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="badge bg-secondary">${node}</span></td>
+                        <td>${metric.label}</td>
+                        <td>${before.toFixed(3)}</td>
+                        <td>${after.toFixed(3)}</td>
+                        <td class="${change > 0 ? 'text-success' : 'text-danger'}">
+                            <strong>${change > 0 ? '+' : ''}${change.toFixed(3)}</strong>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            });
         }
 
         function resetComparison() {

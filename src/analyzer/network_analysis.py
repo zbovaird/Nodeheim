@@ -1739,4 +1739,56 @@ def generate_action_items(G1: nx.Graph, G2: nx.Graph, bridge_nodes: list,
     return action_items
 
 
+def calculate_network_metrics(G):
+    """Calculate comprehensive network metrics."""
+    metrics = {
+        'Average_Clustering': nx.average_clustering(G),
+        'Network_Density': nx.density(G),
+        'Average_Degree': sum(dict(G.degree()).values()) / G.number_of_nodes(),
+        'Components': nx.number_connected_components(G)
+    }
+    
+    # Add connected-only metrics if graph is connected
+    if nx.is_connected(G):
+        metrics.update({
+            'Average_Path_Length': nx.average_shortest_path_length(G),
+            'Network_Diameter': nx.diameter(G)
+        })
+        
+        # Calculate spectral metrics
+        try:
+            L = nx.laplacian_matrix(G).todense()
+            eigvals = np.linalg.eigvalsh(L)
+            metrics['Spectral_Radius'] = float(max(abs(eigvals)))
+            if len(eigvals) >= 2:
+                metrics['Fiedler_Value'] = float(eigvals[1])
+        except:
+            metrics['Spectral_Radius'] = 0.0
+            metrics['Fiedler_Value'] = 0.0
+    
+    return metrics
 
+def create_network_from_scan(scan_data: Dict) -> nx.Graph:
+    G = nx.Graph()
+    
+    # Add nodes
+    for host in scan_data.get('hosts', []):
+        G.add_node(host['ip_address'], **{
+            'type': host.get('device_type', 'unknown'),
+            'services': host.get('services', []),
+            'os': host.get('os_info', {}).get('os_match', 'unknown')
+        })
+    
+    # Add edges based on port connections
+    for host in scan_data.get('hosts', []):
+        source = host['ip_address']
+        for port_data in host.get('ports', []):
+            if port_data.get('state') == 'open':
+                # Connect to other hosts in the same subnet
+                for target in G.nodes():
+                    if target != source:
+                        # Create edge if hosts are in the same subnet
+                        if source.split('.')[:-1] == target.split('.')[:-1]:
+                            G.add_edge(source, target)
+    
+    return G

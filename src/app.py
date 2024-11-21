@@ -94,19 +94,40 @@ def visualize_network_overview(G1: nx.Graph, G2: nx.Graph, output_folder: str) -
         plt.savefig(before_path, bbox_inches='tight', facecolor='#1a1a1a')
         plt.close()
         
-        # Generate "after" network visualization
+        # Generate "after" network visualization with highlighted new connections
         plt.figure(figsize=(10, 8))
         pos2 = nx.spring_layout(G2, k=1, iterations=50)
-        nx.draw(G2, pos2, 
-               node_size=500,
-               node_color='lightgreen',
-               edge_color='gray',
-               alpha=0.6,
-               with_labels=True,
-               font_size=8,
-               font_color='white',
-               font_weight='bold')
-        plt.title('Network After', color='white', pad=20)
+        
+        # Draw existing edges first
+        existing_edges = set(G1.edges())
+        new_edges = set(G2.edges()) - existing_edges
+        
+        # Draw old edges in gray
+        nx.draw_networkx_edges(G2, pos2,
+                             edgelist=[e for e in G2.edges() if e in existing_edges],
+                             edge_color='gray',
+                             alpha=0.6)
+        
+        # Draw new edges in red
+        nx.draw_networkx_edges(G2, pos2,
+                             edgelist=[e for e in G2.edges() if e in new_edges],
+                             edge_color='red',
+                             alpha=0.8,
+                             width=2)
+        
+        # Draw nodes
+        nx.draw_networkx_nodes(G2, pos2,
+                             node_size=500,
+                             node_color='lightgreen',
+                             alpha=0.6)
+        
+        # Add labels
+        nx.draw_networkx_labels(G2, pos2,
+                              font_size=8,
+                              font_color='white',
+                              font_weight='bold')
+        
+        plt.title('Network After (New Connections in Red)', color='white', pad=20)
         after_path = os.path.join(output_folder, 'network_overview_after.png')
         plt.savefig(after_path, bbox_inches='tight', facecolor='#1a1a1a')
         plt.close()
@@ -244,8 +265,64 @@ def create_network_from_scan(scan_data: Dict) -> nx.Graph:
             'services': host.get('services', []),
             'os': host.get('os_info', {}).get('os_match', 'unknown')
         })
+        
+        # Add edges based on port connections
+        for port in host.get('ports', []):
+            # Connect to gateway/router if port is open
+            if port.get('state') == 'open':
+                # Find gateway IP from the scan data
+                gateway_ip = next((h['ip_address'] for h in scan_data.get('hosts', [])
+                                if h.get('device_type') == 'router' or 
+                                h.get('device_type') == 'gateway'), None)
+                if gateway_ip and gateway_ip != host['ip_address']:
+                    G.add_edge(host['ip_address'], gateway_ip)
+            
+            # Connect nodes that communicate on the same ports
+            for other_host in scan_data.get('hosts', []):
+                if other_host['ip_address'] != host['ip_address']:
+                    other_ports = [p.get('port') for p in other_host.get('ports', [])]
+                    if port.get('port') in other_ports:
+                        G.add_edge(host['ip_address'], other_host['ip_address'])
+
+        # Add edges based on ARP cache or direct communication
+        if 'connections' in host:
+            for connection in host['connections']:
+                if connection in G.nodes():
+                    G.add_edge(host['ip_address'], connection)
     
+    # Add subnet-based connections
+    hosts = scan_data.get('hosts', [])
+    for i, host1 in enumerate(hosts):
+        for host2 in hosts[i+1:]:
+            # Check if hosts are in the same subnet
+            ip1_parts = host1['ip_address'].split('.')
+            ip2_parts = host2['ip_address'].split('.')
+            if ip1_parts[:3] == ip2_parts[:3]:  # Same /24 subnet
+                G.add_edge(host1['ip_address'], host2['ip_address'])
+    
+    logger.info(f"Created network graph with {len(G.nodes())} nodes and {len(G.edges())} edges")
     return G
+
+def calculate_node_centrality_metrics(G: nx.Graph) -> Dict:
+    """Calculate comprehensive node centrality metrics"""
+    try:
+        metrics = {
+            'degree_centrality': nx.degree_centrality(G),
+            'betweenness_centrality': nx.betweenness_centrality(G),
+            'closeness_centrality': nx.closeness_centrality(G)
+        }
+        
+        # Try to calculate eigenvector centrality, but handle potential convergence issues
+        try:
+            metrics['eigenvector_centrality'] = nx.eigenvector_centrality(G, max_iter=1000)
+        except:
+            logger.warning("Eigenvector centrality calculation failed, using degree centrality as fallback")
+            metrics['eigenvector_centrality'] = metrics['degree_centrality']
+            
+        return metrics
+    except Exception as e:
+        logger.error(f"Error calculating centrality metrics: {str(e)}")
+        return {}
 
 # Routes
 @app.route('/')
@@ -325,11 +402,18 @@ def compare_networks():
         infra_success = visualize_critical_infrastructure(networks[-1], bridge_nodes, critical_paths, output_dir)
         logger.info(f"Critical infrastructure visualization success: {infra_success}")
 
+        # Calculate centrality metrics
+        centrality_before = calculate_node_centrality_metrics(networks[0])
+        centrality_after = calculate_node_centrality_metrics(networks[-1])
+        
         response_data = {
             'comparison_id': comparison_id,
+            'centrality_before': centrality_before,
+            'centrality_after': centrality_after,
             **results
         }
-        logger.info(f"Sending response: {response_data}")
+        
+        logger.info(f"Sending response with centrality metrics")
         return jsonify(response_data)
 
     except Exception as e:
