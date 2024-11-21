@@ -483,7 +483,9 @@
             document.getElementById('removedEdges').textContent = data.structural_changes.Removed_Edges;
 
             // Update network metrics visualization
-            updateNetworkMetrics(data.before_metrics, data.after_metrics);
+            if (data.before_metrics && data.after_metrics) {
+                updateNetworkMetrics(data.before_metrics, data.after_metrics);
+            }
 
             // Add centrality visualization
             if (data.centrality_before && data.centrality_after) {
@@ -1013,20 +1015,27 @@
         async function downloadReport() {
             try {
                 const comparisonId = document.getElementById('comparisonResults').dataset.comparisonId;
-                const response = await fetch(`/api/comparison/${comparisonId}/report`);
-                if (!response.ok) throw new Error('Failed to generate report');
                 
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `analysis_report_${comparisonId}.json`;
+                // Create form and submit it
+                const form = document.createElement('form');
+                form.method = 'GET';
+                form.action = `/api/comparison/${comparisonId}/report`;
                 
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
+                // Add hidden input for file type
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'format';
+                input.value = 'markdown';
+                form.appendChild(input);
+                
+                // Add to document and submit
+                document.body.appendChild(form);
+                form.submit();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(form);
+                }, 100);
                 
             } catch (error) {
                 console.error('Error downloading report:', error);

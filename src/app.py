@@ -236,19 +236,32 @@ def analyze_network_changes(G1: nx.Graph, G2: nx.Graph) -> Dict:
                                          Counter(dict(G1.degree()).values())).values())
     }
     
-    metrics1 = {
-        'Average_Clustering': nx.average_clustering(G1),
-        'Network_Density': nx.density(G1),
-        'Average_Degree': sum(dict(G1.degree()).values()) / G1.number_of_nodes(),
-        'Components': nx.number_connected_components(G1)
-    }
+    def calculate_spectral_metrics(G):
+        metrics = {
+            'Average_Clustering': nx.average_clustering(G),
+            'Network_Density': nx.density(G),
+            'Average_Degree': sum(dict(G.degree()).values()) / G.number_of_nodes(),
+            'Components': nx.number_connected_components(G)
+        }
+        
+        # Add spectral metrics
+        try:
+            L = nx.laplacian_matrix(G).todense()
+            eigvals = np.linalg.eigvalsh(L)
+            metrics['Spectral_Radius'] = float(max(abs(eigvals)))
+            if len(eigvals) >= 2:
+                metrics['Fiedler_Value'] = float(eigvals[1])
+            else:
+                metrics['Fiedler_Value'] = 0.0
+        except Exception as e:
+            logger.error(f"Error calculating spectral metrics: {str(e)}")
+            metrics['Spectral_Radius'] = 0.0
+            metrics['Fiedler_Value'] = 0.0
+            
+        return metrics
     
-    metrics2 = {
-        'Average_Clustering': nx.average_clustering(G2),
-        'Network_Density': nx.density(G2),
-        'Average_Degree': sum(dict(G2.degree()).values()) / G2.number_of_nodes(),
-        'Components': nx.number_connected_components(G2)
-    }
+    metrics1 = calculate_spectral_metrics(G1)
+    metrics2 = calculate_spectral_metrics(G2)
     
     return {
         'structural_changes': changes,
@@ -770,25 +783,107 @@ def download_analysis_report(comparison_id):
         # Load analysis results
         with open(os.path.join(report_dir, 'results.json'), 'r') as f:
             results = json.load(f)
+
+        # Generate markdown report
+        markdown_report = [
+            f"# Network Analysis Report - {comparison_id}",
+            f"\nGenerated on: {results.get('timestamp', 'N/A')}\n",
+            
+            "## Network Topology Changes\n",
+            "### Before and After Comparison\n",
+            
+            "## Structural Changes",
+            "| Metric | Value |",
+            "|--------|--------|",
+        ]
         
-        # Generate comprehensive report
-        report = {
-            'timestamp': datetime.now().isoformat(),
-            'comparison_id': comparison_id,
-            'structural_changes': results.get('structural_changes', {}),
-            'metric_changes': results.get('metric_changes', {}),
-            'kcore_analysis': results.get('kcore_analysis', {}),
-            'kcore_changes': results.get('kcore_changes', []),
-            'robustness_analysis': results.get('robustness_analysis', {})
-        }
+        # Add structural changes
+        structural = results.get('structural_changes', {})
+        for key, value in structural.items():
+            markdown_report.append(f"| {key.replace('_', ' ')} | {value} |")
+            
+        # Add network metrics comparison
+        markdown_report.extend([
+            "\n## Network Metrics Comparison",
+            "| Metric | Before | After | Change |",
+            "|--------|---------|--------|---------|",
+        ])
         
-        # Convert to JSON
-        report_json = json.dumps(report, indent=2)
+        before_metrics = results.get('before_metrics', {})
+        after_metrics = results.get('after_metrics', {})
+        for key in before_metrics:
+            before_val = before_metrics[key]
+            after_val = after_metrics[key]
+            change = after_val - before_val
+            change_str = f"+{change:.3f}" if change > 0 else f"{change:.3f}"
+            markdown_report.append(
+                f"| {key.replace('_', ' ')} | {before_val:.3f} | {after_val:.3f} | {change_str} |"
+            )
+            
+        # Add robustness analysis
+        robustness = results.get('robustness_analysis', {})
+        markdown_report.extend([
+            "\n## Network Robustness Analysis",
+            "\n### Community Structure",
+            f"- Modularity Score: {robustness.get('modularity', 0):.3f}",
+            f"- Number of Bridge Nodes: {len(robustness.get('bridge_nodes', []))}",
+            f"- Isolation Score: {robustness.get('segment_analysis', {}).get('isolation_score', 0):.3f}",
+            
+            "\n### Critical Paths",
+        ])
         
-        # Create response
-        response = make_response(report_json)
-        response.headers['Content-Type'] = 'application/json'
-        response.headers['Content-Disposition'] = f'attachment; filename=analysis_report_{comparison_id}.json'
+        # Add vulnerability paths
+        for i, path in enumerate(robustness.get('vulnerability_paths', []), 1):
+            markdown_report.extend([
+                f"\n**Critical Path {i}**",
+                f"- Path: {' → '.join(path['path'])}",
+                f"- Length: {path['length']}",
+                f"- Risk Score: {path['risk_score']}"
+            ])
+            
+        # Add k-core analysis
+        kcore = results.get('kcore_analysis', {})
+        markdown_report.extend([
+            "\n## K-Core Analysis",
+            f"\n- Maximum Core Number: {kcore.get('max_core', 0)}",
+            f"- Number of Critical Cores: {len(kcore.get('critical_cores', {}))}",
+            
+            "\n### Core Metrics",
+            "| Core Level | Size | Density | Average Degree |",
+            "|------------|------|---------|----------------|",
+        ])
+        
+        for k, metrics in kcore.get('core_metrics', {}).items():
+            markdown_report.append(
+                f"| {k} | {metrics['size']} | {metrics['density']:.3f} | {metrics['avg_degree']:.3f} |"
+            )
+            
+        # Add recommendations section
+        markdown_report.extend([
+            "\n## Security Recommendations",
+            "\n### High Priority Actions",
+            "1. Monitor identified bridge nodes for suspicious activity",
+            "2. Review security of high-risk paths",
+            "3. Implement network segmentation for critical cores",
+            
+            "\n### Medium Priority Actions",
+            "1. Document network community structure",
+            "2. Regular monitoring of cross-segment connections",
+            "3. Update access controls for high centrality nodes",
+            
+            "\n### Monitoring Guidelines",
+            "- Regular review of network topology changes",
+            "- Track changes in core structure",
+            "- Monitor community isolation metrics"
+        ])
+        
+        # Join all lines with newlines
+        report_content = '\n'.join(markdown_report)
+        
+        # Create response with markdown file
+        response = make_response(report_content)
+        response.headers['Content-Type'] = 'text/markdown'
+        response.headers['Content-Disposition'] = f'attachment; filename=analysis_report_{comparison_id}.md'
         
         return response
         
