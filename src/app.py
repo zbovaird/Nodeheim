@@ -665,28 +665,47 @@ def analyze_lateral_movement(G: nx.Graph) -> Dict:
 def identify_high_value_targets(G: nx.Graph) -> List[str]:
     """Identify high-value targets based on node attributes and topology"""
     targets = []
+    degrees = [G.degree(n) for n in G.nodes()]
+    avg_degree = np.mean(degrees) if degrees else 0
+    std_degree = np.std(degrees) if degrees else 0
+    
     for node in G.nodes():
         node_data = G.nodes[node]
+        # More lenient conditions for high-value targets
         if any([
-            node_data.get('type', '').lower() in ['server', 'database', 'dc', 'admin'],
-            node_data.get('service', '').lower() in ['sql', 'domain', 'admin'],
-            G.degree(node) > np.mean([G.degree(n) for n in G.nodes()]) + np.std([G.degree(n) for n in G.nodes()])
+            node_data.get('type', '').lower() in ['server', 'database', 'dc', 'admin', 'router', 'gateway'],
+            node_data.get('service', '').lower() in ['sql', 'domain', 'admin', 'ssh', 'rdp', 'smb'],
+            G.degree(node) > avg_degree,  # Changed from avg + std to just avg
+            len(node_data.get('services', [])) > 2,  # Added service count check
+            node_data.get('os_info', {}).get('os_match', '').lower().startswith('windows')  # Added OS check
         ]):
             targets.append(node)
+            logger.info(f"Identified high-value target: {node}")
+    
+    logger.info(f"Found {len(targets)} high-value targets")
     return targets
 
 def identify_entry_points(G: nx.Graph) -> List[str]:
     """Identify potential network entry points"""
     entry_points = []
+    degrees = [G.degree(n) for n in G.nodes()]
+    avg_degree = np.mean(degrees) if degrees else 0
+    
     for node in G.nodes():
         node_data = G.nodes[node]
+        # More lenient conditions for entry points
         if any([
             node_data.get('exposed', False),
             'external' in str(node_data.get('connections', [])),
-            node_data.get('type', '').lower() in ['workstation', 'endpoint'],
-            G.degree(node) <= np.mean([G.degree(n) for n in G.nodes()]) - np.std([G.degree(n) for n in G.nodes()])
+            node_data.get('type', '').lower() in ['workstation', 'endpoint', 'client', 'unknown'],
+            G.degree(node) < avg_degree,  # Changed from avg - std to just avg
+            len(node_data.get('services', [])) < 3,  # Added service count check
+            any(port.get('state') == 'open' for port in node_data.get('ports', []))  # Added open ports check
         ]):
             entry_points.append(node)
+            logger.info(f"Identified entry point: {node}")
+    
+    logger.info(f"Found {len(entry_points)} entry points")
     return entry_points
 
 def calculate_path_risk(G: nx.Graph, path: List) -> float:
@@ -696,16 +715,19 @@ def calculate_path_risk(G: nx.Graph, path: List) -> float:
         node = path[i]
         node_data = G.nodes[node]
         
-        # Base node risk
+        # Enhanced risk factors
         risk_factors = {
             'privilege_level': node_data.get('privilege_level', 1),
-            'vulnerabilities': len(node_data.get('vulnerabilities', [])),
+            'vulnerabilities': len(node_data.get('vulnerabilities', [])) * 2,  # Doubled vulnerability impact
             'exposed_services': len(node_data.get('services', [])),
             'degree': G.degree(node) / G.number_of_nodes(),
+            'open_ports': len([p for p in node_data.get('ports', []) if p.get('state') == 'open']) * 1.5,  # Added open ports factor
+            'critical_service': 2 if any(s.get('name', '').lower() in ['rdp', 'ssh', 'smb'] 
+                                       for s in node_data.get('services', [])) else 0  # Added critical service factor
         }
         
         # Position risk (nodes in middle of path are more critical)
-        position_multiplier = 1.5 if 0 < i < len(path)-1 else 1.0
+        position_multiplier = 2.0 if 0 < i < len(path)-1 else 1.0  # Increased multiplier
         
         # Calculate step risk
         step_risk = sum(risk_factors.values()) * position_multiplier
@@ -796,37 +818,90 @@ def find_critical_junctions(G: nx.Graph, paths: Dict) -> Dict[str, float]:
 
 def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str):
     """Visualize lateral movement paths and critical nodes"""
-    plt.figure(figsize=(15, 10))
-    pos = nx.spring_layout(G)
-    
-    # Draw base network
-    nx.draw_networkx_edges(G, pos, alpha=0.2, edge_color='gray')
-    
-    # Color nodes based on type
-    node_colors = []
-    node_sizes = []
-    for node in G.nodes():
-        if node in analysis_result['critical_junctions']:
-            node_colors.append('red')
-            node_sizes.append(300)
-        elif G.nodes[node].get('type') in ['server', 'database', 'dc']:
-            node_colors.append('orange')
-            node_sizes.append(200)
-        else:
-            node_colors.append('lightblue')
-            node_sizes.append(100)
-    
-    nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=node_sizes)
-    
-    # Highlight high-risk paths
-    for path_info in analysis_result['high_risk_paths'][:3]:  # Top 3 riskiest paths
-        path = path_info['highest_risk_route'][0]
-        edges = list(zip(path[:-1], path[1:]))
-        nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color='red', width=2)
-    
-    plt.title("Lateral Movement Analysis")
-    plt.savefig(output_path)
-    plt.close()
+    try:
+        plt.figure(figsize=(20, 15))  # Increased figure size
+        pos = nx.spring_layout(G, k=2)  # Increased spacing between nodes
+        
+        # Draw base network with improved visibility
+        nx.draw_networkx_edges(G, pos, alpha=0.2, edge_color='gray', width=1)
+        
+        # Color nodes based on type with larger sizes
+        node_colors = []
+        node_sizes = []
+        labels = {}
+        for node in G.nodes():
+            if node in analysis_result.get('critical_junctions', {}):
+                node_colors.append('red')
+                node_sizes.append(1000)  # Larger size for critical nodes
+                labels[node] = f"{node}\n(Critical)"
+            elif G.nodes[node].get('type') in ['server', 'database', 'dc']:
+                node_colors.append('orange')
+                node_sizes.append(800)
+                labels[node] = f"{node}\n(Server)"
+            else:
+                node_colors.append('lightblue')
+                node_sizes.append(500)
+                labels[node] = node
+        
+        # Draw nodes with improved visibility
+        nx.draw_networkx_nodes(G, pos, 
+                             node_color=node_colors, 
+                             node_size=node_sizes,
+                             alpha=0.7)
+        
+        # Add labels with better formatting
+        nx.draw_networkx_labels(G, pos, 
+                              labels=labels,
+                              font_size=10,
+                              font_weight='bold',
+                              font_color='white')
+        
+        # Highlight high-risk paths with different colors
+        colors = ['red', 'yellow', 'orange']  # Different colors for different paths
+        for i, path_info in enumerate(analysis_result.get('high_risk_paths', [])[:3]):
+            if 'highest_risk_route' in path_info:
+                path = path_info['highest_risk_route'][0]
+                edges = list(zip(path[:-1], path[1:]))
+                nx.draw_networkx_edges(G, pos, 
+                                     edgelist=edges, 
+                                     edge_color=colors[i], 
+                                     width=3,
+                                     alpha=0.8)
+        
+        # Add legend
+        legend_elements = [
+            plt.Line2D([0], [0], color='red', lw=3, label='Highest Risk Path'),
+            plt.Line2D([0], [0], color='yellow', lw=3, label='Second Risk Path'),
+            plt.Line2D([0], [0], color='orange', lw=3, label='Third Risk Path'),
+            plt.scatter([0], [0], c='red', s=200, label='Critical Junction'),
+            plt.scatter([0], [0], c='orange', s=200, label='Server/DB'),
+            plt.scatter([0], [0], c='lightblue', s=200, label='Regular Node')
+        ]
+        plt.legend(handles=legend_elements, loc='upper left', fontsize=12)
+        
+        plt.title("Lateral Movement Analysis\nRed: Critical Paths, Orange: High-Value Targets", 
+                 color='white', 
+                 pad=20,
+                 fontsize=16)
+        
+        # Set dark background
+        plt.gca().set_facecolor('#1a1a1a')
+        plt.gcf().set_facecolor('#1a1a1a')
+        
+        # Remove axes
+        plt.axis('off')
+        
+        # Save with high quality
+        plt.savefig(output_path, 
+                   facecolor='#1a1a1a', 
+                   bbox_inches='tight', 
+                   dpi=300)
+        plt.close()
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error visualizing lateral paths: {str(e)}")
+        return False
 
 # Routes
 @app.route('/')

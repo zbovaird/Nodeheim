@@ -451,6 +451,23 @@
         </div>
     </main>
 
+    <div class="modal fade" id="enlargeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title text-light" id="enlargeModalTitle">Enlarged View</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="enlargedContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', loadSnapshots);
 
@@ -577,6 +594,7 @@
                     console.log(`Successfully loaded image: ${imageName}`);
                     loadingDiv.remove();
                     img.style.display = 'block';
+                    makeEnlargeable();  // Make the image enlargeable after loading
                 };
 
                 img.onerror = () => {
@@ -606,6 +624,9 @@
             if (data.lateral_movement) {
                 updateLateralMovementAnalysis(data);
             }
+
+            // After all visualizations are loaded, make them enlargeable
+            setTimeout(makeEnlargeable, 1000);
         }
 
         function updateNetworkMetrics(beforeMetrics, afterMetrics) {
@@ -711,6 +732,9 @@
                 `;
                 tableBody.appendChild(row);
             });
+
+            // Make the chart enlargeable
+            setTimeout(makeEnlargeable, 100);
         }
 
         function updateCentralityVisualization(centralityBefore, centralityAfter) {
@@ -873,6 +897,9 @@
                     tableBody.appendChild(row);
                 });
             });
+
+            // Make the chart enlargeable
+            setTimeout(makeEnlargeable, 100);
         }
 
         function updateMetricsHeatmap(metricChanges) {
@@ -976,6 +1003,9 @@
                     }
                 }
             });
+
+            // Make the chart enlargeable
+            setTimeout(makeEnlargeable, 100);
         }
 
         function updateRobustnessAnalysis(robustness) {
@@ -1047,6 +1077,9 @@
                     Risk Score: ${path.risk_score}
                 </div>
             `).join('');
+
+            // Make the chart enlargeable
+            setTimeout(makeEnlargeable, 100);
         }
 
         function updateKCoreAnalysis(data) {
@@ -1079,43 +1112,81 @@
             const img = document.getElementById('lateralMovement');
             img.src = `/api/comparison/${data.comparison_id}/lateral_movement.png`;
 
-            // Update high risk paths
+            // Update high risk paths with better formatting
             const pathsList = document.getElementById('highRiskPathsList');
             pathsList.innerHTML = data.lateral_movement.high_risk_paths.map((path, index) => `
-                <div class="alert alert-danger mb-2">
-                    <strong>High Risk Path ${index + 1}</strong><br>
-                    Path: ${path.path}<br>
-                    Risk Score: ${path.risk_score.toFixed(2)}<br>
-                    Minimum Hops: ${path.min_hops}<br>
-                    Total Possible Paths: ${path.num_paths}
+                <div class="alert ${index === 0 ? 'alert-danger' : 'alert-warning'} mb-3">
+                    <h5 class="alert-heading">High Risk Path ${index + 1}</h5>
+                    <hr>
+                    <p><strong>Path:</strong> ${path.path}</p>
+                    <p><strong>Risk Score:</strong> 
+                        <span class="badge bg-${path.risk_score > 8 ? 'danger' : 'warning'}">
+                            ${path.risk_score.toFixed(2)}
+                        </span>
+                    </p>
+                    <p><strong>Minimum Hops:</strong> ${path.min_hops}</p>
+                    <p><strong>Alternative Paths:</strong> ${path.num_paths}</p>
                 </div>
             `).join('');
 
-            // Update critical junctions
+            // Update critical junctions with improved visibility
             const junctionsTable = document.getElementById('criticalJunctionsTable');
-            junctionsTable.innerHTML = Object.entries(data.lateral_movement.critical_junctions)
-                .map(([node, score]) => `
+            const junctionEntries = Object.entries(data.lateral_movement.critical_junctions || {});
+            
+            if (junctionEntries.length > 0) {
+                junctionsTable.innerHTML = junctionEntries
+                    .sort((a, b) => b[1] - a[1])  // Sort by risk score
+                    .map(([node, score]) => `
+                        <tr>
+                            <td><strong>${node}</strong></td>
+                            <td>
+                                <span class="badge bg-${score > 7 ? 'danger' : score > 5 ? 'warning' : 'info'} p-2">
+                                    ${score.toFixed(2)}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-${score > 7 ? 'danger' : score > 5 ? 'warning' : 'info'} p-2">
+                                    ${score > 7 ? 'Critical' : score > 5 ? 'High' : 'Medium'}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('');
+            } else {
+                junctionsTable.innerHTML = `
                     <tr>
-                        <td>${node}</td>
-                        <td>${score.toFixed(2)}</td>
-                        <td>
-                            <span class="badge bg-${score > 7 ? 'danger' : score > 5 ? 'warning' : 'info'}">
-                                ${score > 7 ? 'High' : score > 5 ? 'Medium' : 'Low'}
-                            </span>
-                        </td>
+                        <td colspan="3" class="text-center">No critical junctions identified</td>
                     </tr>
-                `).join('');
+                `;
+            }
 
-            // Update segmentation violations
+            // Update segmentation violations with better formatting
             const violationsList = document.getElementById('segmentationViolationsList');
-            violationsList.innerHTML = data.lateral_movement.segmentation_issues.map((violation, index) => `
-                <div class="alert alert-warning mb-2">
-                    <strong>Violation ${index + 1}</strong><br>
-                    Path: ${violation.path.join(' → ')}<br>
-                    Risk Score: ${violation.risk_score.toFixed(2)}<br>
-                    Transitions: ${violation.segment_transitions.map(t => `${t[0]}→${t[1]}`).join(', ')}
-                </div>
-            `).join('');
+            if (data.lateral_movement.segmentation_issues.length > 0) {
+                violationsList.innerHTML = data.lateral_movement.segmentation_issues.map((violation, index) => `
+                    <div class="alert alert-warning mb-3">
+                        <h5 class="alert-heading">Segmentation Violation ${index + 1}</h5>
+                        <hr>
+                        <p><strong>Path:</strong> ${violation.path.join(' → ')}</p>
+                        <p><strong>Risk Score:</strong> 
+                            <span class="badge bg-${violation.risk_score > 7 ? 'danger' : 'warning'}">
+                                ${violation.risk_score.toFixed(2)}
+                            </span>
+                        </p>
+                        <p><strong>Segment Transitions:</strong></p>
+                        <ul class="list-unstyled">
+                            ${violation.segment_transitions.map(t => 
+                                `<li><code>${t[0]} → ${t[1]}</code></li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                `).join('');
+            } else {
+                violationsList.innerHTML = `
+                    <div class="alert alert-info">
+                        No segmentation violations detected
+                    </div>
+                `;
+            }
         }
 
         async function downloadReport() {
@@ -1153,6 +1224,94 @@
             document.getElementById('snapshotSelect').selectedIndex = -1;
             document.getElementById('selectedFiles').innerHTML = '';
             document.getElementById('comparisonResults').style.display = 'none';
+        }
+
+        // Add this to your script section
+        function makeEnlargeable() {
+            // Get all canvas elements (charts) and images
+            const elements = document.querySelectorAll('canvas, img.img-fluid');
+            
+            elements.forEach(element => {
+                // Add click handler to each element
+                element.style.cursor = 'pointer';
+                element.addEventListener('click', function() {
+                    const modalElement = document.getElementById('enlargeModal');
+                    const modal = new bootstrap.Modal(modalElement);
+                    const modalTitle = document.getElementById('enlargeModalTitle');
+                    const modalContent = document.getElementById('enlargedContent');
+                    
+                    // Clear previous content
+                    modalContent.innerHTML = '';
+                    
+                    if (element.tagName.toLowerCase() === 'canvas') {
+                        // For charts, create a new canvas and copy the chart
+                        const newCanvas = document.createElement('canvas');
+                        newCanvas.style.width = '100%';
+                        newCanvas.height = element.height * 1.5;
+                        modalContent.appendChild(newCanvas);
+                        
+                        // Get the chart instance and recreate it in the modal
+                        const originalChart = Chart.getChart(element);
+                        if (originalChart) {
+                            const newChart = new Chart(newCanvas, {
+                                type: originalChart.config.type,
+                                data: originalChart.config.data,
+                                options: {
+                                    ...originalChart.config.options,
+                                    responsive: true,
+                                    maintainAspectRatio: false
+                                }
+                            });
+                        }
+                        
+                        // Set title based on closest header
+                        const header = element.closest('.card').querySelector('.card-header');
+                        modalTitle.textContent = header ? header.textContent : 'Chart View';
+                        
+                    } else {
+                        // For images, create a new image with larger size
+                        const newImg = document.createElement('img');
+                        newImg.src = element.src;
+                        newImg.className = 'img-fluid';
+                        newImg.style.maxHeight = '80vh';
+                        modalContent.appendChild(newImg);
+                        
+                        // Set title based on closest header
+                        const header = element.closest('.card').querySelector('.card-header');
+                        modalTitle.textContent = header ? header.textContent : 'Image View';
+                    }
+                    
+                    // Add modal close event handler
+                    modalElement.addEventListener('hidden.bs.modal', function () {
+                        // Clean up modal content
+                        modalContent.innerHTML = '';
+                        
+                        // Remove modal-related classes and styles
+                        document.body.classList.remove('modal-open');
+                        document.body.style.removeProperty('padding-right');
+                        document.body.style.removeProperty('overflow');
+                        
+                        // Remove modal backdrop
+                        const modalBackdrop = document.querySelector('.modal-backdrop');
+                        if (modalBackdrop) {
+                            modalBackdrop.remove();
+                        }
+                        
+                        // Re-enable scrolling
+                        document.body.style.overflow = 'auto';
+                        document.body.style.height = 'auto';
+                        
+                        // Clean up any remaining modal-related elements
+                        const modalElements = document.querySelectorAll('.modal-backdrop, .modal-open');
+                        modalElements.forEach(el => el.remove());
+                    }, { once: true });
+                    
+                    modal.show();
+                });
+                
+                // Add tooltip
+                element.title = 'Click to enlarge';
+            });
         }
     </script>
 </body>
