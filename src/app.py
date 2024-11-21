@@ -22,6 +22,15 @@ import community  # For community detection
 import pandas as pd
 import seaborn as sns
 
+# Add this after the imports and before the logging configuration
+SECURITY_ZONES = {
+    'DMZ': {'level': 1, 'allowed_services': ['http', 'https', 'smtp']},
+    'INTERNAL': {'level': 2, 'allowed_services': ['ldap', 'dns', 'sql']},
+    'PRODUCTION': {'level': 3, 'allowed_services': ['scada', 'modbus', 'dnp3']},
+    'MANAGEMENT': {'level': 4, 'allowed_services': ['ssh', 'rdp', 'snmp']},
+    'CRITICAL': {'level': 5, 'allowed_services': ['proprietary', 'control']}
+}
+
 # Configure logging first
 logging.basicConfig(
     level=logging.INFO,
@@ -655,10 +664,13 @@ def analyze_lateral_movement(G: nx.Graph) -> Dict:
                 except nx.NetworkXNoPath:
                     continue
     
+    # Get segmentation violations directly without passing paths
+    segmentation_violations = analyze_segmentation_violations(G)
+    
     return {
         'lateral_paths': paths,
         'high_risk_paths': identify_high_risk_paths(paths),
-        'segmentation_issues': analyze_segmentation_violations(G, paths),
+        'segmentation_issues': segmentation_violations,  # Use the result directly
         'critical_junctions': find_critical_junctions(G, paths)
     }
 
@@ -769,88 +781,249 @@ def identify_high_risk_paths(paths: Dict) -> List[Dict]:
             })
     return sorted(high_risk_paths, key=lambda x: x['risk_score'], reverse=True)
 
-def analyze_segmentation_violations(G: nx.Graph, paths: Dict) -> List[Dict]:
-    """Identify paths that violate network segmentation"""
-    violations = []
+def analyze_segmentation_violations(G: nx.Graph) -> Dict:
+    """Comprehensive analysis of network segmentation violations"""
     
-    # Get node segments
-    segments = {node: G.nodes[node].get('segment', 'unknown') for node in G.nodes()}
-    
-    for path_key, path_data in paths.items():
-        for path, risk_score in path_data['paths']:
-            segment_transitions = []
-            current_segment = segments[path[0]]
+    violations = {
+        'direct_violations': [],
+        'trust_violations': [],
+        'service_violations': [],
+        'path_violations': [],
+        'summary': {
+            'total_violations': 0,
+            'critical_violations': 0,
+            'affected_segments': set()
+        }
+    }
+
+    def check_direct_violations():
+        """Check for direct unauthorized connections between segments"""
+        for edge in G.edges():
+            source, target = edge
+            source_zone = G.nodes[source].get('zone', 'UNKNOWN')
+            target_zone = G.nodes[target].get('zone', 'UNKNOWN')
             
-            for node in path[1:]:
-                next_segment = segments[node]
-                if next_segment != current_segment:
-                    segment_transitions.append((current_segment, next_segment))
-                current_segment = next_segment
+            if source_zone != target_zone:
+                # Check if connection is allowed
+                source_level = SECURITY_ZONES.get(source_zone, {}).get('level', 0)
+                target_level = SECURITY_ZONES.get(target_zone, {}).get('level', 0)
+                
+                if abs(source_level - target_level) > 1:  # Only adjacent levels should connect
+                    violations['direct_violations'].append({
+                        'type': 'unauthorized_connection',
+                        'source': {
+                            'node': source,
+                            'zone': source_zone,
+                            'level': source_level
+                        },
+                        'target': {
+                            'node': target,
+                            'zone': target_zone,
+                            'level': target_level
+                        },
+                        'severity': 'HIGH' if abs(source_level - target_level) > 2 else 'MEDIUM',
+                        'risk_score': calculate_violation_risk(source_level, target_level)
+                    })
+
+    def check_trust_violations():
+        """Analyze trust relationship violations"""
+        for node in G.nodes():
+            node_zone = G.nodes[node].get('zone', 'UNKNOWN')
+            node_level = SECURITY_ZONES.get(node_zone, {}).get('level', 0)
             
-            if len(segment_transitions) > 1:  # Multiple segment crossings
-                violations.append({
-                    'path': path,
-                    'risk_score': risk_score,
-                    'segment_transitions': segment_transitions,
-                    'total_transitions': len(segment_transitions)
-                })
+            # Check node's connections
+            for neighbor in G.neighbors(node):
+                neighbor_zone = G.nodes[neighbor].get('zone', 'UNKNOWN')
+                neighbor_level = SECURITY_ZONES.get(neighbor_zone, {}).get('level', 0)
+                
+                # Check trust relationship violations
+                edge_data = G.edges[node, neighbor]
+                if not edge_data.get('authenticated', False) and abs(node_level - neighbor_level) > 0:
+                    violations['trust_violations'].append({
+                        'type': 'unauthenticated_cross_zone',
+                        'source_node': node,
+                        'target_node': neighbor,
+                        'zones': (node_zone, neighbor_zone),
+                        'severity': 'HIGH',
+                        'risk_score': 8.0
+                    })
+
+    def check_service_violations():
+        """Check for prohibited services across zones"""
+        for node in G.nodes():
+            node_zone = G.nodes[node].get('zone', 'UNKNOWN')
+            node_services = G.nodes[node].get('services', [])
+            
+            allowed_services = SECURITY_ZONES.get(node_zone, {}).get('allowed_services', [])
+            
+            for service in node_services:
+                if service not in allowed_services:
+                    # Check if service is exposed to other zones
+                    for neighbor in G.neighbors(node):
+                        neighbor_zone = G.nodes[neighbor].get('zone', 'UNKNOWN')
+                        if neighbor_zone != node_zone:
+                            violations['service_violations'].append({
+                                'type': 'prohibited_service',
+                                'node': node,
+                                'service': service,
+                                'zone': node_zone,
+                                'exposed_to_zone': neighbor_zone,
+                                'severity': 'HIGH' if service in ['telnet', 'ftp'] else 'MEDIUM',
+                                'risk_score': 7.0
+                            })
+
+    def check_path_violations():
+        """Analyze multi-hop paths between zones"""
+        for source in G.nodes():
+            source_zone = G.nodes[source].get('zone', 'UNKNOWN')
+            
+            for target in G.nodes():
+                if source != target:
+                    target_zone = G.nodes[target].get('zone', 'UNKNOWN')
+                    
+                    if source_zone != target_zone:
+                        try:
+                            paths = list(nx.all_simple_paths(G, source, target, cutoff=5))
+                            for path in paths:
+                                zones_crossed = [G.nodes[n].get('zone', 'UNKNOWN') for n in path]
+                                transitions = count_zone_transitions(zones_crossed)
+                                
+                                if transitions > 2:  # More than 2 zone transitions is suspicious
+                                    violations['path_violations'].append({
+                                        'type': 'excessive_zone_crossing',
+                                        'path': path,
+                                        'zones_crossed': zones_crossed,
+                                        'transitions': transitions,
+                                        'severity': 'HIGH' if transitions > 3 else 'MEDIUM',
+                                        'risk_score': 6.0 + transitions
+                                    })
+                        except nx.NetworkXNoPath:
+                            continue
+
+    def calculate_violation_risk(source_level: int, target_level: int) -> float:
+        """Calculate risk score for a violation"""
+        level_difference = abs(source_level - target_level)
+        base_risk = 5.0
+        
+        risk_factors = {
+            'level_gap': level_difference * 2,
+            'critical_zone': 3.0 if max(source_level, target_level) >= 4 else 0,
+            'multi_level': 2.0 if level_difference > 2 else 0
+        }
+        
+        return min(10.0, base_risk + sum(risk_factors.values()))
+
+    def count_zone_transitions(zones: List[str]) -> int:
+        """Count number of zone transitions in a path"""
+        transitions = 0
+        for i in range(len(zones)-1):
+            if zones[i] != zones[i+1]:
+                transitions += 1
+        return transitions
+
+    # Run all checks
+    check_direct_violations()
+    check_trust_violations()
+    check_service_violations()
+    check_path_violations()
+
+    # Calculate summary statistics
+    violations['summary']['total_violations'] = (
+        len(violations['direct_violations']) +
+        len(violations['trust_violations']) +
+        len(violations['service_violations']) +
+        len(violations['path_violations'])
+    )
     
-    return sorted(violations, key=lambda x: x['risk_score'], reverse=True)
+    violations['summary']['critical_violations'] = sum(
+        1 for v in violations['direct_violations'] + 
+                  violations['trust_violations'] + 
+                  violations['service_violations'] + 
+                  violations['path_violations']
+        if v.get('severity') == 'HIGH'
+    )
+    
+    # Get all affected segments
+    for violation_type in ['direct_violations', 'trust_violations', 'service_violations', 'path_violations']:
+        for v in violations[violation_type]:
+            if 'zones' in v:
+                violations['summary']['affected_segments'].update(v['zones'])
+            elif 'zone' in v:
+                violations['summary']['affected_segments'].add(v['zone'])
+    
+    violations['summary']['affected_segments'] = list(violations['summary']['affected_segments'])
+    
+    return violations
+
+def generate_segmentation_report(violations: Dict) -> str:
+    """Generate a detailed report of segmentation violations"""
+    # ... (paste the generate_segmentation_report function you provided)
+
+def visualize_segmentation_violations(G: nx.Graph, violations: Dict, output_path: str):
+    """Create visualization of segmentation violations"""
+    # ... (paste the visualize_segmentation_violations function you provided)
 
 def find_critical_junctions(G: nx.Graph, paths: Dict) -> Dict[str, float]:
     """Identify nodes that appear frequently in lateral movement paths"""
-    junction_counts = Counter()
-    junction_risks = defaultdict(float)
-    
-    for path_data in paths.values():
-        for path, risk_score in path_data['paths']:
-            for node in path[1:-1]:  # Exclude start/end nodes
-                junction_counts[node] += 1
-                junction_risks[node] += risk_score
-    
-    # Calculate final risk scores
-    critical_junctions = {
-        node: (count / len(paths) * junction_risks[node] / junction_counts[node])
-        for node, count in junction_counts.items()
-    }
-    
-    return dict(sorted(critical_junctions.items(), key=lambda x: x[1], reverse=True))
+    try:
+        junction_counts = Counter()
+        junction_risks = defaultdict(float)
+        
+        for path_data in paths.values():
+            for path, risk_score in path_data['paths']:
+                for node in path[1:-1]:  # Exclude start/end nodes
+                    junction_counts[node] += 1
+                    junction_risks[node] += risk_score
+        
+        # Calculate final risk scores
+        critical_junctions = {
+            node: (count / len(paths) * junction_risks[node] / junction_counts[node])
+            for node, count in junction_counts.items()
+            if len(paths) > 0  # Prevent division by zero
+        }
+        
+        return dict(sorted(critical_junctions.items(), key=lambda x: x[1], reverse=True))
+    except Exception as e:
+        logger.error(f"Error finding critical junctions: {str(e)}")
+        return {}
 
-def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str):
+def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str) -> bool:
     """Visualize lateral movement paths and critical nodes"""
     try:
-        plt.figure(figsize=(20, 15))  # Increased figure size
-        pos = nx.spring_layout(G, k=2)  # Increased spacing between nodes
+        plt.figure(figsize=(20, 15))
+        pos = nx.spring_layout(G, k=2, iterations=100)  # Increased spacing and iterations
         
         # Draw base network with improved visibility
         nx.draw_networkx_edges(G, pos, alpha=0.2, edge_color='gray', width=1)
         
-        # Color nodes based on type with larger sizes
+        # Prepare node attributes
         node_colors = []
         node_sizes = []
         labels = {}
+        
         for node in G.nodes():
+            # Determine node color and size based on its role
             if node in analysis_result.get('critical_junctions', {}):
                 node_colors.append('red')
-                node_sizes.append(1000)  # Larger size for critical nodes
+                node_sizes.append(1000)
                 labels[node] = f"{node}\n(Critical)"
-            elif G.nodes[node].get('type') in ['server', 'database', 'dc']:
+            elif any(node in path['path'] for path in analysis_result.get('high_risk_paths', [])):
                 node_colors.append('orange')
                 node_sizes.append(800)
-                labels[node] = f"{node}\n(Server)"
+                labels[node] = f"{node}\n(Risk Path)"
             else:
                 node_colors.append('lightblue')
                 node_sizes.append(500)
                 labels[node] = node
         
         # Draw nodes with improved visibility
-        nx.draw_networkx_nodes(G, pos, 
-                             node_color=node_colors, 
+        nx.draw_networkx_nodes(G, pos,
+                             node_color=node_colors,
                              node_size=node_sizes,
                              alpha=0.7)
         
         # Add labels with better formatting
-        nx.draw_networkx_labels(G, pos, 
+        nx.draw_networkx_labels(G, pos,
                               labels=labels,
                               font_size=10,
                               font_weight='bold',
@@ -862,9 +1035,9 @@ def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str
             if 'highest_risk_route' in path_info:
                 path = path_info['highest_risk_route'][0]
                 edges = list(zip(path[:-1], path[1:]))
-                nx.draw_networkx_edges(G, pos, 
-                                     edgelist=edges, 
-                                     edge_color=colors[i], 
+                nx.draw_networkx_edges(G, pos,
+                                     edgelist=edges,
+                                     edge_color=colors[i],
                                      width=3,
                                      alpha=0.8)
         
@@ -874,13 +1047,13 @@ def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str
             plt.Line2D([0], [0], color='yellow', lw=3, label='Second Risk Path'),
             plt.Line2D([0], [0], color='orange', lw=3, label='Third Risk Path'),
             plt.scatter([0], [0], c='red', s=200, label='Critical Junction'),
-            plt.scatter([0], [0], c='orange', s=200, label='Server/DB'),
+            plt.scatter([0], [0], c='orange', s=200, label='Risk Path Node'),
             plt.scatter([0], [0], c='lightblue', s=200, label='Regular Node')
         ]
         plt.legend(handles=legend_elements, loc='upper left', fontsize=12)
         
-        plt.title("Lateral Movement Analysis\nRed: Critical Paths, Orange: High-Value Targets", 
-                 color='white', 
+        plt.title("Lateral Movement Analysis\nRed: Critical Paths, Orange: High-Risk Nodes",
+                 color='white',
                  pad=20,
                  fontsize=16)
         
@@ -892,9 +1065,9 @@ def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str
         plt.axis('off')
         
         # Save with high quality
-        plt.savefig(output_path, 
-                   facecolor='#1a1a1a', 
-                   bbox_inches='tight', 
+        plt.savefig(output_path,
+                   facecolor='#1a1a1a',
+                   bbox_inches='tight',
                    dpi=300)
         plt.close()
         
@@ -997,6 +1170,14 @@ def compare_networks():
         lateral_viz_path = os.path.join(output_dir, 'lateral_movement.png')
         visualize_lateral_paths(networks[-1], lateral_movement, lateral_viz_path)
 
+        # Add enhanced segmentation analysis
+        segmentation_violations = analyze_segmentation_violations(networks[-1])
+        segmentation_report = generate_segmentation_report(segmentation_violations)
+        
+        # Generate segmentation violation visualization
+        segmentation_viz_path = os.path.join(output_dir, 'segmentation_violations.png')
+        visualize_segmentation_violations(networks[-1], segmentation_violations, segmentation_viz_path)
+
         # Prepare complete analysis results
         complete_results = {
             'comparison_id': comparison_id,
@@ -1012,7 +1193,9 @@ def compare_networks():
             'kcore_changes': kcore_changes.to_dict('records') if not kcore_changes.empty else [],
             'bridge_nodes': bridge_nodes,
             'critical_paths': critical_paths,
-            'lateral_movement': lateral_movement
+            'lateral_movement': lateral_movement,
+            'segmentation_violations': segmentation_violations,
+            'segmentation_report': segmentation_report
         }
 
         # Save complete results
