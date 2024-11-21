@@ -1,5 +1,5 @@
 # src/app.py
-from flask import Flask, render_template, jsonify, request, send_file, make_response
+from flask import Flask, render_template, jsonify, request, send_file, make_response, Response
 import sys
 import os
 import json
@@ -21,6 +21,12 @@ import os.path
 import community  # For community detection
 import pandas as pd
 import seaborn as sns
+from threading import Thread
+import subprocess  # Add this import
+
+# Add these imports at the top with the other imports
+import uuid
+from threading import Thread
 
 # Add this after the imports and before the logging configuration
 SECURITY_ZONES = {
@@ -56,6 +62,7 @@ from scanner.network_discovery import NetworkDiscovery
 from analyzer.topology import TopologyAnalyzer
 from analyzer.network_analysis import NetworkAnalyzer
 from api.analysis import analysis_bp
+from scanner.vulnerability_checker import BatchVulnerabilityChecker
 
 # Initialize Flask app
 app = Flask(__name__)   
@@ -83,6 +90,54 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize scanner: {str(e)}")
     raise
+
+# Add after the imports and before app initialization
+scan_statuses = {}
+
+# Initialize vulnerability checker
+vuln_checker = BatchVulnerabilityChecker()
+
+def process_scan_results(results: ScanResult, scan_id: str):
+    """Process and save scan results"""
+    try:
+        # Create scans directory if it doesn't exist
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        os.makedirs(scans_dir, exist_ok=True)
+
+        # Format results for saving
+        formatted_results = format_scan_result(results)
+        
+        # Add scan ID to results
+        formatted_results['scan_id'] = scan_id
+        
+        # Save results to file
+        output_file = os.path.join(scans_dir, f'{scan_id}.json')
+        with open(output_file, 'w') as f:
+            json.dump(formatted_results, f, indent=2)
+            
+        logger.info(f"Scan results saved to {output_file}")
+        
+        # Update scan status with summary
+        scan_statuses[scan_id].update({
+            'status': 'completed',
+            'progress': 100,
+            'summary': {
+                'total_hosts': len(results.hosts),
+                'active_hosts': len([h for h in results.hosts if h.get('status') == 'up']),
+                'total_ports': len(results.ports),
+                'total_services': len(results.services),
+                'total_vulnerabilities': len(results.vulnerabilities)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing scan results: {str(e)}")
+        scan_statuses[scan_id].update({
+            'status': 'failed',
+            'error': f'Failed to process results: {str(e)}',
+            'progress': 0
+        })
+        raise
 
 def visualize_network_overview(G1: nx.Graph, G2: nx.Graph, output_folder: str) -> bool:
     """Generate network overview visualization"""
@@ -735,11 +790,11 @@ def calculate_path_risk(G: nx.Graph, path: List) -> float:
             'degree': G.degree(node) / G.number_of_nodes(),
             'open_ports': len([p for p in node_data.get('ports', []) if p.get('state') == 'open']) * 1.5,  # Added open ports factor
             'critical_service': 2 if any(s.get('name', '').lower() in ['rdp', 'ssh', 'smb'] 
-                                       for s in node_data.get('services', [])) else 0  # Added critical service factor
+                                       for s in node_data.get('services', [])) else 0,  # Added critical service factor
         }
         
         # Position risk (nodes in middle of path are more critical)
-        position_multiplier = 2.0 if 0 < i < len(path)-1 else 1.0  # Increased multiplier
+        position_multiplier = 2.0 if 0 < i < len(path)-1 else 1.0,  # Increased multiplier
         
         # Calculate step risk
         step_risk = sum(risk_factors.values()) * position_multiplier
@@ -991,18 +1046,42 @@ def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str
     """Visualize lateral movement paths and critical nodes"""
     try:
         plt.figure(figsize=(20, 15))
-        pos = nx.spring_layout(G, k=2, iterations=100)  # Increased spacing and iterations
+        pos = nx.spring_layout(G, k=2, iterations=100)
         
         # Draw base network with improved visibility
         nx.draw_networkx_edges(G, pos, alpha=0.2, edge_color='gray', width=1)
         
-        # Prepare node attributes
+        # Prepare node attributes and tooltips
         node_colors = []
         node_sizes = []
         labels = {}
+        node_data = {}  # Store detailed node information
         
         for node in G.nodes():
-            # Determine node color and size based on its role
+            # Get node attributes
+            node_attrs = G.nodes[node]
+            services = node_attrs.get('services', [])
+            ports = node_attrs.get('ports', [])
+            
+            # Calculate node metrics
+            degree = G.degree(node)
+            neighbors = list(G.neighbors(node))
+            
+            # Store detailed node information
+            node_data[node] = {
+                'type': node_attrs.get('type', 'unknown'),
+                'services': services,
+                'open_ports': [p for p in ports if p.get('state') == 'open'],
+                'os': node_attrs.get('os_info', {}).get('os_match', 'unknown'),
+                'degree': degree,
+                'neighbors': neighbors,
+                'is_critical': node in analysis_result.get('critical_junctions', {}),
+                'risk_score': analysis_result.get('critical_junctions', {}).get(node, 0),
+                'vulnerabilities': node_attrs.get('vulnerabilities', []),
+                'zone': node_attrs.get('zone', 'unknown')
+            }
+            
+            # Determine node visualization attributes
             if node in analysis_result.get('critical_junctions', {}):
                 node_colors.append('red')
                 node_sizes.append(1000)
@@ -1015,6 +1094,11 @@ def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str
                 node_colors.append('lightblue')
                 node_sizes.append(500)
                 labels[node] = node
+        
+        # Save node data to file for frontend use
+        node_data_path = os.path.join(os.path.dirname(output_path), 'node_data.json')
+        with open(node_data_path, 'w') as f:
+            json.dump(node_data, f, indent=2)
         
         # Draw nodes with improved visibility
         nx.draw_networkx_nodes(G, pos,
@@ -1075,6 +1159,148 @@ def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str
     except Exception as e:
         logger.error(f"Error visualizing lateral paths: {str(e)}")
         return False
+
+def format_scan_result(result: ScanResult) -> Dict[str, Any]:
+    """Format scan result for JSON response"""
+    try:
+        hosts_with_ports = []
+        for host in result.hosts:
+            # Start with the basic host info
+            formatted_host = {
+                'ip_address': host.get('ip_address', host.get('ip', '')),
+                'status': host.get('status', 'unknown'),
+                'hostnames': host.get('hostnames', []),
+                'ports': []
+            }
+
+            # Add ports for this host
+            host_ports = [p for p in result.ports if p.get('ip_address', p.get('ip', '')) == formatted_host['ip_address']]
+            formatted_host['ports'] = [{
+                'port': p.get('port', 0),
+                'state': p.get('state', 'unknown'),
+                'service': p.get('service', 'unknown'),
+                'protocol': p.get('protocol', 'tcp')
+            } for p in host_ports]
+
+            hosts_with_ports.append(formatted_host)
+
+        formatted_result = {
+            'timestamp': result.timestamp,
+            'scan_type': result.scan_type,
+            'hosts': hosts_with_ports,
+            'ports': result.ports,
+            'services': result.services,
+            'vulnerabilities': result.vulnerabilities,
+            'os_matches': result.os_matches,
+            'scan_stats': result.scan_stats,
+            'summary': {
+                'total_hosts': len(result.hosts),
+                'active_hosts': len([h for h in result.hosts if h.get('status') == 'up']),
+                'total_ports': len(result.ports),
+                'total_services': len(result.services),
+                'total_vulnerabilities': len(result.vulnerabilities)
+            }
+        }
+
+        return formatted_result
+
+    except Exception as e:
+        logger.error(f"Error formatting scan result: {str(e)}")
+        raise
+
+@app.route('/api/scan', methods=['POST'])
+def start_scan():
+    data = request.get_json()
+    subnet = data.get('subnet')
+    scan_type = data.get('scan_type', 'basic_scan')  # Default to basic scan if not specified
+    
+    if not subnet:
+        return jsonify({'error': 'No subnet provided'}), 400
+        
+    try:
+        # Initialize scanner
+        scanner = NetworkScanner()
+        
+        # Map scan type to scanner method
+        scan_methods = {
+            'quick_scan': scanner.quick_scan,
+            'basic_scan': scanner.basic_scan,
+            'full_scan': scanner.full_scan,
+            'vulnerability_scan': scanner.vulnerability_scan,
+            'stealth_scan': scanner.stealth_scan
+        }
+        
+        if scan_type not in scan_methods:
+            return jsonify({'error': 'Invalid scan type'}), 400
+            
+        # Start scan in a background thread
+        scan_id = str(uuid.uuid4())
+        thread = Thread(target=run_scan_thread, args=(scan_methods[scan_type], subnet, scan_id))
+        thread.start()
+        
+        return jsonify({
+            'status': 'started',
+            'scan_id': scan_id,
+            'message': f'Started {scan_type} on subnet {subnet}'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def run_scan_thread(scan_method, subnet, scan_id):
+    try:
+        # Update scan status to 'running'
+        scan_statuses[scan_id] = {'status': 'running', 'progress': 0}
+        
+        # Run the scan
+        results = scan_method(subnet)
+        
+        # Process and save results
+        process_scan_results(results, scan_id)
+        
+        # Update scan status to 'completed'
+        scan_statuses[scan_id] = {'status': 'completed', 'progress': 100}
+        
+    except Exception as e:
+        # Update scan status to 'failed'
+        scan_statuses[scan_id] = {
+            'status': 'failed',
+            'error': str(e),
+            'progress': 0
+        }
+
+@app.route('/api/results')
+def get_results():
+    try:
+        results_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        if not os.path.exists(results_dir):
+            return jsonify([])
+
+        scan_results = []
+        for file in os.listdir(results_dir):
+            if file.endswith('.json'):
+                file_path = os.path.join(results_dir, file)
+                with open(file_path, 'r') as f:
+                    result = json.load(f)
+                    scan_results.append({
+                        'filename': file,
+                        'timestamp': result.get('timestamp'),
+                        'scan_type': result.get('scan_type'),
+                        'summary': {
+                            'total_hosts': len(result.get('hosts', [])),
+                            'active_hosts': len([h for h in result.get('hosts', []) 
+                                               if h.get('status') == 'up']),
+                            'total_ports': len(result.get('ports', [])),
+                            'total_services': len(result.get('services', [])),
+                            'total_vulnerabilities': len(result.get('vulnerabilities', []))
+                        }
+                    })
+
+        return jsonify(scan_results)
+
+    except Exception as e:
+        logger.error(f"Error retrieving results: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 # Routes
 @app.route('/')
@@ -1231,18 +1457,46 @@ def get_comparison_image(comparison_id, image_name):
 def get_networks():
     """Get available networks for scanning"""
     try:
+        logger.info("Starting network discovery...")
+        
+        # Create NetworkDiscovery instance and get networks
         networks = NetworkDiscovery.get_local_networks()
         logger.info(f"Found networks: {networks}")
-        return jsonify({
-            'status': 'success',
-            'networks': networks
+        
+        # Add manual input option
+        networks.append({
+            'interface': 'manual',
+            'network': 'custom',
+            'ip': '',
+            'netmask': '',
+            'description': 'Enter custom network/IP'
         })
+        
+        response_data = {
+            'status': 'success',
+            'networks': networks,
+            'message': f'Found {len(networks)-1} networks'  # Subtract 1 for manual option
+        }
+        
+        logger.info(f"Sending response: {response_data}")
+        return jsonify(response_data)
+        
     except Exception as e:
-        logger.error(f"Error getting networks: {e}")
-        return jsonify({
+        logger.error(f"Error getting networks: {str(e)}", exc_info=True)
+        # Return fallback option with manual input
+        fallback_response = {
             'status': 'error',
-            'message': str(e)
-        }), 500
+            'message': str(e),
+            'networks': [{
+                'interface': 'manual',
+                'network': 'custom',
+                'ip': '',
+                'netmask': '',
+                'description': 'Enter custom network/IP'
+            }]
+        }
+        logger.info(f"Sending fallback response: {fallback_response}")
+        return jsonify(fallback_response), 200
 
 @app.route('/api/comparison/<comparison_id>/report', methods=['GET'])
 def download_analysis_report(comparison_id):
@@ -1360,5 +1614,329 @@ def download_analysis_report(comparison_id):
         logger.error(f"Error generating report: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/comparison/<comparison_id>/node/<node_id>')
+def get_node_data(comparison_id, node_id):
+    """Get detailed node information"""
+    try:
+        node_data_path = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', 
+                                     comparison_id, 'node_data.json')
+        
+        if not os.path.exists(node_data_path):
+            return jsonify({'error': 'Node data not found'}), 404
+            
+        with open(node_data_path, 'r') as f:
+            node_data = json.load(f)
+            
+        if node_id not in node_data:
+            return jsonify({'error': 'Node not found'}), 404
+            
+        return jsonify(node_data[node_id])
+        
+    except Exception as e:
+        logger.error(f"Error getting node data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/topology/<scan_id>')
+def get_topology(scan_id):
+    """Get network topology data for visualization"""
+    try:
+        # Load scan result
+        scan_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(scan_file):
+            logger.error(f"Scan file not found: {scan_file}")
+            return jsonify({'error': 'Scan result not found'}), 404
+
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+
+        # Create topology data structure
+        topology_data = {
+            'nodes': [],
+            'links': []
+        }
+
+        # Process hosts into nodes
+        for host in scan_data.get('hosts', []):
+            node = {
+                'id': host.get('ip_address'),
+                'type': host.get('device_type', 'unknown'),
+                'services': host.get('services', []),
+                'os': host.get('os_info', {}).get('os_match', 'unknown'),
+                'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
+            }
+            topology_data['nodes'].append(node)
+
+        # Create links based on network relationships
+        processed_links = set()
+        for host in scan_data.get('hosts', []):
+            source = host.get('ip_address')
+            
+            # Add connections from scan data
+            for connection in host.get('connections', []):
+                target = connection
+                link_id = tuple(sorted([source, target]))
+                
+                if link_id not in processed_links:
+                    topology_data['links'].append({
+                        'source': source,
+                        'target': target,
+                        'type': 'direct'
+                    })
+                    processed_links.add(link_id)
+
+            # Add subnet-based connections
+            source_parts = source.split('.')
+            for other_host in scan_data.get('hosts', []):
+                target = other_host.get('ip_address')
+                if source != target:
+                    target_parts = target.split('.')
+                    if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
+                        link_id = tuple(sorted([source, target]))
+                        if link_id not in processed_links:
+                            topology_data['links'].append({
+                                'source': source,
+                                'target': target,
+                                'type': 'subnet'
+                            })
+                            processed_links.add(link_id)
+
+        logger.info(f"Generated topology data with {len(topology_data['nodes'])} nodes and {len(topology_data['links'])} links")
+        return jsonify(topology_data)
+
+    except Exception as e:
+        logger.error(f"Error generating topology: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analysis/ports/<scan_id>')
+def get_port_analysis(scan_id):
+    """Get detailed port analysis for a specific scan"""
+    try:
+        # Load scan result
+        scan_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(scan_file):
+            logger.error(f"Scan file not found: {scan_file}")
+            return jsonify({'error': 'Scan results not found'}), 404
+
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+
+        # Analyze port data
+        port_analysis = {
+            'total_open_ports': 0,
+            'common_ports': {},
+            'services': {},
+            'interesting_ports': {
+                'high_risk': [],
+                'remote_access': [],
+                'industrial': [],
+                'web_services': [],
+                'databases': []
+            }
+        }
+
+        # Process ports from scan data
+        for host in scan_data.get('hosts', []):
+            for port in host.get('ports', []):
+                if port.get('state') == 'open':
+                    port_num = str(port.get('port', ''))
+                    service = port.get('service', 'unknown')
+                    
+                    # Count total open ports
+                    port_analysis['total_open_ports'] += 1
+                    
+                    # Track common ports
+                    port_analysis['common_ports'][port_num] = \
+                        port_analysis['common_ports'].get(port_num, 0) + 1
+                    
+                    # Track services
+                    port_analysis['services'][service] = \
+                        port_analysis['services'].get(service, 0) + 1
+                    
+                    # Categorize interesting ports
+                    if port_num in ['21', '23', '445', '3389']:
+                        port_analysis['interesting_ports']['high_risk'].append(port_num)
+                    elif port_num in ['22', '3389', '5900']:
+                        port_analysis['interesting_ports']['remote_access'].append(port_num)
+                    elif port_num in ['502', '102', '44818']:
+                        port_analysis['interesting_ports']['industrial'].append(port_num)
+                    elif port_num in ['80', '443', '8080']:
+                        port_analysis['interesting_ports']['web_services'].append(port_num)
+                    elif port_num in ['1433', '3306', '5432']:
+                        port_analysis['interesting_ports']['databases'].append(port_num)
+
+        logger.info(f"Completed port analysis for scan {scan_id}")
+        return jsonify(port_analysis)
+
+    except Exception as e:
+        logger.error(f"Error analyzing ports: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/scan/<scan_id>/status')
+def get_scan_status(scan_id):
+    """Get the status of a running scan"""
+    if scan_id not in scan_statuses:
+        return jsonify({'error': 'Scan not found'}), 404
+        
+    return jsonify(scan_statuses[scan_id])
+
+@app.route('/api/scan/<scan_id>/results')
+def get_scan_results(scan_id):
+    """Get the results of a completed scan"""
+    try:
+        results_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(results_file):
+            return jsonify({'error': 'Results not found'}), 404
+            
+        with open(results_file, 'r') as f:
+            results = json.load(f)
+            
+        return jsonify(results)
+    except Exception as e:
+        logger.error(f"Error retrieving scan results: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/vulnerabilities/<scan_id>')
+def get_vulnerabilities(scan_id):
+    try:
+        # Get scan results
+        results_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
+        if not os.path.exists(results_file):
+            return jsonify({'error': 'Scan results not found'}), 404
+            
+        with open(results_file, 'r') as f:
+            scan_data = json.load(f)
+            
+        # Extract services from scan data
+        services = []
+        for host in scan_data.get('hosts', []):
+            for service in host.get('services', []):
+                if service.get('product'):
+                    services.append({
+                        'host': host['ip_address'],
+                        'product': service['product'],
+                        'version': service.get('version', ''),
+                        'name': service.get('name', '')
+                    })
+        
+        # Batch check vulnerabilities
+        vuln_results = vuln_checker.batch_check_services(services)
+        
+        # Process results
+        all_vulns = []
+        for service_key, vuln_data in vuln_results.items():
+            product, version = service_key
+            for vuln in vuln_data['vulnerabilities']:
+                all_vulns.append({
+                    'host': next((s['host'] for s in services 
+                                if s['product'] == product and s['version'] == version), 'unknown'),
+                    'service': f"{product} {version}",
+                    **vuln
+                })
+        
+        # Calculate summary statistics
+        total_cves = len(all_vulns)
+        critical_cves = len([v for v in all_vulns if v['cvss_score'] >= 9.0])
+        avg_cvss = sum(v['cvss_score'] for v in all_vulns) / total_cves if total_cves > 0 else 0
+        
+        return jsonify({
+            'total_cves': total_cves,
+            'critical_cves': critical_cves,
+            'average_cvss': avg_cvss,
+            'vulnerabilities': sorted(all_vulns, key=lambda x: x['cvss_score'], reverse=True)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting vulnerabilities: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/scan/<scan_id>/stop', methods=['POST'])
+def stop_scan(scan_id):
+    """Stop a running scan"""
+    try:
+        if scan_id not in scan_statuses:
+            return jsonify({'error': 'Scan not found'}), 404
+            
+        if scan_statuses[scan_id]['status'] != 'running':
+            return jsonify({'error': 'Scan is not running'}), 400
+            
+        if scanner.stop_scan():
+            scan_statuses[scan_id].update({
+                'status': 'stopped',
+                'message': 'Scan stopped by user'
+            })
+            return jsonify({
+                'status': 'success',
+                'message': 'Scan stopped successfully'
+            })
+        else:
+            return jsonify({
+                'error': 'Failed to stop scan'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error stopping scan: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.after_request
+def add_security_headers(response: Response) -> Response:
+    """Add security headers to each response"""
+    # Allow necessary JavaScript functionality while maintaining security
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://code.highcharts.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' https://cdnjs.cloudflare.com; "
+        "connect-src 'self'"
+    )
+    # Add other security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    return response
+
+@app.after_request
+def add_cors_headers(response: Response) -> Response:
+    """Add CORS headers to allow necessary cross-origin requests"""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+# Add at the start of app.py
+import ctypes
+import sys
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def run_as_admin():
+    try:
+        if ctypes.windll.shell32.IsUserAnAdmin():
+            return True
+            
+        # If not admin, relaunch the script with admin rights
+        script = os.path.abspath(sys.argv[0])
+        params = ' '.join(sys.argv[1:])
+        
+        # Use subprocess to keep the window open
+        cmd = f'powershell Start-Process -Verb RunAs python "{script}" {params}'
+        subprocess.run(cmd, shell=True)
+        sys.exit()
+        
+    except Exception as e:
+        logger.error(f"Error in admin check: {e}")
+        return False
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5050, debug=True)
+    try:
+        logger.info("Starting Flask server...")
+        # Bind to all interfaces on port 5050
+        app.run(host='0.0.0.0', port=5050, debug=True)
+    except Exception as e:
+        logger.error(f"Failed to start server: {e}")
+        input("Press Enter to exit...")  # Keep window open on error

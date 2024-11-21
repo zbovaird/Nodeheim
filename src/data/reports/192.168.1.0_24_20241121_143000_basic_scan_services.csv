@@ -1,0 +1,24 @@
+ip_address,port,name,product,version,extra_info,protocol,service_details
+192.168.1.1,53,domain,Cloudflare public DNS,,,tcp,domain ( (Cloudflare public DNS)
+192.168.1.1,80,http,lighttpd,1.4.59,,tcp,http ( (lighttpd 1.4.59)
+192.168.1.1,443,http,lighttpd,1.4.59,,tcp,http ( (lighttpd 1.4.59)
+192.168.1.127,135,msrpc,Microsoft Windows RPC,,,tcp,msrpc ( (Microsoft Windows RPC)
+192.168.1.127,139,netbios-ssn,Microsoft Windows netbios-ssn,,,tcp,netbios-ssn ( (Microsoft Windows netbios-ssn)
+192.168.1.127,445,microsoft-ds,,,,tcp,microsoft-ds
+192.168.1.152,80,http,Debut embedded httpd,1.30,Brother/HP printer http admin,tcp,http ( (Debut embedded httpd 1.30; Brother/HP printer http admin)
+192.168.1.152,443,http,Debut embedded httpd,1.30,Brother/HP printer http admin,tcp,http ( (Debut embedded httpd 1.30; Brother/HP printer http admin)
+192.168.1.152,515,printer,,,,tcp,printer
+192.168.1.152,631,http,Debut embedded httpd,1.30,Brother/HP printer http admin,tcp,http ( (Debut embedded httpd 1.30; Brother/HP printer http admin)
+192.168.1.154,135,msrpc,Microsoft Windows RPC,,,tcp,msrpc ( (Microsoft Windows RPC)
+192.168.1.154,139,netbios-ssn,Microsoft Windows netbios-ssn,,,tcp,netbios-ssn ( (Microsoft Windows netbios-ssn)
+192.168.1.154,445,microsoft-ds,,,,tcp,microsoft-ds
+192.168.1.197,135,msrpc,Microsoft Windows RPC,,,tcp,msrpc ( (Microsoft Windows RPC)
+192.168.1.197,139,netbios-ssn,Microsoft Windows netbios-ssn,,,tcp,netbios-ssn ( (Microsoft Windows netbios-ssn)
+192.168.1.197,445,microsoft-ds,,,,tcp,microsoft-ds
+192.168.1.220,135,msrpc,Microsoft Windows RPC,,,tcp,msrpc ( (Microsoft Windows RPC)
+192.168.1.220,139,netbios-ssn,Microsoft Windows netbios-ssn,,,tcp,netbios-ssn ( (Microsoft Windows netbios-ssn)
+192.168.1.220,445,microsoft-ds,,,,tcp,microsoft-ds
+192.168.1.64,853,domain-s,,,,tcp,domain-s
+192.168.1.84,135,msrpc,Microsoft Windows RPC,,,tcp,msrpc ( (Microsoft Windows RPC)
+192.168.1.84,139,netbios-ssn,Microsoft Windows netbios-ssn,,,tcp,netbios-ssn ( (Microsoft Windows netbios-ssn)
+192.168.1.84,445,microsoft-ds,Windows 10 Pro 22631 microsoft-ds,,workgroup: WORKGROUP,tcp,microsoft-ds ( (Windows 10 Pro 22631 microsoft-ds; workgroup: WORKGROUP)

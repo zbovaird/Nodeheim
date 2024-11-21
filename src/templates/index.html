@@ -614,6 +614,86 @@
     padding: 2px 4px;
     border-radius: 3px;
 }
+
+.network-selector {
+    padding: 0.5rem;
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    min-width: 250px;
+}
+
+#scan-type-select {
+    min-width: 200px;
+}
+
+#scan-type-description {
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 1px solid var(--accent-color);
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+.vulnerability-panel {
+    grid-column: span 12;
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.vulnerability-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.vulnerability-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.cvss-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.cvss-critical {
+    background-color: #dc3545;
+    color: white;
+}
+
+.cvss-high {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.cvss-medium {
+    background-color: #ffc107;
+    color: black;
+}
+
+.cvss-low {
+    background-color: #28a745;
+    color: white;
+}
+
+.node-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 1000;
+    max-width: 300px;
+    pointer-events: none;
+}
     </style>
 </head>
 <body>
@@ -638,8 +718,21 @@
                     <select class="network-selector" id="network-select">
                         <option value="">Loading networks...</option>
                     </select>
+                    
+                    <select class="network-selector" id="scan-type-select" style="margin-left: 10px;">
+                        <option value="basic_scan">Basic Scan (Port scan + OS detection)</option>
+                        <option value="quick_scan">Quick Scan (Ping sweep only)</option>
+                        <option value="full_scan">Full Scan (Comprehensive)</option>
+                        <option value="vulnerability_scan">Vulnerability Scan</option>
+                    </select>
+                    
                     <button class="scan-button" id="scan-button" onclick="startScan()">
                         Start Network Scan
+                    </button>
+                    <button class="scan-button" id="stop-button" 
+                            onclick="stopScan()" 
+                            style="display: none; background-color: var(--error-color);">
+                        Stop Scan
                     </button>
                     <div>
                         <span class="status-indicator status-active"></span>
@@ -649,6 +742,11 @@
             </div>
         </div>
     </header>
+
+    <!-- Add this right after the header if it's not already there -->
+    <div class="scan-status" style="display: none;">
+        <!-- Scan status messages will appear here -->
+    </div>
 
     <main class="container">
         <div class="scan-status">
@@ -1043,38 +1141,101 @@
             const networkSelect = document.getElementById('network-select');
             try {
                 networkSelect.disabled = true;
+                console.log('Starting network discovery...');
+                
+                // Make the API call
+                console.log('Making request to /api/networks');
                 const response = await fetch('/api/networks');
+                console.log('Response received:', response);
+                
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                console.log('Network data received:', data);
                 
+                // Clear and set default option
                 networkSelect.innerHTML = '<option value="">Select Network/Subnet</option>';
                 
-                if (data.networks && data.networks.length > 0) {
+                if (data.networks && Array.isArray(data.networks) && data.networks.length > 0) {
+                    console.log(`Processing ${data.networks.length} networks`);
+                    
+                    // Add each network to the select
                     data.networks.forEach(network => {
+                        console.log('Adding network:', network);
                         const option = document.createElement('option');
-                        option.value = network.network;
-                        option.textContent = `${network.network} (${network.interface})`;
-                        option.dataset.interface = network.interface;
-                        option.dataset.ip = network.ip;
+                        
+                        if (network.network === 'custom') {
+                            option.value = 'custom';
+                            option.textContent = 'Enter Custom Network/IP';
+                        } else {
+                            option.value = network.network;
+                            option.textContent = `${network.network} (${network.interface})`;
+                            option.dataset.interface = network.interface;
+                            option.dataset.ip = network.ip;
+                        }
                         networkSelect.appendChild(option);
                     });
+                    
+                    // Add fallback option
+                    const customOption = document.createElement('option');
+                    customOption.value = 'custom';
+                    customOption.textContent = 'Enter Custom Network/IP';
+                    networkSelect.appendChild(customOption);
+                    
+                    console.log('Network select populated successfully');
                 } else {
+                    console.log('No networks found or invalid data format');
+                    // Add fallback option if no networks found
                     const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = 'No networks found';
-                    option.disabled = true;
+                    option.value = 'custom';
+                    option.textContent = 'Enter Custom Network/IP';
                     networkSelect.appendChild(option);
                 }
+                
+                // Update status
+                updateScanStatus(data.message || 'Networks loaded', data.status === 'error');
+                
             } catch (error) {
-                console.error('Error loading networks:', error);
+                console.error('Error in loadNetworks:', error);
+                // Set error state in select
+                networkSelect.innerHTML = `
+                    <option value="">Select Network/Subnet</option>
+                    <option value="custom">Enter Custom Network/IP</option>
+                `;
                 updateScanStatus('Error loading networks: ' + error.message, true);
             } finally {
                 networkSelect.disabled = false;
+                console.log('Network loading process completed');
             }
         }
+
+        // Add event listener for network select changes
+        document.getElementById('network-select').addEventListener('change', function() {
+            console.log('Network selection changed:', this.value);
+            const customInput = document.getElementById('custom-network-input');
+            
+            if (this.value === 'custom') {
+                console.log('Custom network selected, showing input field');
+                if (!customInput) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = 'custom-network-input';
+                    input.className = 'network-selector';
+                    input.placeholder = 'Enter IP/Network (e.g., 192.168.1.0/24)';
+                    input.style.marginTop = '10px';
+                    this.parentNode.insertBefore(input, this.nextSibling);
+                } else {
+                    customInput.style.display = 'block';
+                }
+            } else if (customInput) {
+                console.log('Standard network selected, hiding custom input');
+                customInput.style.display = 'none';
+            }
+            
+            updateNetworkInfo();
+        });
 
         function updateNetworkInfo() {
             const networkSelect = document.getElementById('network-select');
@@ -1331,7 +1492,17 @@
 
         async function startScan() {
             const networkSelect = document.getElementById('network-select');
-            const target = networkSelect.value;
+            const customInput = document.getElementById('custom-network-input');
+            let target;
+            
+            if (networkSelect.value === 'custom' && customInput) {
+                target = customInput.value.trim();
+            } else {
+                target = networkSelect.value;
+            }
+            
+            const scanTypeSelect = document.getElementById('scan-type-select');
+            const scanType = scanTypeSelect.value;
             const scanButton = document.getElementById('scan-button');
             
             if (!target) {
@@ -1348,9 +1519,10 @@
                 scanInProgress = true;
                 scanButton.disabled = true;
                 scanButton.innerHTML = 'Scanning... <div class="loading"></div>';
-                updateScanStatus(`Initializing scan of ${target}...`);
+                document.getElementById('stop-button').style.display = 'block'; // Show stop button
+                updateScanStatus(`Initializing ${scanType} of ${target}...`);
                 
-                console.log(`Starting scan of ${target}`);
+                console.log(`Starting ${scanType} of ${target}`);
 
                 const response = await fetch('/api/scan', {
                     method: 'POST',
@@ -1358,8 +1530,8 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        target: target,
-                        scan_type: 'quick'
+                        subnet: target,
+                        scan_type: scanType
                     })
                 });
 
@@ -1368,17 +1540,28 @@
                 }
 
                 const data = await response.json();
-                console.log('Scan results:', data);
+                console.log('Scan response:', data);
 
-                updateScanStatus(`Scan complete! Found ${data.summary.total_hosts} hosts, ${data.summary.active_hosts} active.`);
-                updateMetricsPanel(data);
-                displayResults(data);
-                
-                // Run network topology visualization
-                await updateTopologyVisualization(data.scan_id);
+                // Check if this is the initial response with scan_id
+                if (data.status === 'started' && data.scan_id) {
+                    updateScanStatus(`Scan started with ID: ${data.scan_id}. Waiting for results...`);
+                    // Start polling for results
+                    await pollScanStatus(data.scan_id);
+                } else if (data.summary) {
+                    // We got direct results
+                    updateScanStatus(`${scanType} complete! Found ${data.summary.total_hosts} hosts, ${data.summary.active_hosts} active.`);
+                    updateMetricsPanel(data);
+                    displayResults(data);
+                    
+                    // Run network topology visualization
+                    await updateTopologyVisualization(data.scan_id);
 
-                // Update port analysis
-                await updatePortAnalysis(data.scan_id);
+                    // Update port analysis
+                    await updatePortAnalysis(data.scan_id);
+                } else {
+                    throw new Error('Invalid response format from server');
+                }
+
             } catch (error) {
                 console.error('Scan failed:', error);
                 updateScanStatus(`Scan failed: ${error.message}`, true);
@@ -1386,7 +1569,52 @@
                 scanInProgress = false;
                 scanButton.disabled = false;
                 scanButton.textContent = 'Start Network Scan';
+                document.getElementById('stop-button').style.display = 'none'; // Hide stop button
             }
+        }
+
+        // Add this new function to poll for scan status
+        async function pollScanStatus(scanId) {
+            const maxAttempts = 60; // 5 minutes maximum (with 5-second intervals)
+            let attempts = 0;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const response = await fetch(`/api/scan/${scanId}/status`);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const statusData = await response.json();
+                    console.log('Poll response:', statusData);
+
+                    if (statusData.status === 'completed') {
+                        // Get full results
+                        const resultsResponse = await fetch(`/api/scan/${scanId}/results`);
+                        if (!resultsResponse.ok) throw new Error('Failed to fetch results');
+                        
+                        const results = await resultsResponse.json();
+                        updateScanStatus(`Scan complete! Found ${results.summary.total_hosts} hosts, ${results.summary.active_hosts} active.`);
+                        updateMetricsPanel(results);
+                        displayResults(results);
+                        await updateTopologyVisualization(scanId);
+                        await updatePortAnalysis(scanId);
+                        return;
+                    } else if (statusData.status === 'failed') {
+                        throw new Error(statusData.error || 'Scan failed');
+                    } else {
+                        // Update progress
+                        updateScanStatus(`Scanning... ${statusData.progress || 0}% complete`);
+                    }
+
+                    // Wait 5 seconds before next poll
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    attempts++;
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    throw error;
+                }
+            }
+            
+            throw new Error('Scan timed out');
         }
 
         function displayResults(data) {
@@ -2087,6 +2315,149 @@ function getRiskLevel(host) {
     if (openPorts > 10 || hasHighRiskServices) return 'high';
     if (openPorts > 5) return 'medium';
     return 'low';
+}
+
+document.getElementById('scan-type-select').addEventListener('change', function() {
+    const descriptions = {
+        'basic_scan': 'Standard port scan with OS detection. Good balance of speed and information.',
+        'quick_scan': 'Fast ping sweep to discover active hosts. Minimal information gathered.',
+        'full_scan': 'Comprehensive scan including service version detection and script scanning. Takes longer but provides detailed information.',
+        'vulnerability_scan': 'Security-focused scan that checks for known vulnerabilities. May trigger security systems.'
+    };
+    
+    const descriptionDiv = document.getElementById('scan-type-description');
+    descriptionDiv.innerHTML = `<strong>Scan Type:</strong> ${descriptions[this.value]}`;
+    descriptionDiv.style.display = 'block';
+});
+
+async function updateVulnerabilityData(scanId) {
+    try {
+        const response = await fetch(`/api/vulnerabilities/${scanId}`);
+        if (!response.ok) throw new Error('Failed to fetch vulnerability data');
+        
+        const data = await response.json();
+        displayVulnerabilityData(data);
+        
+        // Update node tooltips with vulnerability information
+        updateNodeTooltips(data.vulnerabilities);
+    } catch (error) {
+        console.error('Error updating vulnerability data:', error);
+    }
+}
+
+function displayVulnerabilityData(data) {
+    document.getElementById('total-cves').textContent = data.total_cves;
+    document.getElementById('critical-cves').textContent = data.critical_cves;
+    document.getElementById('avg-cvss').textContent = data.average_cvss.toFixed(1);
+    
+    const tbody = document.getElementById('vulnerability-table-body');
+    tbody.innerHTML = '';
+    
+    data.vulnerabilities.forEach(vuln => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${vuln.host}</td>
+            <td>${vuln.service}</td>
+            <td><a href="https://nvd.nist.gov/vuln/detail/${vuln.cve_id}" 
+                   target="_blank" class="text-info">${vuln.cve_id}</a></td>
+            <td><span class="cvss-badge cvss-${getCvssSeverityClass(vuln.cvss_score)}">
+                ${vuln.cvss_score.toFixed(1)}
+            </span></td>
+            <td>${vuln.severity}</td>
+            <td>${vuln.description.substring(0, 100)}...</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getCvssSeverityClass(score) {
+    if (score >= 9.0) return 'critical';
+    if (score >= 7.0) return 'high';
+    if (score >= 4.0) return 'medium';
+    return 'low';
+}
+
+function updateNodeTooltips(vulnerabilities) {
+    const container = document.getElementById('network-visualization');
+    const network = container.network;
+    if (!network) return;
+    
+    // Group vulnerabilities by host
+    const vulnsByHost = vulnerabilities.reduce((acc, vuln) => {
+        if (!acc[vuln.host]) acc[vuln.host] = [];
+        acc[vuln.host].push(vuln);
+        return acc;
+    }, {});
+    
+    // Update node tooltips
+    network.on("hoverNode", function(params) {
+        const nodeId = params.node;
+        const nodeVulns = vulnsByHost[nodeId] || [];
+        
+        if (nodeVulns.length > 0) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'node-tooltip';
+            tooltip.innerHTML = `
+                <strong>${nodeId}</strong><br>
+                Vulnerabilities: ${nodeVulns.length}<br>
+                ${nodeVulns.map(v => `
+                    <div style="margin-top: 5px;">
+                        ${v.cve_id} (CVSS: ${v.cvss_score})
+                    </div>
+                `).join('')}
+            `;
+            
+            document.body.appendChild(tooltip);
+            
+            // Position tooltip near mouse
+            tooltip.style.left = params.event.center.x + 'px';
+            tooltip.style.top = params.event.center.y + 'px';
+        }
+    });
+    
+    network.on("blurNode", function() {
+        const tooltip = document.querySelector('.node-tooltip');
+        if (tooltip) tooltip.remove();
+    });
+}
+
+// Add this to your existing startScan function's success block
+if (data.scan_id) {
+    await updateVulnerabilityData(data.scan_id);
+}
+
+// Add this to your existing JavaScript
+async function stopScan() {
+    const resultsPanel = document.getElementById('results-panel');
+    const scanId = resultsPanel.dataset.scanId;
+    
+    if (!scanId) {
+        console.error('No scan ID found');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/scan/${scanId}/stop`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to stop scan');
+        }
+        
+        const data = await response.json();
+        updateScanStatus('Scan stopped by user');
+        
+        // Reset scan button
+        const scanButton = document.getElementById('scan-button');
+        scanButton.disabled = false;
+        scanButton.textContent = 'Start Network Scan';
+        scanInProgress = false;
+        
+    } catch (error) {
+        console.error('Error stopping scan:', error);
+        updateScanStatus(`Failed to stop scan: ${error.message}`, true);
+    }
 }
 
     </script>

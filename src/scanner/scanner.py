@@ -1,16 +1,23 @@
 # src/scanner/scanner.py
-import nmap
-import json
 import os
-from datetime import datetime
-from typing import Dict, List, Optional, Any
+import json
 import logging
-import ipaddress
-from dataclasses import dataclass, asdict
+import time
 import csv
 import platform
 import subprocess
-import time
+import signal
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, asdict
+import ipaddress
+
+# Third-party imports
+import psutil
+import nmap
+
+# Local imports
+from .vulnerability_checker import BatchVulnerabilityChecker
 
 @dataclass
 class ScanResult:
@@ -48,6 +55,13 @@ class NetworkScanner:
         self.nm = self._initialize_nmap()
         self.setup_directories()
         self.setup_logging()
+        
+        # Initialize vulnerability checker
+        self.vuln_checker = BatchVulnerabilityChecker()
+        
+        # Add these to the existing __init__
+        self.current_scan_process = None
+        self.scan_stopped = False
 
     def _initialize_nmap(self) -> nmap.PortScanner:
         """Initialize nmap with platform-specific paths and robust error handling"""
@@ -331,25 +345,145 @@ class NetworkScanner:
 
     def full_scan(self, target: str) -> ScanResult:
         """
-        Comprehensive scan including OS detection and script scanning
-        Arguments: -sT -sV -O -sC (SYN scan, service version, OS detection, default scripts)
+        Comprehensive scan including OS detection, service detection, and vulnerabilities
+        Arguments: -sT -sV -O -sC --script vuln (SYN scan, service version, OS detection, default scripts)
         """
-        return self._run_scan(target, '-sT -sV -O -sC', 'full_scan')
+        try:
+            # Do comprehensive port and service scan
+            results = self._run_scan(target, '-sT -sV -O -sC --script vuln', 'full_scan')
+            
+            # Add vulnerability checking
+            services = []
+            for host in results.hosts:
+                for service in host.get('services', []):
+                    if service.get('product'):
+                        services.append({
+                            'host': host['ip_address'],
+                            'product': service['product'],
+                            'version': service.get('version', ''),
+                            'name': service.get('name', '')
+                        })
+            
+            # Use vulnerability checker to get CVE information
+            if services:
+                vuln_checker = BatchVulnerabilityChecker()
+                vuln_results = vuln_checker.batch_check_services(services)
+                
+                # Add vulnerability information to scan results
+                for host in results.hosts:
+                    host_vulns = []
+                    for service in host.get('services', []):
+                        product = service.get('product', '')
+                        version = service.get('version', '')
+                        if product:
+                            service_vulns = vuln_results.get((product, version), {}).get('vulnerabilities', [])
+                            for vuln in service_vulns:
+                                host_vulns.append({
+                                    'service': f"{product} {version}",
+                                    'port': service.get('port', ''),
+                                    **vuln
+                                })
+                    host['vulnerabilities'] = host_vulns
+                    
+                # Update vulnerability count in scan results
+                results.vulnerabilities = []
+                for host in results.hosts:
+                    results.vulnerabilities.extend(host.get('vulnerabilities', []))
+                    
+                self.logger.info(f"Found {len(results.vulnerabilities)} vulnerabilities across all hosts")
+                
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Full scan failed: {str(e)}")
+            raise
 
     def vulnerability_scan(self, target: str) -> ScanResult:
         """
-        Vulnerability scan using NSE scripts
-        Arguments: -sV --script vuln (Service version detection and vulnerability scripts)
+        Optimized vulnerability scan including CVE checks
+        Arguments: -sV --version-intensity 5 --script vulners --min-rate 1000
         """
-        return self._run_scan(target, '-sV --script vuln', 'vulnerability_scan')
+        try:
+            # Use faster service detection and optimized scanning parameters
+            scan_args = (
+                '-sV '                     # Service version detection
+                '--version-intensity 5 '   # Lower intensity for faster scans (1-9, default is 7)
+                '--min-rate 1000 '        # Minimum number of packets per second
+                '--max-retries 2 '        # Reduce retry attempts
+                '--host-timeout 30m '      # Host timeout of 30 minutes
+                '--script vulners '        # Use vulners script for vulnerability detection
+                '-T4 '                     # Aggressive timing template
+                '--max-rtt-timeout 500ms ' # Maximum round-trip timeout
+                '--initial-rtt-timeout 300ms ' # Initial round-trip timeout
+                '--min-hostgroup 64 '      # Scan larger groups of hosts simultaneously
+                '--min-parallelism 10 '    # Minimum probe parallelization
+                '--open'                   # Only show open ports
+            )
+            
+            # First do a quick service scan
+            basic_results = self._run_scan(target, scan_args, 'vulnerability_scan')
+            
+            # Extract only services with product information
+            services = []
+            for host in basic_results.hosts:
+                host_services = []
+                for service in host.get('services', []):
+                    if service.get('product'):
+                        host_services.append({
+                            'host': host['ip_address'],
+                            'product': service['product'],
+                            'version': service.get('version', ''),
+                            'name': service.get('name', '')
+                        })
+                # Batch services by host
+                if host_services:
+                    services.extend(host_services)
+            
+            # Use batch vulnerability checker with increased workers for larger scans
+            worker_count = min(max(len(services) // 10, 3), 10)  # Scale workers based on service count
+            self.vuln_checker.worker_count = worker_count
+            
+            # Process vulnerabilities in batches
+            batch_size = 50
+            all_vulns = {}
+            for i in range(0, len(services), batch_size):
+                batch = services[i:i + batch_size]
+                batch_results = self.vuln_checker.batch_check_services(batch)
+                all_vulns.update(batch_results)
+                
+                # Log progress
+                progress = min(100, (i + batch_size) * 100 // len(services))
+                self.logger.info(f"Vulnerability check progress: {progress}%")
+            
+            # Add vulnerability information to scan results
+            for host in basic_results.hosts:
+                host_vulns = []
+                for service in host.get('services', []):
+                    product = service.get('product', '')
+                    version = service.get('version', '')
+                    if product:
+                        service_vulns = all_vulns.get((product, version), {}).get('vulnerabilities', [])
+                        for vuln in service_vulns:
+                            if vuln.get('cvss_score', 0) >= 7.0:  # Only include high and critical vulnerabilities
+                                host_vulns.append({
+                                    'service': f"{product} {version}",
+                                    'port': service.get('port', ''),
+                                    **vuln
+                                })
+                host['vulnerabilities'] = host_vulns
+                
+            # Update vulnerability count in scan results
+            basic_results.vulnerabilities = []
+            for host in basic_results.hosts:
+                basic_results.vulnerabilities.extend(host.get('vulnerabilities', []))
+            
+            self.logger.info(f"Found {len(basic_results.vulnerabilities)} significant vulnerabilities across all hosts")
+            return basic_results
+            
+        except Exception as e:
+            self.logger.error(f"Vulnerability scan failed: {str(e)}")
+            raise
 
-    def stealth_scan(self, target: str) -> ScanResult:
-        """
-        Stealthy scan with minimal noise
-        Arguments: -sS -T2 (SYN scan with timing template 2)
-        """
-        return self._run_scan(target, '-sS -T2', 'stealth_scan')
-    
     def test_scanner(self) -> Dict[str, str]:
         """Test if nmap is properly initialized and working"""
         try:
@@ -385,13 +519,40 @@ class NetworkScanner:
         logging.info(f"Starting {scan_type} on {target}")
 
         try:
-            self.nm.scan(hosts=target, arguments=arguments)
-            results = self._process_results(scan_type, timestamp)
-            self._save_results(results, target, scan_type)
-            return results
+            # Reset stop flag
+            self.scan_stopped = False
+            
+            # Start scan as subprocess to allow stopping
+            cmd = f"nmap {arguments} {target}"
+            self.current_scan_process = subprocess.Popen(
+                cmd.split(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+
+            # Wait for scan to complete
+            stdout, stderr = self.current_scan_process.communicate()
+
+            # Check if scan was stopped
+            if self.scan_stopped:
+                raise Exception("Scan was stopped by user")
+
+            # Process results if scan completed successfully
+            if self.current_scan_process.returncode == 0:
+                # Parse nmap output and create results
+                self.nm.analyse_nmap_xml_scan(stdout)
+                results = self._process_results(scan_type, timestamp)
+                self._save_results(results, target, scan_type)
+                return results
+            else:
+                raise Exception(f"Scan failed with error: {stderr}")
+
         except Exception as e:
             logging.error(f"Scan failed: {str(e)}")
             raise
+        finally:
+            self.current_scan_process = None
 
     def _process_results(self, scan_type: str, timestamp: str) -> ScanResult:
         """Process raw nmap results into structured data"""
@@ -662,35 +823,50 @@ class NetworkScanner:
                 except (ValueError, TypeError) as e:
                     logging.warning(f"Error processing scan statistics: {e}")
 
-    def _run_scan(self, target: str, arguments: str, scan_type: str) -> ScanResult:
-        """Execute nmap scan and process results with performance monitoring"""
-        if not self.validate_target(target):
-            raise ValueError(f"Invalid target: {target}")
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        logging.info(f"Starting {scan_type} on {target}")
-        
-        scan_start_time = time.time()
-
+    def stop_scan(self) -> bool:
+        """Stop the currently running scan"""
         try:
-            # Start the scan
-            self.nm.scan(hosts=target, arguments=arguments)
-            
-            # Monitor performance
-            self._monitor_scan_performance(scan_start_time)
-            
-            # Process results
-            results = self._process_results(scan_type, timestamp)
-            self._save_results(results, target, scan_type)
-            
-            # Log completion time
-            scan_duration = time.time() - scan_start_time
-            logging.info(f"Scan completed in {scan_duration:.1f} seconds")
-            
-            return results
+            if not self.current_scan_process:
+                self.logger.warning("No scan is currently running")
+                return False
+
+            self.logger.info("Attempting to stop scan...")
+            self.scan_stopped = True
+
+            # Get the process and all its children
+            parent = psutil.Process(self.current_scan_process.pid)
+            children = parent.children(recursive=True)
+
+            # Stop children first
+            for child in children:
+                try:
+                    child.terminate()
+                except psutil.NoSuchProcess:
+                    pass
+
+            # Stop parent
+            try:
+                parent.terminate()
+            except psutil.NoSuchProcess:
+                pass
+
+            # Wait for processes to terminate
+            gone, alive = psutil.wait_procs(children + [parent], timeout=3)
+
+            # Force kill if any processes are still alive
+            for p in alive:
+                try:
+                    p.kill()
+                except psutil.NoSuchProcess:
+                    pass
+
+            self.current_scan_process = None
+            self.logger.info("Scan stopped successfully")
+            return True
+
         except Exception as e:
-            logging.error(f"Scan failed: {str(e)}")
-            raise
+            self.logger.error(f"Error stopping scan: {str(e)}")
+            return False
 
 if __name__ == "__main__":
     # Set up logging

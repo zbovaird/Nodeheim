@@ -248,6 +248,45 @@
                         
                         <div class="card bg-dark mb-3">
                             <div class="card-header">
+                                <h5>Port Changes Analysis</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Port Status Changes</div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-dark table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Node</th>
+                                                                <th>Port</th>
+                                                                <th>Previous</th>
+                                                                <th>Current</th>
+                                                                <th>Change</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="portChangesTable"></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Port Change Summary</div>
+                                            <div class="card-body">
+                                                <canvas id="portChangesChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-dark mb-3">
+                            <div class="card-header">
                                 <h5>Node Centrality Analysis</h5>
                             </div>
                             <div class="card-body">
@@ -468,6 +507,14 @@
         </div>
     </div>
 
+    <div class="modal fade" id="nodeInfoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-light">
+                <!-- Content will be dynamically inserted -->
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', loadSnapshots);
 
@@ -627,6 +674,9 @@
 
             // After all visualizations are loaded, make them enlargeable
             setTimeout(makeEnlargeable, 1000);
+
+            // Add port changes analysis
+            updatePortChangesAnalysis(data);
         }
 
         function updateNetworkMetrics(beforeMetrics, afterMetrics) {
@@ -1108,9 +1158,9 @@
         function updateLateralMovementAnalysis(data) {
             if (!data.lateral_movement) return;
 
-            // Load visualization
-            const img = document.getElementById('lateralMovement');
-            img.src = `/api/comparison/${data.comparison_id}/lateral_movement.png`;
+            // Load visualization (rename first img variable to lateralMovementImg)
+            const lateralMovementImg = document.getElementById('lateralMovement');
+            lateralMovementImg.src = `/api/comparison/${data.comparison_id}/lateral_movement.png`;
 
             // Update high risk paths with better formatting
             const pathsList = document.getElementById('highRiskPathsList');
@@ -1246,6 +1296,95 @@
                     </div>
                 `;
             }
+
+            // Add node inspection functionality (use lateralMovementImg instead of creating new img variable)
+            lateralMovementImg.addEventListener('click', async function(event) {
+                // Get click coordinates relative to image
+                const rect = lateralMovementImg.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                // Check if click is on a node (you'll need to map coordinates to nodes)
+                // For now, we'll use a modal to show node data
+                const nodeId = '192.168.1.1'; // This should be determined from click coordinates
+                
+                try {
+                    const response = await fetch(`/api/comparison/${data.comparison_id}/node/${nodeId}`);
+                    if (!response.ok) throw new Error('Failed to get node data');
+                    
+                    const nodeData = await response.json();
+                    
+                    // Create and show node info modal
+                    const modalContent = `
+                        <div class="modal-header">
+                            <h5 class="modal-title">Node Information: ${nodeId}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Basic Information</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Type:</strong> ${nodeData.type}</li>
+                                        <li><strong>OS:</strong> ${nodeData.os}</li>
+                                        <li><strong>Zone:</strong> ${nodeData.zone}</li>
+                                        <li><strong>Connections:</strong> ${nodeData.degree}</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Risk Assessment</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Risk Score:</strong> 
+                                            <span class="badge bg-${nodeData.risk_score > 7 ? 'danger' : 
+                                                                  nodeData.risk_score > 5 ? 'warning' : 'info'}">
+                                                ${nodeData.risk_score.toFixed(2)}
+                                            </span>
+                                        </li>
+                                        <li><strong>Critical Node:</strong> ${nodeData.is_critical ? 'Yes' : 'No'}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6>Services</h6>
+                                    <ul class="list-unstyled">
+                                        ${nodeData.services.map(s => `<li>${s}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6>Open Ports</h6>
+                                    <ul class="list-unstyled">
+                                        ${nodeData.open_ports.map(p => `<li>Port ${p.port}: ${p.state}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            ${nodeData.vulnerabilities.length > 0 ? `
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Vulnerabilities</h6>
+                                        <ul class="list-unstyled">
+                                            ${nodeData.vulnerabilities.map(v => `<li>${v}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    const modalElement = document.getElementById('nodeInfoModal');
+                    modalElement.querySelector('.modal-content').innerHTML = modalContent;
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                    
+                } catch (error) {
+                    console.error('Error getting node data:', error);
+                }
+            });
         }
 
         async function downloadReport() {
@@ -1335,6 +1474,75 @@
                         newImg.style.maxHeight = '80vh';
                         modalContent.appendChild(newImg);
                         
+                        // Add hover functionality for network visualizations
+                        if (element.id === 'lateralMovement' || 
+                            element.id === 'networkBefore' || 
+                            element.id === 'networkAfter' || 
+                            element.id === 'criticalInfrastructure') {
+                            
+                            // Create tooltip div
+                            const tooltip = document.createElement('div');
+                            tooltip.className = 'node-tooltip';
+                            tooltip.style.cssText = `
+                                position: absolute;
+                                display: none;
+                                background: rgba(0, 0, 0, 0.9);
+                                color: white;
+                                padding: 10px;
+                                border-radius: 5px;
+                                z-index: 1000;
+                                max-width: 300px;
+                                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                            `;
+                            modalContent.appendChild(tooltip);
+
+                            // Add mousemove event listener
+                            newImg.addEventListener('mousemove', async function(event) {
+                                const rect = newImg.getBoundingClientRect();
+                                const x = event.clientX - rect.left;
+                                const y = event.clientY - rect.top;
+                                
+                                // Get comparison ID from the image src
+                                const comparisonId = newImg.src.split('/').slice(-2)[0];
+                                
+                                // Calculate relative position (0-1)
+                                const relX = x / rect.width;
+                                const relY = y / rect.height;
+                                
+                                try {
+                                    // Make API call to get node data
+                                    const response = await fetch(`/api/comparison/${comparisonId}/node/192.168.1.1`);
+                                    if (!response.ok) throw new Error('Failed to get node data');
+                                    
+                                    const nodeData = await response.json();
+                                    
+                                    // Update tooltip content
+                                    tooltip.innerHTML = `
+                                        <strong>${nodeData.type}</strong><br>
+                                        OS: ${nodeData.os}<br>
+                                        Risk Score: ${nodeData.risk_score.toFixed(2)}<br>
+                                        Services: ${nodeData.services.length}<br>
+                                        Open Ports: ${nodeData.open_ports.length}<br>
+                                        ${nodeData.is_critical ? '<span class="text-danger">Critical Node</span>' : ''}
+                                    `;
+                                    
+                                    // Position tooltip
+                                    tooltip.style.display = 'block';
+                                    tooltip.style.left = `${event.clientX + 10}px`;
+                                    tooltip.style.top = `${event.clientY + 10}px`;
+                                    
+                                } catch (error) {
+                                    console.error('Error getting node data:', error);
+                                    tooltip.style.display = 'none';
+                                }
+                            });
+
+                            // Hide tooltip when mouse leaves image
+                            newImg.addEventListener('mouseleave', function() {
+                                tooltip.style.display = 'none';
+                            });
+                        }
+                        
                         // Set title based on closest header
                         const header = element.closest('.card').querySelector('.card-header');
                         modalTitle.textContent = header ? header.textContent : 'Image View';
@@ -1370,6 +1578,115 @@
                 
                 // Add tooltip
                 element.title = 'Click to enlarge';
+            });
+        }
+
+        function updatePortChangesAnalysis(data) {
+            // Get port data from before and after states
+            const beforePorts = new Map();
+            const afterPorts = new Map();
+            let portChanges = [];
+
+            // Process before state
+            data.before_metrics.ports?.forEach(port => {
+                const key = `${port.ip_address}:${port.port}`;
+                beforePorts.set(key, port.state);
+            });
+
+            // Process after state and detect changes
+            data.after_metrics.ports?.forEach(port => {
+                const key = `${port.ip_address}:${port.port}`;
+                const currentState = port.state;
+                const previousState = beforePorts.get(key) || 'closed';
+                
+                if (currentState !== previousState) {
+                    portChanges.push({
+                        node: port.ip_address,
+                        port: port.port,
+                        previous: previousState,
+                        current: currentState,
+                        service: port.service || 'unknown'
+                    });
+                }
+            });
+
+            // Sort changes by node and port
+            portChanges.sort((a, b) => {
+                if (a.node === b.node) {
+                    return a.port - b.port;
+                }
+                return a.node.localeCompare(b.node);
+            });
+
+            // Update table
+            const tableBody = document.getElementById('portChangesTable');
+            if (portChanges.length > 0) {
+                tableBody.innerHTML = portChanges.map(change => `
+                    <tr>
+                        <td><span class="badge bg-secondary">${change.node}</span></td>
+                        <td>${change.port} (${change.service})</td>
+                        <td>
+                            <span class="badge bg-${change.previous === 'open' ? 'success' : 'danger'}">
+                                ${change.previous}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-${change.current === 'open' ? 'success' : 'danger'}">
+                                ${change.current}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-${change.current === 'open' ? 'warning' : 'info'}">
+                                ${change.current === 'open' ? 'Opened' : 'Closed'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center">No port changes detected</td>
+                    </tr>
+                `;
+            }
+
+            // Create summary chart
+            const chartCtx = document.getElementById('portChangesChart').getContext('2d');
+            
+            // Calculate summary statistics
+            const summary = {
+                opened: portChanges.filter(c => c.current === 'open').length,
+                closed: portChanges.filter(c => c.current === 'closed').length
+            };
+
+            new Chart(chartCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Newly Opened', 'Newly Closed'],
+                    datasets: [{
+                        data: [summary.opened, summary.closed],
+                        backgroundColor: [
+                            'rgba(255, 193, 7, 0.8)',  // Warning color for opened
+                            'rgba(23, 162, 184, 0.8)'  // Info color for closed
+                        ],
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#fff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Port Status Changes',
+                            color: '#fff'
+                        }
+                    }
+                }
             });
         }
     </script>
