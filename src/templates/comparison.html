@@ -382,6 +382,61 @@
                         
                         <div class="card bg-dark mb-3">
                             <div class="card-header">
+                                <h5>Lateral Movement Analysis</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Lateral Movement Paths</div>
+                                            <div class="card-body">
+                                                <img id="lateralMovement" class="img-fluid" alt="Lateral Movement Analysis">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">High Risk Paths</div>
+                                            <div class="card-body">
+                                                <div id="highRiskPathsList"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Critical Junctions</div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-dark table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Node</th>
+                                                                <th>Risk Score</th>
+                                                                <th>Impact</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="criticalJunctionsTable"></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Segmentation Violations</div>
+                                            <div class="card-body">
+                                                <div id="segmentationViolationsList"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-dark mb-3">
+                            <div class="card-header">
                                 <h5>Analysis Report</h5>
                             </div>
                             <div class="card-body">
@@ -545,6 +600,11 @@
             // Add k-core visualization
             if (data.kcore_analysis) {
                 updateKCoreAnalysis(data);
+            }
+
+            // Add lateral movement visualization
+            if (data.lateral_movement) {
+                updateLateralMovementAnalysis(data);
             }
         }
 
@@ -1009,6 +1069,52 @@
                         </span>
                     </td>
                 </tr>
+            `).join('');
+        }
+
+        function updateLateralMovementAnalysis(data) {
+            if (!data.lateral_movement) return;
+
+            // Load visualization
+            const img = document.getElementById('lateralMovement');
+            img.src = `/api/comparison/${data.comparison_id}/lateral_movement.png`;
+
+            // Update high risk paths
+            const pathsList = document.getElementById('highRiskPathsList');
+            pathsList.innerHTML = data.lateral_movement.high_risk_paths.map((path, index) => `
+                <div class="alert alert-danger mb-2">
+                    <strong>High Risk Path ${index + 1}</strong><br>
+                    Path: ${path.path}<br>
+                    Risk Score: ${path.risk_score.toFixed(2)}<br>
+                    Minimum Hops: ${path.min_hops}<br>
+                    Total Possible Paths: ${path.num_paths}
+                </div>
+            `).join('');
+
+            // Update critical junctions
+            const junctionsTable = document.getElementById('criticalJunctionsTable');
+            junctionsTable.innerHTML = Object.entries(data.lateral_movement.critical_junctions)
+                .map(([node, score]) => `
+                    <tr>
+                        <td>${node}</td>
+                        <td>${score.toFixed(2)}</td>
+                        <td>
+                            <span class="badge bg-${score > 7 ? 'danger' : score > 5 ? 'warning' : 'info'}">
+                                ${score > 7 ? 'High' : score > 5 ? 'Medium' : 'Low'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+
+            // Update segmentation violations
+            const violationsList = document.getElementById('segmentationViolationsList');
+            violationsList.innerHTML = data.lateral_movement.segmentation_issues.map((violation, index) => `
+                <div class="alert alert-warning mb-2">
+                    <strong>Violation ${index + 1}</strong><br>
+                    Path: ${violation.path.join(' → ')}<br>
+                    Risk Score: ${violation.risk_score.toFixed(2)}<br>
+                    Transitions: ${violation.segment_transitions.map(t => `${t[0]}→${t[1]}`).join(', ')}
+                </div>
             `).join('');
         }
 

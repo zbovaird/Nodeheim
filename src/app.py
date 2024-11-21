@@ -16,7 +16,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import Dict, List
-from collections import Counter
+from collections import Counter, defaultdict
 import os.path
 import community  # For community detection
 import pandas as pd
@@ -625,6 +625,209 @@ def track_kcore_changes(G1: nx.Graph, G2: nx.Graph) -> pd.DataFrame:
         logger.error(f"Error tracking k-core changes: {str(e)}")
         return pd.DataFrame()
 
+def analyze_lateral_movement(G: nx.Graph) -> Dict:
+    """Analyze potential lateral movement paths in network"""
+    paths = {}
+    high_value_targets = identify_high_value_targets(G)
+    entry_points = identify_entry_points(G)
+    
+    # Analyze paths between entry points and targets
+    for source in entry_points:
+        for target in high_value_targets:
+            if source != target:
+                try:
+                    # Find all simple paths (not just shortest)
+                    all_paths = list(nx.all_simple_paths(G, source, target, cutoff=10))
+                    if all_paths:
+                        risk_scores = []
+                        for path in all_paths:
+                            score = calculate_path_risk(G, path)
+                            risk_scores.append((path, score))
+                        
+                        # Sort paths by risk score
+                        risk_scores.sort(key=lambda x: x[1], reverse=True)
+                        paths[f"{source}->{target}"] = {
+                            'paths': risk_scores,
+                            'total_paths': len(all_paths),
+                            'min_hops': len(min(all_paths, key=len)),
+                            'avg_risk': sum(s for _, s in risk_scores) / len(risk_scores)
+                        }
+                except nx.NetworkXNoPath:
+                    continue
+    
+    return {
+        'lateral_paths': paths,
+        'high_risk_paths': identify_high_risk_paths(paths),
+        'segmentation_issues': analyze_segmentation_violations(G, paths),
+        'critical_junctions': find_critical_junctions(G, paths)
+    }
+
+def identify_high_value_targets(G: nx.Graph) -> List[str]:
+    """Identify high-value targets based on node attributes and topology"""
+    targets = []
+    for node in G.nodes():
+        node_data = G.nodes[node]
+        if any([
+            node_data.get('type', '').lower() in ['server', 'database', 'dc', 'admin'],
+            node_data.get('service', '').lower() in ['sql', 'domain', 'admin'],
+            G.degree(node) > np.mean([G.degree(n) for n in G.nodes()]) + np.std([G.degree(n) for n in G.nodes()])
+        ]):
+            targets.append(node)
+    return targets
+
+def identify_entry_points(G: nx.Graph) -> List[str]:
+    """Identify potential network entry points"""
+    entry_points = []
+    for node in G.nodes():
+        node_data = G.nodes[node]
+        if any([
+            node_data.get('exposed', False),
+            'external' in str(node_data.get('connections', [])),
+            node_data.get('type', '').lower() in ['workstation', 'endpoint'],
+            G.degree(node) <= np.mean([G.degree(n) for n in G.nodes()]) - np.std([G.degree(n) for n in G.nodes()])
+        ]):
+            entry_points.append(node)
+    return entry_points
+
+def calculate_path_risk(G: nx.Graph, path: List) -> float:
+    """Calculate risk score for a potential lateral movement path"""
+    risk_score = 0
+    for i in range(len(path)):
+        node = path[i]
+        node_data = G.nodes[node]
+        
+        # Base node risk
+        risk_factors = {
+            'privilege_level': node_data.get('privilege_level', 1),
+            'vulnerabilities': len(node_data.get('vulnerabilities', [])),
+            'exposed_services': len(node_data.get('services', [])),
+            'degree': G.degree(node) / G.number_of_nodes(),
+        }
+        
+        # Position risk (nodes in middle of path are more critical)
+        position_multiplier = 1.5 if 0 < i < len(path)-1 else 1.0
+        
+        # Calculate step risk
+        step_risk = sum(risk_factors.values()) * position_multiplier
+        
+        # Add edge risk if not last node
+        if i < len(path)-1:
+            next_node = path[i+1]
+            edge_data = G.get_edge_data(node, next_node)
+            edge_risk = assess_edge_risk(edge_data)
+            step_risk += edge_risk
+        
+        risk_score += step_risk
+    
+    return risk_score / len(path)  # Normalize by path length
+
+def assess_edge_risk(edge_data: Dict) -> float:
+    """Assess risk of network connection"""
+    risk = 1.0
+    if edge_data:
+        if edge_data.get('encrypted', True):
+            risk *= 0.7
+        if edge_data.get('monitored', False):
+            risk *= 0.8
+        if edge_data.get('authenticated', False):
+            risk *= 0.6
+    return risk
+
+def identify_high_risk_paths(paths: Dict) -> List[Dict]:
+    """Identify highest risk lateral movement paths"""
+    high_risk_paths = []
+    for path_key, path_data in paths.items():
+        if path_data['avg_risk'] > 7.0 or any(score > 8.0 for _, score in path_data['paths']):
+            high_risk_paths.append({
+                'path': path_key,
+                'risk_score': path_data['avg_risk'],
+                'num_paths': path_data['total_paths'],
+                'min_hops': path_data['min_hops'],
+                'highest_risk_route': path_data['paths'][0]
+            })
+    return sorted(high_risk_paths, key=lambda x: x['risk_score'], reverse=True)
+
+def analyze_segmentation_violations(G: nx.Graph, paths: Dict) -> List[Dict]:
+    """Identify paths that violate network segmentation"""
+    violations = []
+    
+    # Get node segments
+    segments = {node: G.nodes[node].get('segment', 'unknown') for node in G.nodes()}
+    
+    for path_key, path_data in paths.items():
+        for path, risk_score in path_data['paths']:
+            segment_transitions = []
+            current_segment = segments[path[0]]
+            
+            for node in path[1:]:
+                next_segment = segments[node]
+                if next_segment != current_segment:
+                    segment_transitions.append((current_segment, next_segment))
+                current_segment = next_segment
+            
+            if len(segment_transitions) > 1:  # Multiple segment crossings
+                violations.append({
+                    'path': path,
+                    'risk_score': risk_score,
+                    'segment_transitions': segment_transitions,
+                    'total_transitions': len(segment_transitions)
+                })
+    
+    return sorted(violations, key=lambda x: x['risk_score'], reverse=True)
+
+def find_critical_junctions(G: nx.Graph, paths: Dict) -> Dict[str, float]:
+    """Identify nodes that appear frequently in lateral movement paths"""
+    junction_counts = Counter()
+    junction_risks = defaultdict(float)
+    
+    for path_data in paths.values():
+        for path, risk_score in path_data['paths']:
+            for node in path[1:-1]:  # Exclude start/end nodes
+                junction_counts[node] += 1
+                junction_risks[node] += risk_score
+    
+    # Calculate final risk scores
+    critical_junctions = {
+        node: (count / len(paths) * junction_risks[node] / junction_counts[node])
+        for node, count in junction_counts.items()
+    }
+    
+    return dict(sorted(critical_junctions.items(), key=lambda x: x[1], reverse=True))
+
+def visualize_lateral_paths(G: nx.Graph, analysis_result: Dict, output_path: str):
+    """Visualize lateral movement paths and critical nodes"""
+    plt.figure(figsize=(15, 10))
+    pos = nx.spring_layout(G)
+    
+    # Draw base network
+    nx.draw_networkx_edges(G, pos, alpha=0.2, edge_color='gray')
+    
+    # Color nodes based on type
+    node_colors = []
+    node_sizes = []
+    for node in G.nodes():
+        if node in analysis_result['critical_junctions']:
+            node_colors.append('red')
+            node_sizes.append(300)
+        elif G.nodes[node].get('type') in ['server', 'database', 'dc']:
+            node_colors.append('orange')
+            node_sizes.append(200)
+        else:
+            node_colors.append('lightblue')
+            node_sizes.append(100)
+    
+    nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=node_sizes)
+    
+    # Highlight high-risk paths
+    for path_info in analysis_result['high_risk_paths'][:3]:  # Top 3 riskiest paths
+        path = path_info['highest_risk_route'][0]
+        edges = list(zip(path[:-1], path[1:]))
+        nx.draw_networkx_edges(G, pos, edgelist=edges, edge_color='red', width=2)
+    
+    plt.title("Lateral Movement Analysis")
+    plt.savefig(output_path)
+    plt.close()
+
 # Routes
 @app.route('/')
 def home():
@@ -712,6 +915,13 @@ def compare_networks():
         kcore_viz_path = os.path.join(output_dir, 'kcore_analysis.png')
         visualize_kcore_security(networks[-1], kcore_analysis, kcore_viz_path)
 
+        # Add lateral movement analysis
+        lateral_movement = analyze_lateral_movement(networks[-1])
+        
+        # Generate lateral movement visualization
+        lateral_viz_path = os.path.join(output_dir, 'lateral_movement.png')
+        visualize_lateral_paths(networks[-1], lateral_movement, lateral_viz_path)
+
         # Prepare complete analysis results
         complete_results = {
             'comparison_id': comparison_id,
@@ -726,7 +936,8 @@ def compare_networks():
             'kcore_analysis': kcore_analysis,
             'kcore_changes': kcore_changes.to_dict('records') if not kcore_changes.empty else [],
             'bridge_nodes': bridge_nodes,
-            'critical_paths': critical_paths
+            'critical_paths': critical_paths,
+            'lateral_movement': lateral_movement
         }
 
         # Save complete results
