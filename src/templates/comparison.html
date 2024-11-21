@@ -275,6 +275,66 @@
                             </div>
                         </div>
                         
+                        <div class="card bg-dark mb-3">
+                            <div class="card-header">
+                                <h5>Node Metrics Heatmap Analysis</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-12">
+                                        <canvas id="metricsHeatmap"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-dark mb-3">
+                            <div class="card-header">
+                                <h5>Network Robustness Analysis</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Community Structure</div>
+                                            <div class="card-body">
+                                                <canvas id="communityChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Network Vulnerability</div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-dark table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Metric</th>
+                                                                <th>Value</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="vulnerabilityTable">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="card bg-darker">
+                                            <div class="card-header">Critical Paths</div>
+                                            <div class="card-body">
+                                                <div id="criticalPathsList"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="card bg-darker">
                             <div class="card-header">Critical Infrastructure Analysis</div>
                             <div class="card-body">
@@ -379,6 +439,16 @@
             // Add centrality visualization
             if (data.centrality_before && data.centrality_after) {
                 updateCentralityVisualization(data.centrality_before, data.centrality_after);
+            }
+
+            // Add heatmap visualization
+            if (data.metric_changes) {
+                updateMetricsHeatmap(data.metric_changes);
+            }
+
+            // Add robustness visualization
+            if (data.robustness_analysis) {
+                updateRobustnessAnalysis(data.robustness_analysis);
             }
 
             const comparisonId = data.comparison_id;
@@ -684,6 +754,180 @@
                     tableBody.appendChild(row);
                 });
             });
+        }
+
+        function updateMetricsHeatmap(metricChanges) {
+            console.log('Raw metric changes:', metricChanges);
+            
+            const chartElement = document.getElementById('metricsHeatmap');
+            const ctx = chartElement.getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (window.metricsHeatmap instanceof Chart) {
+                window.metricsHeatmap.destroy();
+            }
+
+            // Ensure we have valid data
+            if (!metricChanges || Object.keys(metricChanges).length === 0) {
+                console.error('No metric changes data available');
+                chartElement.style.display = 'none';
+                return;
+            }
+
+            // Process data for heatmap
+            const metrics = Object.keys(metricChanges);
+            const allNodes = new Set();
+            metrics.forEach(metric => {
+                Object.keys(metricChanges[metric] || {}).forEach(node => allNodes.add(node));
+            });
+            const nodes = Array.from(allNodes);
+
+            console.log('Available metrics:', metrics);
+            console.log('Available nodes:', nodes);
+
+            // Calculate total change magnitude for each node
+            const nodeData = nodes.map(node => {
+                const changes = metrics.map(metric => Math.abs(metricChanges[metric][node] || 0));
+                const totalChange = changes.reduce((sum, val) => sum + val, 0);
+                return {
+                    node,
+                    totalChange,
+                    changes: Object.fromEntries(
+                        metrics.map(metric => [metric, metricChanges[metric][node] || 0])
+                    )
+                };
+            });
+
+            // Sort by total change magnitude and take top 10
+            nodeData.sort((a, b) => b.totalChange - a.totalChange);
+            const topNodes = nodeData.slice(0, 10);
+
+            console.log('Top nodes with changes:', topNodes);
+
+            // Set fixed height for the chart
+            chartElement.style.height = '400px';
+
+            // Create heatmap data
+            const heatmapData = {
+                labels: topNodes.map(d => d.node),
+                datasets: metrics.map(metric => ({
+                    label: metric,
+                    data: topNodes.map(d => d.changes[metric]),
+                    backgroundColor: topNodes.map(d => {
+                        const value = d.changes[metric];
+                        const intensity = Math.min(Math.abs(value) / 5, 1); // Scale intensity
+                        return value > 0 
+                            ? `rgba(255, 99, 132, ${intensity})` // Red for increases
+                            : `rgba(75, 192, 192, ${intensity})`; // Blue for decreases
+                    })
+                }))
+            };
+
+            // Create heatmap
+            window.metricsHeatmap = new Chart(ctx, {
+                type: 'bar',
+                data: heatmapData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: '#fff' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    return `${context.dataset.label}: ${value ? value.toFixed(3) : '0.000'}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#fff' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#fff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRobustnessAnalysis(robustness) {
+            if (!robustness) return;
+            
+            // Update community chart
+            const communityCtx = document.getElementById('communityChart').getContext('2d');
+            const segmentSizes = robustness.segment_analysis.segment_sizes;
+            
+            new Chart(communityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(segmentSizes).map(k => `Community ${k}`),
+                    datasets: [{
+                        data: Object.values(segmentSizes),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#fff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Community Distribution',
+                            color: '#fff'
+                        }
+                    }
+                }
+            });
+
+            // Update vulnerability metrics
+            const vulnTable = document.getElementById('vulnerabilityTable');
+            vulnTable.innerHTML = `
+                <tr>
+                    <td>Modularity Score</td>
+                    <td>${robustness.modularity.toFixed(3)}</td>
+                </tr>
+                <tr>
+                    <td>Isolation Score</td>
+                    <td>${robustness.segment_analysis.isolation_score.toFixed(3)}</td>
+                </tr>
+                <tr>
+                    <td>Bridge Nodes</td>
+                    <td>${robustness.bridge_nodes.length}</td>
+                </tr>
+                <tr>
+                    <td>Cross-Segment Connections</td>
+                    <td>${robustness.segment_analysis.cross_segment_edges}</td>
+                </tr>
+            `;
+
+            // Update critical paths
+            const pathsList = document.getElementById('criticalPathsList');
+            pathsList.innerHTML = robustness.vulnerability_paths.map((path, index) => `
+                <div class="alert alert-danger mb-2">
+                    <strong>Critical Path ${index + 1}</strong><br>
+                    Path: ${path.path.join(' → ')}<br>
+                    Length: ${path.length}<br>
+                    Risk Score: ${path.risk_score}
+                </div>
+            `).join('');
         }
 
         function resetComparison() {

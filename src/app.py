@@ -18,6 +18,7 @@ import numpy as np
 from typing import Dict, List
 from collections import Counter
 import os.path
+import community  # For community detection
 
 # Configure logging first
 logging.basicConfig(
@@ -258,49 +259,64 @@ def create_network_from_scan(scan_data: Dict) -> nx.Graph:
     """Convert scan data to NetworkX graph"""
     G = nx.Graph()
     
-    # Add nodes
+    # Add nodes first
     for host in scan_data.get('hosts', []):
         G.add_node(host['ip_address'], **{
             'type': host.get('device_type', 'unknown'),
             'services': host.get('services', []),
             'os': host.get('os_info', {}).get('os_match', 'unknown')
         })
+    
+    # Add edges based on various connection types
+    for host in scan_data.get('hosts', []):
+        source_ip = host['ip_address']
         
-        # Add edges based on port connections
-        for port in host.get('ports', []):
-            # Connect to gateway/router if port is open
-            if port.get('state') == 'open':
-                # Find gateway IP from the scan data
-                gateway_ip = next((h['ip_address'] for h in scan_data.get('hosts', [])
-                                if h.get('device_type') == 'router' or 
-                                h.get('device_type') == 'gateway'), None)
-                if gateway_ip and gateway_ip != host['ip_address']:
-                    G.add_edge(host['ip_address'], gateway_ip)
-            
-            # Connect nodes that communicate on the same ports
-            for other_host in scan_data.get('hosts', []):
-                if other_host['ip_address'] != host['ip_address']:
-                    other_ports = [p.get('port') for p in other_host.get('ports', [])]
-                    if port.get('port') in other_ports:
-                        G.add_edge(host['ip_address'], other_host['ip_address'])
-
-        # Add edges based on ARP cache or direct communication
+        # 1. Direct connections from scan data
         if 'connections' in host:
-            for connection in host['connections']:
-                if connection in G.nodes():
-                    G.add_edge(host['ip_address'], connection)
-    
-    # Add subnet-based connections
-    hosts = scan_data.get('hosts', [])
-    for i, host1 in enumerate(hosts):
-        for host2 in hosts[i+1:]:
-            # Check if hosts are in the same subnet
-            ip1_parts = host1['ip_address'].split('.')
-            ip2_parts = host2['ip_address'].split('.')
-            if ip1_parts[:3] == ip2_parts[:3]:  # Same /24 subnet
-                G.add_edge(host1['ip_address'], host2['ip_address'])
-    
+            for target_ip in host['connections']:
+                if target_ip in G.nodes():
+                    G.add_edge(source_ip, target_ip)
+        
+        # 2. Port-based connections
+        for port in host.get('ports', []):
+            if port.get('state') == 'open':
+                port_num = port.get('port')
+                # Connect to other hosts with the same open port
+                for other_host in scan_data.get('hosts', []):
+                    if other_host['ip_address'] != source_ip:
+                        other_ports = [p.get('port') for p in other_host.get('ports', []) 
+                                     if p.get('state') == 'open']
+                        if port_num in other_ports:
+                            G.add_edge(source_ip, other_host['ip_address'])
+        
+        # 3. Service-based connections
+        host_services = [s.get('name') for s in host.get('services', [])]
+        for other_host in scan_data.get('hosts', []):
+            if other_host['ip_address'] != source_ip:
+                other_services = [s.get('name') for s in other_host.get('services', [])]
+                # If hosts share any services, they might be connected
+                if set(host_services) & set(other_services):
+                    G.add_edge(source_ip, other_host['ip_address'])
+        
+        # 4. Subnet-based connections
+        ip_parts = source_ip.split('.')
+        for other_host in scan_data.get('hosts', []):
+            other_ip = other_host['ip_address']
+            if other_ip != source_ip:
+                other_parts = other_ip.split('.')
+                # Same /24 subnet
+                if ip_parts[:3] == other_parts[:3]:
+                    G.add_edge(source_ip, other_ip)
+        
+        # 5. Gateway connections
+        gateway_ips = [h['ip_address'] for h in scan_data.get('hosts', [])
+                      if h.get('device_type') in ['router', 'gateway']]
+        for gateway_ip in gateway_ips:
+            if gateway_ip != source_ip:
+                G.add_edge(source_ip, gateway_ip)
+
     logger.info(f"Created network graph with {len(G.nodes())} nodes and {len(G.edges())} edges")
+    logger.debug(f"Edge list: {list(G.edges())}")
     return G
 
 def calculate_node_centrality_metrics(G: nx.Graph) -> Dict:
@@ -322,6 +338,106 @@ def calculate_node_centrality_metrics(G: nx.Graph) -> Dict:
         return metrics
     except Exception as e:
         logger.error(f"Error calculating centrality metrics: {str(e)}")
+        return {}
+
+def calculate_node_metrics_comparison(G1: nx.Graph, G2: nx.Graph) -> Dict:
+    """Calculate comprehensive node-level metrics for comparison"""
+    try:
+        # Calculate basic centrality metrics
+        metrics_before = {
+            'Degree': dict(G1.degree()),  # Use actual degree instead of centrality
+            'Clustering': nx.clustering(G1),
+            'Betweenness': nx.betweenness_centrality(G1),
+            'Closeness': nx.closeness_centrality(G1)
+        }
+        
+        metrics_after = {
+            'Degree': dict(G2.degree()),
+            'Clustering': nx.clustering(G2),
+            'Betweenness': nx.betweenness_centrality(G2),
+            'Closeness': nx.closeness_centrality(G2)
+        }
+        
+        # Calculate changes for each metric
+        changes = {}
+        all_nodes = set(G1.nodes()) | set(G2.nodes())
+        
+        for metric in metrics_before:
+            changes[metric] = {}
+            for node in all_nodes:
+                # Get values with default of 0 if node doesn't exist in either graph
+                before_val = float(metrics_before[metric].get(node, 0))
+                after_val = float(metrics_after[metric].get(node, 0))
+                change = after_val - before_val
+                if abs(change) > 0.0001:  # Only include non-zero changes
+                    changes[metric][node] = change
+        
+        logger.info(f"Calculated metric changes for {len(changes)} metrics across {len(all_nodes)} nodes")
+        logger.debug(f"Sample of changes: {dict(list(changes.items())[:2])}")
+        return changes
+
+    except Exception as e:
+        logger.error(f"Error calculating node metrics comparison: {str(e)}")
+        return {}
+
+def analyze_network_robustness(G: nx.Graph) -> Dict:
+    """Analyze network robustness and vulnerability"""
+    try:
+        # Bridge node identification
+        bridge_nodes = []
+        for node in G.nodes():
+            G_temp = G.copy()
+            G_temp.remove_node(node)
+            original_components = nx.number_connected_components(G)
+            new_components = nx.number_connected_components(G_temp)
+            if new_components > original_components:
+                bridge_nodes.append({
+                    'node': node,
+                    'impact': new_components - original_components
+                })
+        
+        # Community detection
+        communities = community.best_partition(G)
+        modularity = community.modularity(communities, G)
+        
+        # Network segmentation analysis
+        segment_sizes = Counter(communities.values())
+        cross_segment_edges = sum(1 for u, v in G.edges() 
+                                if communities[u] != communities[v])
+        isolation_score = 1 - (cross_segment_edges / G.number_of_edges()) if G.number_of_edges() > 0 else 0
+        
+        # Vulnerability paths
+        centrality = nx.betweenness_centrality(G)
+        threshold = np.mean(list(centrality.values()))
+        high_centrality_nodes = [n for n, c in centrality.items() if c > threshold]
+        vulnerability_paths = []
+        
+        for source in high_centrality_nodes:
+            for target in high_centrality_nodes:
+                if source != target and nx.has_path(G, source, target):
+                    path = nx.shortest_path(G, source, target)
+                    if len(path) > 2:
+                        vulnerability_paths.append({
+                            'path': path,
+                            'length': len(path),
+                            'risk_score': sum(G.degree(n) for n in path)
+                        })
+        
+        return {
+            'bridge_nodes': bridge_nodes,
+            'communities': {str(k): v for k, v in communities.items()},
+            'modularity': modularity,
+            'segment_analysis': {
+                'segment_sizes': dict(segment_sizes),
+                'cross_segment_edges': cross_segment_edges,
+                'isolation_score': isolation_score
+            },
+            'vulnerability_paths': sorted(vulnerability_paths, 
+                                        key=lambda x: x['risk_score'], 
+                                        reverse=True)[:5]  # Top 5 risky paths
+        }
+    except Exception as e:
+        logger.error(f"Error in network robustness analysis: {str(e)}")
         return {}
 
 # Routes
@@ -406,14 +522,22 @@ def compare_networks():
         centrality_before = calculate_node_centrality_metrics(networks[0])
         centrality_after = calculate_node_centrality_metrics(networks[-1])
         
+        # Add heatmap metrics
+        metric_changes = calculate_node_metrics_comparison(networks[0], networks[-1])
+        
+        # Add robustness analysis
+        robustness_analysis = analyze_network_robustness(networks[-1])
         response_data = {
             'comparison_id': comparison_id,
             'centrality_before': centrality_before,
             'centrality_after': centrality_after,
-            **results
+            'metric_changes': metric_changes,
+            **results,
+            'robustness_analysis': robustness_analysis
         }
         
-        logger.info(f"Sending response with centrality metrics")
+        logger.info(f"Sending response with metric changes for heatmap")
+        logger.info(f"Completed robustness analysis")
         return jsonify(response_data)
 
     except Exception as e:
