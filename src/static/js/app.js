@@ -1,314 +1,202 @@
-export function updateScanStatus(message, isError = false) {
-    const scanStatus = document.querySelector('.scan-status');
-    const statusIndicator = document.querySelector('.status-indicator');
-    const scannerStatus = document.getElementById('scanner-status');
-    
-    if (scanStatus) {
-        scanStatus.textContent = message;
-        scanStatus.style.display = 'block';
-        
-        if (isError) {
-            scanStatus.classList.add('error');
-            statusIndicator?.classList.replace('status-active', 'status-error');
-            scannerStatus.textContent = 'Scanner Status: Error';
-        } else {
-            scanStatus.classList.remove('error');
-            statusIndicator?.classList.replace('status-error', 'status-active');
-            scannerStatus.textContent = 'Scanner Status: Ready';
-        }
-    }
-    
-    console.log(`Scan status: ${message}`);
-}
-  
-async function pollScanStatus(scanId) {
-    const maxAttempts = 180;
-    let attempts = 0;
-    let lastProgress = 0;
-
-    while (attempts < maxAttempts) {
-        try {
-            const response = await fetch(`/api/scan/${scanId}/status`);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            
-            const statusData = await response.json();
-            console.log('Poll response:', statusData);
-
-            if (statusData.status === 'completed') {
-                const resultsResponse = await fetch(`/api/scan/${scanId}/results`);
-                if (!resultsResponse.ok) throw new Error('Failed to fetch results');
-                
-                const results = await resultsResponse.json();
-                updateScanStatus(`Scan complete! Found ${results.summary.total_hosts} hosts, ${results.summary.active_hosts} active.`);
-                updateMetricsPanel(results);
-                displayResults(results);
-                await updateTopologyVisualization(scanId);
-                await updatePortAnalysis(scanId);
-                return;
-            } else if (statusData.status === 'failed') {
-                throw new Error(statusData.error || 'Scan failed');
-            } else {
-                const progress = statusData.progress || lastProgress;
-                lastProgress = progress;
-                updateScanStatus(`Scanning... ${progress}% complete. This may take several minutes.`);
-            }
-
-            const pollInterval = Math.min(5000 + (attempts * 100), 10000);
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-            attempts++;
-        } catch (error) {
-            console.error('Polling error:', error);
-            throw error;
-        }
-    }
-    
-    throw new Error('Scan timed out. The network might be too large or unresponsive.');
-}
-  
-export async function startScan() {
-    const networkSelect = document.getElementById('network-select');
-    const customInput = document.getElementById('custom-network-input');
-    const scanTypeSelect = document.getElementById('scan-type-select');
-    const scanButton = document.getElementById('scan-button');
-    
-    let target;
-    if (networkSelect.value === 'custom' && customInput) {
-        target = customInput.value.trim();
-    } else {
-        target = networkSelect.value;
-    }
-    
-    const scanType = scanTypeSelect.value;
-    
-    if (!target) {
-        alert('Please select a network/subnet to scan');
-        return;
-    }
-
+export async function loadNetworks() {
     try {
-        scanButton.disabled = true;
-        scanButton.innerHTML = 'Scanning... <div class="loading"></div>';
-        document.getElementById('stop-button').style.display = 'block';
-        updateScanStatus(`Initializing ${scanType} scan of ${target}. This may take several minutes...`);
+        const response = await fetch('/api/networks');
+        const data = await response.json();
         
-        console.log(`Starting ${scanType} of ${target}`);
+        if (data.status === 'success') {
+            const networkSelect = document.getElementById('network-select');
+            networkSelect.innerHTML = '';
+            
+            data.networks.forEach(network => {
+                const option = document.createElement('option');
+                option.value = network.network;
+                // Use network name if available, otherwise use network address
+                option.textContent = network.name || network.network;
+                networkSelect.appendChild(option);
+            });
+        } else {
+            console.error('Failed to load networks:', data.message);
+        }
+    } catch (error) {
+        console.error('Error loading networks:', error);
+    }
+}
+
+export async function startScan() {
+    try {
+        const networkSelect = document.getElementById('network-select');
+        const scanTypeSelect = document.getElementById('scan-type-select');
+        const subnet = networkSelect.value;
+        const scanType = scanTypeSelect.value;
+
+        if (!subnet) {
+            alert('Please select a network');
+            return;
+        }
 
         const response = await fetch('/api/scan', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                subnet: target,
+                subnet: subnet,
                 scan_type: scanType
             })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-
         const data = await response.json();
-        console.log('Scan response:', data);
-
-        if (data.status === 'started' && data.scan_id) {
-            updateScanStatus(`Scan started with ID: ${data.scan_id}. This may take several minutes depending on the network size...`);
-            await pollScanStatus(data.scan_id);
-        } else if (data.summary) {
-            updateScanStatus(`${scanType} complete! Found ${data.summary.total_hosts} hosts, ${data.summary.active_hosts} active.`);
-            updateMetricsPanel(data);
-            displayResults(data);
-            await updateTopologyVisualization(data.scan_id);
-            await updatePortAnalysis(data.scan_id);
+        if (data.scan_id) {
+            document.getElementById('scan-button').style.display = 'none';
+            document.getElementById('stop-button').style.display = 'inline-block';
+            updateScanStatus(data.scan_id);
         } else {
-            throw new Error('Invalid response format from server');
+            alert('Failed to start scan: ' + data.message);
         }
-
     } catch (error) {
-        console.error('Scan failed:', error);
-        updateScanStatus(`Scan failed: ${error.message}. Try reducing the scan scope or using a quick scan.`, true);
-    } finally {
-        scanButton.disabled = false;
-        scanButton.textContent = 'Start Network Scan';
-        document.getElementById('stop-button').style.display = 'none';
+        console.error('Error starting scan:', error);
+        alert('Error starting scan');
     }
 }
 
-export function updateMetricsPanel(data) {
-    document.getElementById('total-nodes').textContent = data.summary.total_hosts;
-    document.getElementById('active-hosts').textContent = data.summary.active_hosts;
-    document.getElementById('open-ports').textContent = data.summary.total_ports;
-    document.getElementById('vulnerabilities').textContent = data.summary.total_vulnerabilities;
-    document.getElementById('last-scan').textContent = new Date().toLocaleTimeString();
-}
-
-export function displayResults(data) {
-    const resultsPanel = document.getElementById('results-panel');
-    resultsPanel.style.display = 'block';
-    resultsPanel.dataset.scanId = data.scan_id;
-
-    let summaryHtml = `
-        <h3>Scan Summary</h3>
-        <table class="results-table">
-            <tr>
-                <th>Total Hosts</th>
-                <td>${data.summary.total_hosts}</td>
-            </tr>
-            <tr>
-                <th>Active Hosts</th>
-                <td>${data.summary.active_hosts}</td>
-            </tr>
-            <tr>
-                <th>Total Ports</th>
-                <td>${data.summary.total_ports}</td>
-            </tr>
-            <tr>
-                <th>Services Detected</th>
-                <td>${data.summary.total_services}</td>
-            </tr>
-            <tr>
-                <th>Vulnerabilities Found</th>
-                <td>${data.summary.total_vulnerabilities}</td>
-            </tr>
-        </table>`;
-
-    resultsPanel.innerHTML = summaryHtml;
-}
-
-// Export all functions that need to be called from HTML
-export async function loadNetworks() {
-    const networkSelect = document.getElementById('network-select');
-    try {
-        networkSelect.disabled = true;
-        console.log('Starting network discovery...');
-        
-        const response = await fetch('/api/networks');
-        console.log('Response received:', response);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Network data received:', data);
-        
-        // Clear and set default option
-        networkSelect.innerHTML = '<option value="">Select Network/Subnet</option>';
-        
-        // Check if data.networks exists and is an array before processing
-        if (data && data.networks && Array.isArray(data.networks)) {
-            console.log(`Processing ${data.networks.length} networks`);
-            
-            // Add each network to the select
-            data.networks.forEach(network => {
-                if (!network || typeof network !== 'object') {
-                    console.warn('Invalid network object:', network);
-                    return;
-                }
-                
-                console.log('Adding network:', network);
-                const option = document.createElement('option');
-                
-                if (network.network === 'custom') {
-                    option.value = 'custom';
-                    option.textContent = 'Enter Custom Network/IP';
-                } else {
-                    option.value = network.network || '';
-                    option.textContent = network.interface ? 
-                        `${network.network} (${network.interface})` : 
-                        network.network;
-                    option.dataset.interface = network.interface || '';
-                    option.dataset.ip = network.ip || '';
-                }
-                networkSelect.appendChild(option);
-            });
-        } else {
-            console.warn('Invalid or empty networks data:', data);
-            throw new Error('No valid networks data received');
-        }
-
-    } catch (error) {
-        console.error('Error in loadNetworks:', error);
-        networkSelect.innerHTML = `
-            <option value="">Error loading networks - ${error.message}</option>
-            <option value="custom">Enter Custom Network/IP</option>
-        `;
-        updateScanStatus('Error loading networks: ' + error.message, true);
-    } finally {
-        networkSelect.disabled = false;
-        console.log('Network loading process completed');
-    }
-}
-
-// Initialize everything when the module loads
-(async function() {
-    try {
-        console.log('Starting initialization...');
-        
-        // Wait for DOM to be ready
-        await new Promise(resolve => {
-            if (document.readyState !== 'loading') {
-                console.log('DOM already ready');
-                resolve();
-            } else {
-                console.log('Waiting for DOM...');
-                document.addEventListener('DOMContentLoaded', () => {
-                    console.log('DOM loaded');
-                    resolve();
-                });
-            }
-        });
-
-        console.log('DOM ready, loading networks...');
-        await loadNetworks();
-        console.log('Networks loaded');
-
-    } catch (error) {
-        console.error('Initialization error:', error);
-        updateScanStatus('Error during initialization: ' + error.message, true);
-    }
-})();
-
-// Make functions available globally
-window.startScan = startScan;
-window.updateScanStatus = updateScanStatus;
-window.pollScanStatus = pollScanStatus;
-window.updateMetricsPanel = updateMetricsPanel;
-window.displayResults = displayResults;
-window.loadNetworks = loadNetworks;
-
-// Add this function to app.js
 export async function stopScan() {
     try {
-        const stopButton = document.getElementById('stop-button');
-        const scanButton = document.getElementById('scan-button');
-        
-        stopButton.disabled = true;
-        updateScanStatus('Stopping scan...');
-        
         const response = await fetch('/api/scan/stop', {
             method: 'POST'
         });
-        
-        if (!response.ok) {
-            throw new Error('Failed to stop scan');
-        }
-        
         const data = await response.json();
-        updateScanStatus('Scan stopped by user');
         
-        // Reset buttons
-        stopButton.style.display = 'none';
-        scanButton.disabled = false;
-        scanButton.textContent = 'Start Network Scan';
-        
+        if (data.status === 'success') {
+            document.getElementById('scan-button').style.display = 'inline-block';
+            document.getElementById('stop-button').style.display = 'none';
+        } else {
+            alert('Failed to stop scan: ' + data.message);
+        }
     } catch (error) {
         console.error('Error stopping scan:', error);
-        updateScanStatus(`Failed to stop scan: ${error.message}`, true);
+        alert('Error stopping scan');
     }
 }
 
-// Add to global exports
-window.stopScan = stopScan;
+export async function updateScanStatus(scanId) {
+    try {
+        const response = await fetch(`/api/scan/${scanId}/status`);
+        const data = await response.json();
+        
+        const statusElement = document.querySelector('.scan-status');
+        statusElement.style.display = 'block';
+        statusElement.textContent = `Scan Status: ${data.status} (${data.progress}%)`;
+        
+        if (data.status === 'completed') {
+            document.getElementById('scan-button').style.display = 'inline-block';
+            document.getElementById('stop-button').style.display = 'none';
+            
+            // Update metrics
+            if (data.summary) {
+                document.getElementById('total-nodes').textContent = data.summary.total_hosts || 0;
+                document.getElementById('active-hosts').textContent = data.summary.active_hosts || 0;
+                document.getElementById('open-ports').textContent = data.summary.total_ports || 0;
+                document.getElementById('vulnerabilities').textContent = data.summary.total_vulnerabilities || 0;
+                document.getElementById('last-scan').textContent = new Date().toLocaleString();
+            }
+            
+            // Refresh topology visualization
+            refreshTopology(scanId);
+            
+        } else if (data.status === 'failed') {
+            document.getElementById('scan-button').style.display = 'inline-block';
+            document.getElementById('stop-button').style.display = 'none';
+            statusElement.style.color = '#dc3545';  // Red color for error
+        } else {
+            // Continue polling for updates
+            setTimeout(() => updateScanStatus(scanId), 2000);
+        }
+    } catch (error) {
+        console.error('Error updating scan status:', error);
+    }
+}
+
+// Load networks when the page loads
+document.addEventListener('DOMContentLoaded', loadNetworks);
+  
+// Add this function to app.js
+async function refreshTopology(scanId) {
+    try {
+        const response = await fetch(`/api/topology/${scanId}`);
+        const data = await response.json();
+        
+        if (!data.nodes || !data.links) {
+            console.error('Invalid topology data format:', data);
+            return;
+        }
+        
+        // Create the visualization
+        const container = document.getElementById('network-visualization');
+        const nodes = new vis.DataSet(data.nodes.map(node => ({
+            id: node.id,
+            label: node.id,
+            title: generateNodeTooltip(node),
+            color: getNodeColor(node),
+            size: getNodeSize(node)
+        })));
+
+        const edges = new vis.DataSet(data.links.map(link => ({
+            from: link.source,
+            to: link.target,
+            color: getEdgeColor(link)
+        })));
+
+        const options = {
+            nodes: {
+                shape: 'dot',
+                scaling: {
+                    min: 10,
+                    max: 30
+                }
+            },
+            physics: {
+                stabilization: true,
+                barnesHut: {
+                    gravitationalConstant: -80000,
+                    springConstant: 0.001,
+                    springLength: 200
+                }
+            }
+        };
+
+        window.network = new vis.Network(container, { nodes, edges }, options);
+    } catch (error) {
+        console.error('Error refreshing topology:', error);
+    }
+}
+  
+function generateNodeTooltip(node) {
+    return `
+        <div class="node-tooltip">
+            <strong>IP:</strong> ${node.id}<br>
+            <strong>Type:</strong> ${node.type}<br>
+            <strong>OS:</strong> ${node.os}<br>
+            <strong>Open Ports:</strong> ${node.ports.length}<br>
+            <strong>Services:</strong> ${node.services.map(s => s.name).join(', ')}
+        </div>
+    `;
+}
+
+function getNodeColor(node) {
+    const typeColors = {
+        'router': '#ff4444',
+        'server': '#4444ff',
+        'workstation': '#44ff44',
+        'unknown': '#cccccc'
+    };
+    return typeColors[node.type] || typeColors.unknown;
+}
+
+function getNodeSize(node) {
+    return 10 + (node.services.length * 2);
+}
+
+function getEdgeColor(link) {
+    return link.type === 'subnet' ? '#666666' : '#999999';
+}
   
