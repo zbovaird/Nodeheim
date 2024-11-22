@@ -443,90 +443,27 @@ class NetworkScanner:
 
     def vulnerability_scan(self, target: str) -> ScanResult:
         """
-        Optimized vulnerability scan including CVE checks
-        Arguments: -sV --version-intensity 5 --script vulners --min-rate 1000
+        Basic vulnerability scan without CVE checks
+        Arguments: -sV --script vuln
         """
         try:
-            # Use faster service detection and optimized scanning parameters
+            # Use simpler scan arguments
             scan_args = (
                 '-sV '                     # Service version detection
-                '--version-intensity 5 '   # Lower intensity for faster scans
-                '--min-rate 1000 '        # Minimum number of packets per second
+                '--version-intensity 4 '   # Lower intensity for faster scans
+                '--script vuln '           # Basic vulnerability scripts
+                '-T3 '                     # Normal timing template
                 '--max-retries 2 '        # Reduce retry attempts
-                '--host-timeout 30m '      # Host timeout of 30 minutes
-                '-T4 '                     # Aggressive timing template
-                '--max-rtt-timeout 500ms ' # Maximum round-trip timeout
-                '--initial-rtt-timeout 300ms ' # Initial round-trip timeout
-                '--min-hostgroup 64 '      # Scan larger groups of hosts simultaneously
-                '--min-parallelism 10 '    # Minimum probe parallelization
-                '--open'                   # Only show open ports
+                '--host-timeout 15m '     # Host timeout
+                '--min-rate 50 '          # Minimum packet rate
+                '--max-rate 150 '         # Maximum packet rate
+                '--open'                  # Only show open ports
             )
             
-            # First do a quick service scan
+            # Run the scan
             basic_results = self._run_scan(target, scan_args, 'vulnerability_scan')
             
-            # Extract only services with product information
-            services = []
-            for host in basic_results.hosts:
-                host_services = []
-                for service in host.get('services', []):
-                    if service.get('product'):
-                        host_services.append({
-                            'host': host['ip_address'],
-                            'product': service['product'],
-                            'version': service.get('version', ''),
-                            'name': service.get('name', '')
-                        })
-                if host_services:
-                    services.extend(host_services)
-            
-            # Process vulnerabilities in smaller batches with timeouts
-            batch_size = 5  # Reduced from 10
-            all_vulns = {}
-            
-            for i in range(0, len(services), batch_size):
-                try:
-                    batch = services[i:i + batch_size]
-                    batch_results = self.vuln_checker.batch_check_services(
-                        batch,
-                        timeout=45  # Increased from 30
-                    )
-                    all_vulns.update(batch_results)
-                    
-                    # Add delay between batches
-                    time.sleep(2)  # 2 second delay between batches
-                    
-                    progress = min(100, (i + batch_size) * 100 // len(services))
-                    self.logger.info(f"Vulnerability check progress: {progress}%")
-                    
-                except Exception as e:
-                    self.logger.warning(f"Error checking batch {i//batch_size}: {e}")
-                    time.sleep(5)  # Longer delay after error
-                    continue
-            
-            # Add vulnerability information to scan results
-            for host in basic_results.hosts:
-                host_vulns = []
-                for service in host.get('services', []):
-                    product = service.get('product', '')
-                    version = service.get('version', '')
-                    if product:
-                        service_vulns = all_vulns.get((product, version), {}).get('vulnerabilities', [])
-                        for vuln in service_vulns:
-                            if vuln.get('cvss_score', 0) >= 7.0:  # Only include high and critical vulnerabilities
-                                host_vulns.append({
-                                    'service': f"{product} {version}",
-                                    'port': service.get('port', ''),
-                                    **vuln
-                                })
-                host['vulnerabilities'] = host_vulns
-            
-            # Update vulnerability count in scan results
-            basic_results.vulnerabilities = []
-            for host in basic_results.hosts:
-                basic_results.vulnerabilities.extend(host.get('vulnerabilities', []))
-            
-            self.logger.info(f"Found {len(basic_results.vulnerabilities)} significant vulnerabilities across all hosts")
+            # Don't do CVE checks, just return the basic results
             return basic_results
             
         except Exception as e:
@@ -554,9 +491,9 @@ class NetworkScanner:
             
             # Try to get nmap path
             try:
-                nmap_path = getattr(self.nm, 'nmap_path', 'nmap')  # Default to 'nmap' if attribute not found
+                nmap_path = getattr(self.nm, 'nmap_path', 'nmap')
             except Exception:
-                nmap_path = 'nmap'  # Fallback to default
+                nmap_path = 'nmap'
             
             # Try a simple ping scan on localhost
             try:
@@ -870,7 +807,6 @@ class NetworkScanner:
         """Check if all required components are available"""
         requirements = {
             'nmap_installed': False,
-            'root_privileges': False,
             'network_access': False
         }
         
@@ -881,12 +817,6 @@ class NetworkScanner:
                                 text=True)
             requirements['nmap_installed'] = result.returncode == 0
             
-            # Check privileges
-            if platform.system().lower() == 'windows':
-                requirements['root_privileges'] = ctypes.windll.shell32.IsUserAnAdmin()
-            else:
-                requirements['root_privileges'] = os.geteuid() == 0
-                
             # Check network access
             try:
                 socket.create_connection(("8.8.8.8", 53), timeout=3)

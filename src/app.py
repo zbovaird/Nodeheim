@@ -33,7 +33,7 @@ import uuid
 from threading import Thread
 
 # Add this import at the top with the other imports
-from analyzer.topology import TopologyAnalyzer, updateTopologyVisualization  # Add updateTopologyVisualization here
+from analyzer.topology import TopologyAnalyzer, updateTopologyVisualization  # Add updateTopologyVisualization to import
 
 # Add this after the imports and before the logging configuration
 SECURITY_ZONES = {
@@ -66,7 +66,6 @@ logger.info(f"Base directory set to: {BASE_DIR}")
 # Local imports
 from scanner.scanner import NetworkScanner, ScanResult
 from scanner.network_discovery import NetworkDiscovery
-from analyzer.topology import TopologyAnalyzer
 from analyzer.network_analysis import NetworkAnalyzer
 from api.analysis import analysis_bp
 from scanner.vulnerability_checker import BatchVulnerabilityChecker
@@ -158,7 +157,47 @@ def process_scan_results(results: ScanResult, scan_id: str):
             with open(analysis_file, 'w') as f:
                 json.dump(analysis_results, f, indent=2)
             
-            # Generate topology visualization
+            # Use the imported updateTopologyVisualization function
+            updateTopologyVisualization(formatted_results, BASE_DIR)
+            
+            # Update scan status with analysis results
+            formatted_results['network_analysis'] = analysis_results
+            
+        except Exception as analysis_error:
+            logger.error(f"Error in network analysis: {str(analysis_error)}")
+        
+        # Update scan status
+        scan_statuses[scan_id].update({
+            'status': 'completed',
+            'progress': 100,
+            'end_time': datetime.now().isoformat(),
+            'summary': formatted_results['summary']
+        })
+        
+    except Exception as e:
+        logger.error(f"Error processing scan results: {str(e)}", exc_info=True)
+        scan_statuses[scan_id].update({
+            'status': 'failed',
+            'error': str(e)
+        })
+        
+        # Save results to file
+        output_file = os.path.join(scans_dir, f'{scan_id}.json')
+        with open(output_file, 'w') as f:
+            json.dump(formatted_results, f, indent=2)
+            
+        logger.info(f"Scan results saved to {output_file}")
+        
+        try:
+            # Run network analysis
+            analysis_results = topology_analyzer.analyze_topology(formatted_results)
+            
+            # Save analysis results
+            analysis_file = os.path.join(scans_dir, f'{scan_id}_analysis.json')
+            with open(analysis_file, 'w') as f:
+                json.dump(analysis_results, f, indent=2)
+            
+            # Use the imported updateTopologyVisualization function
             updateTopologyVisualization(formatted_results, BASE_DIR)
             
             # Update scan status with analysis results
@@ -2205,6 +2244,28 @@ def get_analysis_history():
     except Exception as e:
         logger.error(f"Error getting analysis history: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+        # Save topology data
+        topology_dir = os.path.join(base_dir, 'src', 'data', 'topology')
+        os.makedirs(topology_dir, exist_ok=True)
+        
+        topology_file = os.path.join(
+            topology_dir, 
+            f"topology_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        
+        with open(topology_file, 'w') as f:
+            json.dump(topology_data, f, indent=2)
+            
+        logger.info(f"Saved topology data to {topology_file}")
+        logger.info(f"Generated topology with {len(topology_data['nodes'])} nodes and {len(topology_data['links'])} links")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating topology visualization: {e}", exc_info=True)
+        return False
 
 if __name__ == '__main__':
     try:

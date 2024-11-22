@@ -1,0 +1,377 @@
+{
+  "scan_id": "e074adae-8a5f-4102-8114-b5e8783f4fa3",
+  "timestamp": "20241122_084715",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip_address": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SAX1V1K.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.103",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.104",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.123",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.127",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM01.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.130",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.145",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RPT013.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.152",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "BRWDCE99452FC3A.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.154",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM04.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.168",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.197",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03-135.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.220",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.64",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "iPhone.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.74",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "Nest-Cam.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.82",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-e6.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.84",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Fri Nov 22 08:47:26 2024",
+    "elapsed": "11.28",
+    "uphosts": "16",
+    "downhosts": "240",
+    "totalhosts": "256"
+  },
+  "summary": {
+    "total_hosts": 16,
+    "active_hosts": 16,
+    "total_ports": 0,
+    "total_services": 0,
+    "total_vulnerabilities": 0
+  }
+}

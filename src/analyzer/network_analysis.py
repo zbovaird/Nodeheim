@@ -413,59 +413,115 @@ class NetworkAnalyzer:
             }
 
     def analyze_network(self, scan_result):
-        """Run complete network analysis with IT security focus"""
+        """Run complete network analysis with improved error handling and defaults"""
         try:
-            self.logger.info("Starting network analysis...")
-            
             if not hasattr(scan_result, 'hosts') or not scan_result.hosts:
                 raise ValueError("Invalid scan result: no hosts data found")
 
-            # Create graph from scan data
+            # Create graph from scan results
             self.create_graph_from_scan(scan_result)
             
             if self.G.number_of_nodes() == 0:
                 raise ValueError("No valid nodes could be created from scan results")
             
-            self.logger.info(f"Created graph with {self.G.number_of_nodes()} nodes and {self.G.number_of_edges()} edges")
+            # Initialize default values for metrics
+            default_metrics = {
+                'spectral_radius': 0.0,
+                'fiedler_value': 0.0,
+                'network_density': 0.0,
+                'average_degree': 0.0,
+                'total_nodes': 0,
+                'total_edges': 0,
+                'components': 0,
+                'high_risk_nodes': 0
+            }
             
-            # Run analyses
+            # Run analyses with proper error handling
             try:
                 structure = self.analyze_network_structure()
                 security_metrics = self.analyze_security_metrics()
                 bottleneck_analysis = self.analyze_bottlenecks()
-                node_criticality = self.analyze_node_criticality()
+                anomalies = self.detect_anomalies()
+                spectral_metrics = self.calculate_spectral_metrics()
                 port_analysis = self.analyze_port_data(scan_result)
                 
-                analysis_result = {
+                # Save topology visualization
+                self.save_topology_visualization(scan_result)
+                
+                # Rest of the analysis code...
+                
+            except Exception as e:
+                logging.error(f"Error in analysis components: {e}")
+                return {
                     'timestamp': datetime.now().isoformat(),
-                    'network_structure': structure,
-                    'security_metrics': security_metrics,
-                    'bottleneck_analysis': bottleneck_analysis,
-                    'node_criticality': node_criticality,
-                    'port_analysis': port_analysis,
-                    'summary': {
-                        'total_nodes': self.G.number_of_nodes(),
-                        'total_edges': self.G.number_of_edges(),
-                        'high_risk_nodes': len([n for n, m in security_metrics.items() 
-                                              if m.get('connectivity_risk', 0) > 0.5]),
-                        'critical_bottlenecks': len([n for n in bottleneck_analysis.values() 
-                                                   if n.get('is_critical', False)])
-                    }
+                    'error': str(e),
+                    'summary': default_metrics
                 }
                 
-                # Ensure all values are JSON serializable
-                analysis_result = self._ensure_serializable(analysis_result)
-                
-                self.logger.info("Network analysis completed successfully")
-                return analysis_result
-                
-            except Exception as analysis_error:
-                self.logger.error(f"Error during analysis components: {str(analysis_error)}")
-                raise
-                
         except Exception as e:
-            self.logger.error(f"Error in network analysis: {str(e)}", exc_info=True)
+            logging.error(f"Critical error in network analysis: {e}")
             raise
+
+    def save_topology_visualization(self, scan_result):
+        """Save network topology visualization"""
+        try:
+            topology_dir = os.path.join(self.data_dir, 'topology')
+            os.makedirs(topology_dir, exist_ok=True)
+            
+            topology_file = os.path.join(
+                topology_dir, 
+                f"topology_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            
+            topology_data = {
+                'nodes': [],
+                'links': []
+            }
+
+            # Process hosts into nodes
+            for host in scan_result.hosts:
+                node = {
+                    'id': host.get('ip_address'),
+                    'type': host.get('device_type', 'unknown'),
+                    'services': host.get('services', []),
+                    'os': host.get('os_info', {}).get('os_match', 'unknown'),
+                    'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
+                }
+                topology_data['nodes'].append(node)
+
+            # Create links based on network relationships
+            processed_links = set()
+            for host in scan_result.hosts:
+                source = host.get('ip_address')
+                if not source:
+                    continue
+                    
+                # Add subnet-based connections
+                source_parts = source.split('.')
+                for other_host in scan_result.hosts:
+                    target = other_host.get('ip_address')
+                    if not target or source == target:
+                        continue
+                        
+                    target_parts = target.split('.')
+                    if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
+                        link_id = tuple(sorted([source, target]))
+                        if link_id not in processed_links:
+                            topology_data['links'].append({
+                                'source': source,
+                                'target': target,
+                                'type': 'subnet'
+                            })
+                            processed_links.add(link_id)
+
+            # Save topology data
+            with open(topology_file, 'w') as f:
+                json.dump(topology_data, f, indent=2)
+                
+            self.logger.info(f"Saved topology data to {topology_file}")
+            
+        except Exception as e:
+            self.logger.error(f"Error saving topology visualization: {e}")
 
     def _ensure_serializable(self, obj):
         """Ensure all objects are JSON serializable"""
@@ -1679,6 +1735,7 @@ def generate_action_items(G1: nx.Graph, G2: nx.Graph, bridge_nodes: list,
         })
     
     return action_items
+
 
 
 
