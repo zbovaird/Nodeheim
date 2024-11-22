@@ -103,6 +103,8 @@ export async function updateScanStatus(scanId) {
             // Refresh topology visualization
             refreshTopology(scanId);
             
+            // Add this line to update the network analysis
+            updateNetworkAnalysis(scanId);
         } else if (data.status === 'failed') {
             document.getElementById('scan-button').style.display = 'inline-block';
             document.getElementById('stop-button').style.display = 'none';
@@ -134,10 +136,20 @@ async function refreshTopology(scanId) {
         const container = document.getElementById('network-visualization');
         const nodes = new vis.DataSet(data.nodes.map(node => ({
             id: node.id,
-            label: node.id,
+            // Include hostname in label if available
+            label: node.hostname ? `${node.id}\n${node.hostname}` : node.id,
             title: generateNodeTooltip(node),
             color: getNodeColor(node),
-            size: getNodeSize(node)
+            size: getNodeSize(node),
+            font: {
+                size: 12,
+                color: '#ffffff',
+                face: 'arial',
+                strokeWidth: 2,
+                strokeColor: '#000000',
+                multi: true,
+                align: 'center'
+            }
         })));
 
         const edges = new vis.DataSet(data.links.map(link => ({
@@ -152,7 +164,18 @@ async function refreshTopology(scanId) {
                 scaling: {
                     min: 10,
                     max: 30
+                },
+                labelHighlightBold: true,
+                font: {
+                    size: 12,
+                    face: 'arial'
                 }
+            },
+            edges: {
+                smooth: {
+                    type: 'continuous'
+                },
+                length: 200
             },
             physics: {
                 stabilization: true,
@@ -161,6 +184,10 @@ async function refreshTopology(scanId) {
                     springConstant: 0.001,
                     springLength: 200
                 }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200
             }
         };
 
@@ -171,13 +198,20 @@ async function refreshTopology(scanId) {
 }
   
 function generateNodeTooltip(node) {
+    // Format ports and services
+    const portServices = node.ports.map(port => {
+        const serviceName = port.service_details || port.service || 'unknown';
+        return `${port.port}/${port.protocol || 'tcp'} (${serviceName})`;
+    }).join('<br>');
+
     return `
         <div class="node-tooltip">
             <strong>IP:</strong> ${node.id}<br>
+            ${node.hostname ? `<strong>Hostname:</strong> ${node.hostname}<br>` : ''}
             <strong>Type:</strong> ${node.type}<br>
             <strong>OS:</strong> ${node.os}<br>
-            <strong>Open Ports:</strong> ${node.ports.length}<br>
-            <strong>Services:</strong> ${node.services.map(s => s.name).join(', ')}
+            <strong>Open Ports & Services:</strong><br>
+            ${portServices || 'No open ports'}<br>
         </div>
     `;
 }
@@ -198,5 +232,90 @@ function getNodeSize(node) {
 
 function getEdgeColor(link) {
     return link.type === 'subnet' ? '#666666' : '#999999';
+}
+  
+// Add this function to create and update the charts
+function updateNetworkAnalysis(scanId) {
+    fetch(`/api/topology/${scanId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Process data for device type chart
+            const deviceTypes = data.nodes.reduce((acc, node) => {
+                acc[node.type] = (acc[node.type] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Process data for OS distribution chart
+            const osDistribution = data.nodes.reduce((acc, node) => {
+                acc[node.os] = (acc[node.os] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Create device type chart
+            new Chart(document.getElementById('deviceTypeChart'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(deviceTypes),
+                    datasets: [{
+                        data: Object.values(deviceTypes),
+                        backgroundColor: ['#ff4444', '#4444ff', '#44ff44', '#cccccc']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Device Type Distribution',
+                            color: '#ffffff'
+                        },
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Create OS distribution chart
+            new Chart(document.getElementById('osDistributionChart'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(osDistribution),
+                    datasets: [{
+                        data: Object.values(osDistribution),
+                        backgroundColor: ['#ff4444', '#4444ff', '#44ff44', '#cccccc']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'OS Distribution',
+                            color: '#ffffff'
+                        },
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update host details table
+            const tableBody = document.getElementById('hostDetailsTable');
+            tableBody.innerHTML = data.nodes.map(node => `
+                <tr>
+                    <td>${node.id}</td>
+                    <td>${node.hostname || 'N/A'}</td>
+                    <td>${node.type}</td>
+                    <td>${node.os}</td>
+                    <td>${node.ports.map(p => `${p.port} (${p.service})`).join(', ') || 'None'}</td>
+                </tr>
+            `).join('');
+        });
 }
   

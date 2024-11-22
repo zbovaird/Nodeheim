@@ -1,0 +1,101 @@
+{
+  "scan_id": "b1001ec2-fb8c-4063-931b-eab3cc147641",
+  "timestamp": "20241122_152634",
+  "scan_type": "basic_scan",
+  "hosts": [
+    {
+      "ip_address": "192.168.56.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+          "ip_address": "192.168.56.1"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "ip_address": "192.168.56.1"
+        }
+      ],
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    }
+  ],
+  "ports": [
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "netbios-ssn",
+      "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+      "ip_address": "192.168.56.1"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "microsoft-ds",
+      "service_details": "microsoft-ds",
+      "ip_address": "192.168.56.1"
+    }
+  ],
+  "services": [
+    {
+      "name": "netbios-ssn",
+      "product": "Microsoft Windows netbios-ssn",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.56.1",
+      "ip_address": "192.168.56.1",
+      "port": 139
+    }
+  ],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Fri Nov 22 15:27:02 2024",
+    "elapsed": "27.44",
+    "uphosts": "1",
+    "downhosts": "255",
+    "totalhosts": "256"
+  },
+  "summary": {
+    "total_hosts": 1,
+    "active_hosts": 1,
+    "total_ports": 2,
+    "total_services": 1,
+    "total_vulnerabilities": 0
+  }
+}

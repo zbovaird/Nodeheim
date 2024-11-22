@@ -104,10 +104,19 @@ def updateTopologyVisualization(scan_data: Dict, base_dir: str) -> bool:
                 
             node = {
                 'id': ip_address,
+                'hostname': host.get('hostname', ''),
                 'type': host.get('device_type', 'unknown'),
                 'services': host.get('services', []),
                 'os': host.get('os_info', {}).get('os_match', 'unknown'),
-                'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
+                'ports': [
+                    {
+                        'port': p.get('port'),
+                        'protocol': p.get('protocol', 'tcp'),
+                        'service': p.get('service'),
+                        'service_details': p.get('service_details', '')
+                    }
+                    for p in host.get('ports', []) if p.get('state') == 'open'
+                ]
             }
             topology_data['nodes'].append(node)
 
