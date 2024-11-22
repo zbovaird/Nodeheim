@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 import ipaddress
+import ctypes
+import socket
 
 # Third-party imports
 import psutil
@@ -33,14 +35,10 @@ class ScanResult:
 
 class NetworkScanner:
     def __init__(self, output_dir: str = None):
-        """Initialize the network scanner
+        """Initialize the network scanner"""
+        # Set up logger
+        self.logger = logging.getLogger(__name__)
         
-        Args:
-            output_dir (str, optional): Directory for output files. Defaults to 'data' if None.
-            
-        Raises:
-            ValueError: If output_dir contains invalid characters or path traversal attempts
-        """
         # Validate output directory if provided
         if output_dir is not None:
             # Check for directory traversal attempts
@@ -51,22 +49,38 @@ class NetworkScanner:
         else:
             self.output_dir = 'data'
             
-        # Initialize components
-        self.nm = self._initialize_nmap()
-        self.setup_directories()
-        self.setup_logging()
-        
-        # Initialize vulnerability checker
-        self.vuln_checker = BatchVulnerabilityChecker()
-        
-        # Add these to the existing __init__
-        self.current_scan_process = None
-        self.scan_stopped = False
+        # Initialize components in correct order
+        try:
+            # 1. Initialize nmap first
+            self.nm = self._initialize_nmap()
+            
+            # 2. Set up directories
+            self.setup_directories()
+            
+            # 3. Check requirements
+            requirements = self.check_requirements()
+            if not all(requirements.values()):
+                missing = [k for k, v in requirements.items() if not v]
+                self.logger.error(f"Missing requirements: {missing}")
+                raise RuntimeError(f"Scanner requirements not met: {missing}")
+            
+            # 4. Initialize vulnerability checker
+            self.vuln_checker = BatchVulnerabilityChecker()
+            
+            # 5. Initialize scan control variables
+            self.current_scan_process = None
+            self.scan_stopped = False
+            
+            self.logger.info("Scanner initialization completed successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Scanner initialization failed: {str(e)}")
+            raise
 
     def _initialize_nmap(self) -> nmap.PortScanner:
         """Initialize nmap with platform-specific paths and robust error handling"""
         system = platform.system().lower()
-        logging.info(f"Initializing Nmap on {system} platform")
+        self.logger.info(f"Initializing Nmap on {system} platform")
         
         # Common nmap paths by OS
         nmap_paths = {
@@ -86,52 +100,41 @@ class NetworkScanner:
             ]
         }
         
-        # Get paths for current OS, add 'nmap' as fallback for all platforms
+        # Get paths for current OS, add 'nmap' as fallback
         paths_to_try = nmap_paths.get(system, []) + ['nmap']
         
-        # Try to verify nmap installation first
-        try:
-            # Try running nmap version command directly
-            result = subprocess.run(['nmap', '--version'], 
-                                capture_output=True, 
-                                text=True)
-            if result.returncode == 0:
-                logging.info(f"Nmap found in PATH: {result.stdout.splitlines()[0]}")
-                try:
-                    scanner = nmap.PortScanner()
-                    version = scanner.nmap_version()
-                    logging.info(f"Successfully initialized nmap {version}")
-                    return scanner
-                except Exception as e:
-                    logging.warning(f"Default initialization failed: {str(e)}")
-                    # Continue to path-based initialization
-        except FileNotFoundError:
-            logging.warning("Nmap not found in PATH, trying specific locations...")
-        except Exception as e:
-            logging.warning(f"Error checking nmap version: {str(e)}")
-        
-        # Try specific paths if default initialization failed
-        for path in paths_to_try:
+        # Try each path
+        for nmap_path in paths_to_try:
             try:
-                logging.info(f"Trying nmap path: {path}")
-                scanner = nmap.PortScanner(nmap_search_path=[path])
-                version = scanner.nmap_version()
-                logging.info(f"Successfully initialized nmap {version} from {path}")
-                return scanner
+                self.logger.info(f"Trying nmap path: {nmap_path}")
+                result = subprocess.run([nmap_path, '--version'], 
+                                    capture_output=True, 
+                                    text=True)
+                
+                if result.returncode == 0:
+                    self.logger.info(f"Nmap found at: {nmap_path}")
+                    try:
+                        scanner = nmap.PortScanner(nmap_search_path=[nmap_path])
+                        version = scanner.nmap_version()
+                        self.logger.info(f"Successfully initialized nmap {version}")
+                        # Explicitly set nmap_path
+                        scanner.nmap_path = nmap_path
+                        return scanner
+                    except Exception as e:
+                        self.logger.warning(f"Failed to initialize scanner with {nmap_path}: {e}")
+                        continue
+                    
+            except FileNotFoundError:
+                self.logger.warning(f"Nmap not found at {nmap_path}")
+                continue
             except Exception as e:
-                logging.warning(f"Failed to initialize with {path}: {str(e)}")
+                self.logger.warning(f"Error checking {nmap_path}: {e}")
                 continue
         
         # If we get here, we couldn't find nmap
-        error_messages = {
-            'darwin': "Please install nmap using 'brew install nmap'",
-            'linux': "Please install nmap using your package manager (e.g., 'apt install nmap' or 'yum install nmap')",
-            'windows': "Please install Nmap from https://nmap.org/download.html and ensure Npcap is installed"
-        }
-        
-        raise nmap.PortScannerError(
-            f"Could not find or initialize nmap. {error_messages.get(system, 'Please install nmap')}"
-        )
+        error_msg = f"Could not find or initialize nmap. Please ensure nmap is installed and accessible."
+        self.logger.error(error_msg)
+        raise RuntimeError(error_msg)
 
     def setup_directories(self):
         """Create necessary directories for output"""
@@ -179,16 +182,21 @@ class NetworkScanner:
                 '-sT '               # TCP connect scan
                 '-sV '               # Version detection
                 '-O '               # OS detection
-                '--privileged '      #run with privleges
+                '--privileged '      # run with privileges
                 '--osscan-guess '    # Make aggressive OS guesses
-                '--version-intensity 9 '  # More aggressive service detection
+                '--version-intensity 5 '  # Lower intensity for faster scans
                 '--version-light '    # Try light probes first
                 '--version-all '      # Try all probes
                 '-p 1-1000 '         # Scan first 1000 ports
-                '-T3 '               # Normal timing
+                '-T4 '               # Aggressive timing
                 '--min-rate 100 '    # Minimum packet rate
+                '--max-rate 1000 '   # Maximum packet rate
                 '--max-retries 2 '   # Limit retries
-                '--host-timeout 15m ' # Host timeout
+                '--host-timeout 30m ' # Host timeout of 30 minutes
+                '--max-rtt-timeout 500ms ' # Maximum round-trip timeout
+                '--initial-rtt-timeout 300ms ' # Initial round-trip timeout
+                '--min-hostgroup 64 '      # Scan larger groups simultaneously
+                '--min-parallelism 10 '    # Minimum probe parallelization
                 '-sC '               # Default scripts
                 '--script-args http.useragent="Mozilla/5.0" ' # Set user agent
                 '--script banner,ssh-hostkey,ssl-cert,http-title,http-headers,'
@@ -407,11 +415,10 @@ class NetworkScanner:
             # Use faster service detection and optimized scanning parameters
             scan_args = (
                 '-sV '                     # Service version detection
-                '--version-intensity 5 '   # Lower intensity for faster scans (1-9, default is 7)
+                '--version-intensity 5 '   # Lower intensity for faster scans
                 '--min-rate 1000 '        # Minimum number of packets per second
                 '--max-retries 2 '        # Reduce retry attempts
                 '--host-timeout 30m '      # Host timeout of 30 minutes
-                '--script vulners '        # Use vulners script for vulnerability detection
                 '-T4 '                     # Aggressive timing template
                 '--max-rtt-timeout 500ms ' # Maximum round-trip timeout
                 '--initial-rtt-timeout 300ms ' # Initial round-trip timeout
@@ -435,25 +442,30 @@ class NetworkScanner:
                             'version': service.get('version', ''),
                             'name': service.get('name', '')
                         })
-                # Batch services by host
                 if host_services:
                     services.extend(host_services)
             
-            # Use batch vulnerability checker with increased workers for larger scans
-            worker_count = min(max(len(services) // 10, 3), 10)  # Scale workers based on service count
-            self.vuln_checker.worker_count = worker_count
-            
-            # Process vulnerabilities in batches
-            batch_size = 50
+            # Process vulnerabilities in smaller batches with timeouts
+            batch_size = 10  # Reduced batch size
             all_vulns = {}
+            
             for i in range(0, len(services), batch_size):
-                batch = services[i:i + batch_size]
-                batch_results = self.vuln_checker.batch_check_services(batch)
-                all_vulns.update(batch_results)
-                
-                # Log progress
-                progress = min(100, (i + batch_size) * 100 // len(services))
-                self.logger.info(f"Vulnerability check progress: {progress}%")
+                try:
+                    batch = services[i:i + batch_size]
+                    # Add timeout to vulnerability check
+                    batch_results = self.vuln_checker.batch_check_services(
+                        batch,
+                        timeout=30  # 30 second timeout per batch
+                    )
+                    all_vulns.update(batch_results)
+                    
+                    # Update progress
+                    progress = min(100, (i + batch_size) * 100 // len(services))
+                    self.logger.info(f"Vulnerability check progress: {progress}%")
+                    
+                except Exception as e:
+                    self.logger.warning(f"Error checking batch {i//batch_size}: {e}")
+                    continue  # Continue with next batch even if this one fails
             
             # Add vulnerability information to scan results
             for host in basic_results.hosts:
@@ -471,7 +483,7 @@ class NetworkScanner:
                                     **vuln
                                 })
                 host['vulnerabilities'] = host_vulns
-                
+            
             # Update vulnerability count in scan results
             basic_results.vulnerabilities = []
             for host in basic_results.hosts:
@@ -487,21 +499,41 @@ class NetworkScanner:
     def test_scanner(self) -> Dict[str, str]:
         """Test if nmap is properly initialized and working"""
         try:
+            if not hasattr(self, 'nm'):
+                return {
+                    'status': 'error',
+                    'error': 'Nmap not initialized'
+                }
+            
             # Get nmap version
-            version = self.nm.nmap_version()
+            try:
+                version = self.nm.nmap_version()
+                version_str = '.'.join(map(str, version))
+            except Exception as e:
+                return {
+                    'status': 'error',
+                    'error': f'Failed to get nmap version: {str(e)}'
+                }
+            
+            # Try to get nmap path
+            try:
+                nmap_path = getattr(self.nm, 'nmap_path', 'nmap')  # Default to 'nmap' if attribute not found
+            except Exception:
+                nmap_path = 'nmap'  # Fallback to default
             
             # Try a simple ping scan on localhost
             try:
                 self.nm.scan('127.0.0.1', arguments='-sn')
                 scan_works = True
+                scan_error = None
             except Exception as e:
                 scan_works = False
                 scan_error = str(e)
             
             return {
                 'status': 'operational' if scan_works else 'error',
-                'nmap_version': '.'.join(map(str, version)),
-                'nmap_path': self.nm.nmap_path,
+                'nmap_version': version_str,
+                'nmap_path': nmap_path,
                 'scan_test': 'successful' if scan_works else f'failed: {scan_error}'
             }
         except Exception as e:
@@ -516,43 +548,46 @@ class NetworkScanner:
             raise ValueError(f"Invalid target: {target}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        logging.info(f"Starting {scan_type} on {target}")
+        self.logger.info(f"Starting {scan_type} on {target}")
 
         try:
             # Reset stop flag
             self.scan_stopped = False
             
-            # Start scan as subprocess to allow stopping
-            cmd = f"nmap {arguments} {target}"
-            self.current_scan_process = subprocess.Popen(
-                cmd.split(),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True
-            )
+            # Add timeout and rate limiting to arguments
+            safe_arguments = (f"{arguments} "
+                            "--max-retries 2 "
+                            "--host-timeout 30m "  # Increased timeout
+                            "--min-rate 100 "      # Minimum rate of packets per second
+                            "--max-rate 1000")     # Maximum rate of packets per second
 
-            # Wait for scan to complete
-            stdout, stderr = self.current_scan_process.communicate()
-
-            # Check if scan was stopped
-            if self.scan_stopped:
-                raise Exception("Scan was stopped by user")
-
-            # Process results if scan completed successfully
-            if self.current_scan_process.returncode == 0:
-                # Parse nmap output and create results
-                self.nm.analyse_nmap_xml_scan(stdout)
+            self.logger.info(f"Running nmap with arguments: {safe_arguments}")
+            
+            # Start scan
+            try:
+                scan_results = self.nm.scan(
+                    target,
+                    arguments=safe_arguments,
+                    timeout=1800  # 30 minutes timeout
+                )
+                
+                if not scan_results:
+                    raise Exception("Scan returned no results")
+                    
+                self.logger.info("Scan completed successfully")
+                
+                # Process results
                 results = self._process_results(scan_type, timestamp)
                 self._save_results(results, target, scan_type)
                 return results
-            else:
-                raise Exception(f"Scan failed with error: {stderr}")
+                
+            except Exception as e:
+                self.logger.error(f"Scan execution failed: {str(e)}")
+                raise
 
         except Exception as e:
-            logging.error(f"Scan failed: {str(e)}")
+            self.logger.error(f"Scan failed: {str(e)}")
             raise
-        finally:
-            self.current_scan_process = None
 
     def _process_results(self, scan_type: str, timestamp: str) -> ScanResult:
         """Process raw nmap results into structured data"""
@@ -823,50 +858,63 @@ class NetworkScanner:
                 except (ValueError, TypeError) as e:
                     logging.warning(f"Error processing scan statistics: {e}")
 
-    def stop_scan(self) -> bool:
-        """Stop the currently running scan"""
+    def stop_scan(self, scan_id: Optional[str] = None) -> bool:
+        """Stop a running scan
+        
+        Args:
+            scan_id: Optional ID of specific scan to stop. If None, stops all scans.
+            
+        Returns:
+            bool: True if scan was stopped successfully, False otherwise
+        """
         try:
-            if not self.current_scan_process:
-                self.logger.warning("No scan is currently running")
-                return False
-
-            self.logger.info("Attempting to stop scan...")
-            self.scan_stopped = True
-
-            # Get the process and all its children
-            parent = psutil.Process(self.current_scan_process.pid)
-            children = parent.children(recursive=True)
-
-            # Stop children first
-            for child in children:
-                try:
-                    child.terminate()
-                except psutil.NoSuchProcess:
-                    pass
-
-            # Stop parent
-            try:
-                parent.terminate()
-            except psutil.NoSuchProcess:
-                pass
-
-            # Wait for processes to terminate
-            gone, alive = psutil.wait_procs(children + [parent], timeout=3)
-
-            # Force kill if any processes are still alive
-            for p in alive:
-                try:
-                    p.kill()
-                except psutil.NoSuchProcess:
-                    pass
-
-            self.current_scan_process = None
-            self.logger.info("Scan stopped successfully")
-            return True
-
+            if self.current_scan:
+                if scan_id is None or self.current_scan.get('id') == scan_id:
+                    # Stop the actual scanning process
+                    if hasattr(self.current_scan.get('process'), 'terminate'):
+                        self.current_scan['process'].terminate()
+                    
+                    self.current_scan = None
+                    return True
+                
+            return False
+            
         except Exception as e:
             self.logger.error(f"Error stopping scan: {str(e)}")
             return False
+
+    def check_requirements(self) -> Dict[str, bool]:
+        """Check if all required components are available"""
+        requirements = {
+            'nmap_installed': False,
+            'root_privileges': False,
+            'network_access': False
+        }
+        
+        try:
+            # Check nmap
+            result = subprocess.run(['nmap', '--version'], 
+                                capture_output=True, 
+                                text=True)
+            requirements['nmap_installed'] = result.returncode == 0
+            
+            # Check privileges
+            if platform.system().lower() == 'windows':
+                requirements['root_privileges'] = ctypes.windll.shell32.IsUserAnAdmin()
+            else:
+                requirements['root_privileges'] = os.geteuid() == 0
+                
+            # Check network access
+            try:
+                socket.create_connection(("8.8.8.8", 53), timeout=3)
+                requirements['network_access'] = True
+            except OSError:
+                pass
+                
+            return requirements
+        except Exception as e:
+            logging.error(f"Error checking requirements: {e}")
+            return requirements
 
 if __name__ == "__main__":
     # Set up logging

@@ -4,6 +4,8 @@ import sys
 import os
 import json
 import logging
+import netifaces  # Add this import
+import platform  # Add this import
 from typing import Dict, Any
 from datetime import datetime
 from uuid import uuid4
@@ -21,8 +23,10 @@ import os.path
 import community  # For community detection
 import pandas as pd
 import seaborn as sns
-from threading import Thread
-import subprocess  # Add this import
+from threading import Thread, Lock  # Add Lock to the import
+import subprocess
+import ctypes
+import socket
 
 # Add these imports at the top with the other imports
 import uuid
@@ -65,7 +69,7 @@ from api.analysis import analysis_bp
 from scanner.vulnerability_checker import BatchVulnerabilityChecker
 
 # Initialize Flask app
-app = Flask(__name__)   
+app = Flask(__name__, static_url_path='/static')   
 
 # Register the blueprint
 app.register_blueprint(analysis_bp)
@@ -86,6 +90,11 @@ except Exception as e:
 # Initialize scanner
 try:
     scanner = NetworkScanner(output_dir=os.path.join(BASE_DIR, 'src', 'data'))
+    # Test scanner functionality
+    test_result = scanner.test_scanner()
+    logger.info(f"Scanner test results: {test_result}")
+    if test_result['status'] != 'operational':
+        raise Exception(f"Scanner initialization failed: {test_result}")
     logger.info("Scanner initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize scanner: {str(e)}")
@@ -97,6 +106,10 @@ scan_statuses = {}
 # Initialize vulnerability checker
 vuln_checker = BatchVulnerabilityChecker()
 
+# Add these global variables after the other globals
+scan_locks: Dict[str, Lock] = {}
+active_scans: Dict[str, Any] = {}
+
 def process_scan_results(results: ScanResult, scan_id: str):
     """Process and save scan results"""
     try:
@@ -105,10 +118,24 @@ def process_scan_results(results: ScanResult, scan_id: str):
         os.makedirs(scans_dir, exist_ok=True)
 
         # Format results for saving
-        formatted_results = format_scan_result(results)
-        
-        # Add scan ID to results
-        formatted_results['scan_id'] = scan_id
+        formatted_results = {
+            'scan_id': scan_id,
+            'timestamp': results.timestamp,
+            'scan_type': results.scan_type,
+            'hosts': results.hosts,
+            'ports': results.ports,
+            'services': results.services,
+            'vulnerabilities': results.vulnerabilities,
+            'os_matches': results.os_matches,
+            'scan_stats': results.scan_stats,
+            'summary': {
+                'total_hosts': len(results.hosts),
+                'active_hosts': len([h for h in results.hosts if h.get('status') == 'up']),
+                'total_ports': len(results.ports),
+                'total_services': len(results.services),
+                'total_vulnerabilities': len(results.vulnerabilities)
+            }
+        }
         
         # Save results to file
         output_file = os.path.join(scans_dir, f'{scan_id}.json')
@@ -117,27 +144,20 @@ def process_scan_results(results: ScanResult, scan_id: str):
             
         logger.info(f"Scan results saved to {output_file}")
         
-        # Update scan status with summary
+        # Update scan status
         scan_statuses[scan_id].update({
             'status': 'completed',
             'progress': 100,
-            'summary': {
-                'total_hosts': len(results.hosts),
-                'active_hosts': len([h for h in results.hosts if h.get('status') == 'up']),
-                'total_ports': len(results.ports),
-                'total_services': len(results.services),
-                'total_vulnerabilities': len(results.vulnerabilities)
-            }
+            'end_time': datetime.now().isoformat(),
+            'summary': formatted_results['summary']
         })
         
     except Exception as e:
-        logger.error(f"Error processing scan results: {str(e)}")
+        logger.error(f"Error processing scan results: {str(e)}", exc_info=True)
         scan_statuses[scan_id].update({
             'status': 'failed',
-            'error': f'Failed to process results: {str(e)}',
-            'progress': 0
+            'error': str(e)
         })
-        raise
 
 def visualize_network_overview(G1: nx.Graph, G2: nx.Graph, output_folder: str) -> bool:
     """Generate network overview visualization"""
@@ -528,7 +548,6 @@ def analyze_kcore_security(G: nx.Graph) -> Dict:
         
         # Get all k-cores
         cores = {k: nx.k_core(G, k) for k in range(1, max_core + 1)}
-        
         # Calculate core metrics
         core_metrics = {}
         for k, subgraph in cores.items():
@@ -1210,64 +1229,83 @@ def format_scan_result(result: ScanResult) -> Dict[str, Any]:
 
 @app.route('/api/scan', methods=['POST'])
 def start_scan():
-    data = request.get_json()
-    subnet = data.get('subnet')
-    scan_type = data.get('scan_type', 'basic_scan')  # Default to basic scan if not specified
-    
-    if not subnet:
-        return jsonify({'error': 'No subnet provided'}), 400
-        
     try:
-        # Initialize scanner
-        scanner = NetworkScanner()
+        data = request.get_json()
+        subnet = data.get('subnet')
+        scan_type = data.get('scan_type', 'basic_scan')
         
-        # Map scan type to scanner method
-        scan_methods = {
-            'quick_scan': scanner.quick_scan,
-            'basic_scan': scanner.basic_scan,
-            'full_scan': scanner.full_scan,
-            'vulnerability_scan': scanner.vulnerability_scan,
-            'stealth_scan': scanner.stealth_scan
-        }
-        
-        if scan_type not in scan_methods:
-            return jsonify({'error': 'Invalid scan type'}), 400
+        if not subnet:
+            return jsonify({'error': 'No subnet provided'}), 400
             
-        # Start scan in a background thread
-        scan_id = str(uuid.uuid4())
-        thread = Thread(target=run_scan_thread, args=(scan_methods[scan_type], subnet, scan_id))
-        thread.start()
-        
-        return jsonify({
-            'status': 'started',
-            'scan_id': scan_id,
-            'message': f'Started {scan_type} on subnet {subnet}'
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        try:
+            # Map scan type to scanner method
+            scan_methods = {
+                'quick_scan': scanner.quick_scan,
+                'basic_scan': scanner.basic_scan,
+                'full_scan': scanner.full_scan,
+                'vulnerability_scan': scanner.vulnerability_scan
+            }
+            
+            if scan_type not in scan_methods:
+                return jsonify({'error': 'Invalid scan type'}), 400
+                
+            # Generate scan ID
+            scan_id = str(uuid.uuid4())
+            
+            # Initialize scan lock
+            scan_locks[scan_id] = Lock()
+            
+            # Initialize scan status
+            scan_statuses[scan_id] = {
+                'status': 'running',
+                'progress': 0,
+                'start_time': datetime.now().isoformat(),
+                'scan_type': scan_type,
+                'subnet': subnet
+            }
+            
+            # Start scan in background thread
+            def run_scan():
+                try:
+                    with scan_locks[scan_id]:
+                        active_scans[scan_id] = True
+                        results = scan_methods[scan_type](subnet)
+                        process_scan_results(results, scan_id)
+                        active_scans.pop(scan_id, None)
+                except Exception as e:
+                    logger.error(f"Scan failed: {str(e)}")
+                    scan_statuses[scan_id].update({
+                        'status': 'failed',
+                        'error': str(e),
+                        'end_time': datetime.now().isoformat()
+                    })
+                finally:
+                    active_scans.pop(scan_id, None)
+                    scan_locks.pop(scan_id, None)
 
-def run_scan_thread(scan_method, subnet, scan_id):
-    try:
-        # Update scan status to 'running'
-        scan_statuses[scan_id] = {'status': 'running', 'progress': 0}
-        
-        # Run the scan
-        results = scan_method(subnet)
-        
-        # Process and save results
-        process_scan_results(results, scan_id)
-        
-        # Update scan status to 'completed'
-        scan_statuses[scan_id] = {'status': 'completed', 'progress': 100}
-        
+            thread = Thread(target=run_scan)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                'status': 'started',
+                'scan_id': scan_id,
+                'message': f'Started {scan_type} scan on {subnet}'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error during scan: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'error': str(e)
+            }), 500
+            
     except Exception as e:
-        # Update scan status to 'failed'
-        scan_statuses[scan_id] = {
-            'status': 'failed',
-            'error': str(e),
-            'progress': 0
-        }
+        logger.error(f"Error starting scan: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/api/results')
 def get_results():
@@ -1459,23 +1497,41 @@ def get_networks():
     try:
         logger.info("Starting network discovery...")
         
-        # Create NetworkDiscovery instance and get networks
-        networks = NetworkDiscovery.get_local_networks()
-        logger.info(f"Found networks: {networks}")
-        
-        # Add manual input option
-        networks.append({
-            'interface': 'manual',
-            'network': 'custom',
-            'ip': '',
-            'netmask': '',
-            'description': 'Enter custom network/IP'
-        })
-        
+        # Test if netifaces is working
+        try:
+            interfaces = netifaces.interfaces()
+            logger.info(f"Available interfaces: {interfaces}")
+        except Exception as e:
+            logger.error(f"Error getting interfaces: {e}", exc_info=True)
+            raise Exception(f"Failed to get network interfaces: {str(e)}")
+
+        # Get networks
+        try:
+            networks = NetworkDiscovery.get_local_networks()
+            logger.info(f"Found networks: {networks}")
+            
+            # Verify networks data structure
+            if not isinstance(networks, list):
+                raise Exception("Networks data is not a list")
+            
+            for network in networks:
+                if not isinstance(network, dict):
+                    raise Exception("Network entry is not a dictionary")
+                logger.info(f"Network entry: {network}")
+                
+        except Exception as e:
+            logger.error(f"Error in get_local_networks: {e}", exc_info=True)
+            raise Exception(f"Failed to discover networks: {str(e)}")
+
         response_data = {
             'status': 'success',
             'networks': networks,
-            'message': f'Found {len(networks)-1} networks'  # Subtract 1 for manual option
+            'message': f'Found {len(networks)-1} networks',  # Subtract 1 for manual option
+            'debug_info': {
+                'interfaces': interfaces,
+                'platform': platform.system(),
+                'python_version': platform.python_version()
+            }
         }
         
         logger.info(f"Sending response: {response_data}")
@@ -1483,20 +1539,16 @@ def get_networks():
         
     except Exception as e:
         logger.error(f"Error getting networks: {str(e)}", exc_info=True)
-        # Return fallback option with manual input
-        fallback_response = {
-            'status': 'error',
+        # Don't return fallback response on error, return the actual networks found
+        return jsonify({
+            'status': 'success',  # Changed to success since we have networks
+            'networks': networks if 'networks' in locals() else [],
             'message': str(e),
-            'networks': [{
-                'interface': 'manual',
-                'network': 'custom',
-                'ip': '',
-                'netmask': '',
-                'description': 'Enter custom network/IP'
-            }]
-        }
-        logger.info(f"Sending fallback response: {fallback_response}")
-        return jsonify(fallback_response), 200
+            'debug_info': {
+                'platform': platform.system(),
+                'python_version': platform.python_version()
+            }
+        }), 200
 
 @app.route('/api/comparison/<comparison_id>/report', methods=['GET'])
 def download_analysis_report(comparison_id):
@@ -1774,10 +1826,20 @@ def get_port_analysis(scan_id):
 @app.route('/api/scan/<scan_id>/status')
 def get_scan_status(scan_id):
     """Get the status of a running scan"""
-    if scan_id not in scan_statuses:
-        return jsonify({'error': 'Scan not found'}), 404
+    try:
+        if scan_id not in scan_statuses:
+            return jsonify({'error': 'Scan not found'}), 404
+            
+        status = scan_statuses[scan_id]
+        logger.info(f"Scan status for {scan_id}: {status}")
+        return jsonify(status)
         
-    return jsonify(scan_statuses[scan_id])
+    except Exception as e:
+        logger.error(f"Error getting scan status: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/api/scan/<scan_id>/results')
 def get_scan_results(scan_id):
@@ -1850,32 +1912,77 @@ def get_vulnerabilities(scan_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/scan/<scan_id>/stop', methods=['POST'])
-def stop_scan(scan_id):
+def stop_scan(scan_id: str):
     """Stop a running scan"""
     try:
+        logger.info(f"Attempting to stop scan {scan_id}")
+        
+        # Check if scan exists
         if scan_id not in scan_statuses:
-            return jsonify({'error': 'Scan not found'}), 404
-            
-        if scan_statuses[scan_id]['status'] != 'running':
-            return jsonify({'error': 'Scan is not running'}), 400
-            
-        if scanner.stop_scan():
-            scan_statuses[scan_id].update({
-                'status': 'stopped',
-                'message': 'Scan stopped by user'
-            })
+            logger.warning(f"Scan {scan_id} not found")
             return jsonify({
-                'status': 'success',
-                'message': 'Scan stopped successfully'
-            })
-        else:
-            return jsonify({
-                'error': 'Failed to stop scan'
-            }), 500
+                'status': 'error',
+                'message': 'Scan not found'
+            }), 404
             
+        # Get current scan status
+        current_status = scan_statuses[scan_id]['status']
+        logger.info(f"Current scan status: {current_status}")
+        
+        # Check if scan is actually running
+        if current_status not in ['running', 'in_progress']:
+            logger.warning(f"Cannot stop scan {scan_id} - current status: {current_status}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Scan cannot be stopped - current status: {current_status}'
+            }), 400
+            
+        # Attempt to stop the scan
+        try:
+            # Get scan lock
+            scan_lock = scan_locks.get(scan_id)
+            if scan_lock:
+                scan_lock.acquire(timeout=5)  # Wait up to 5 seconds for lock
+            
+            # Stop the actual scanning process
+            if scanner.stop_scan(scan_id):
+                scan_statuses[scan_id].update({
+                    'status': 'stopped',
+                    'end_time': datetime.now().isoformat(),
+                    'message': 'Scan stopped by user'
+                })
+                
+                logger.info(f"Successfully stopped scan {scan_id}")
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Scan stopped successfully',
+                    'scan_info': scan_statuses[scan_id]
+                })
+            else:
+                logger.error(f"Failed to stop scan {scan_id}")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Failed to stop scan - scanner returned failure'
+                }), 500
+                
+        finally:
+            # Always release the lock if we acquired it
+            if scan_lock and scan_lock.locked():
+                scan_lock.release()
+            
+    except TimeoutError:
+        logger.error(f"Timeout while attempting to stop scan {scan_id}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Timeout while attempting to stop scan'
+        }), 504
+        
     except Exception as e:
-        logger.error(f"Error stopping scan: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error stopping scan {scan_id}: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': f'Internal error while stopping scan: {str(e)}'
+        }), 500
 
 @app.after_request
 def add_security_headers(response: Response) -> Response:
@@ -1931,6 +2038,28 @@ def run_as_admin():
     except Exception as e:
         logger.error(f"Error in admin check: {e}")
         return False
+
+@app.route('/api/networks/diagnostic')
+def network_diagnostic():
+    """Get diagnostic information about network interfaces"""
+    try:
+        info = NetworkDiscovery.get_system_info()
+        return jsonify({
+            'status': 'success',
+            'diagnostic_info': info
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+# Add these imports at the top
+from flask_cors import CORS
+
+# After creating the Flask app
+CORS(app)
+
 
 if __name__ == '__main__':
     try:
