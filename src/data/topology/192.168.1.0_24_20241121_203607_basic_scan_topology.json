@@ -1,0 +1,55 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.1.1",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.10",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.11",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.2",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.3",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.4",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.5",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.6",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.8",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.1.9",
+      "type": "host",
+      "status": "up"
+    }
+  ],
+  "edges": []
+}

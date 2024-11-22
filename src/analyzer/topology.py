@@ -1,271 +1,267 @@
 # src/analyzer/topology.py
+import os
+import logging
 import networkx as nx
-from typing import Dict, List, Any
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from datetime import datetime
+from typing import Dict, Any, List
+import community.community_louvain as community
 import json
-import ipaddress
+
+logger = logging.getLogger(__name__)
 
 class TopologyAnalyzer:
     def __init__(self):
-        self.G = nx.Graph()
-
-    def create_network_graph(self, scan_result) -> Dict[str, Any]:
-        """Convert scan results into a format compatible with Vis.js"""
-        self.G.clear()
-        nodes = []
-        edges = []
+        self.logger = logging.getLogger(__name__)
+        self.graph = None
         
-        # First, identify the router/gateway
-        network_ips = [host['ip_address'] for host in scan_result.hosts if host.get('status') == 'up']
-        gateway_ip = self._find_gateway_ip(network_ips)
+    def create_graph_from_scan(self, scan_data: Dict) -> nx.Graph:
+        """Create NetworkX graph from scan data"""
+        self.graph = create_network_from_scan(scan_data)
+        return self.graph
         
-        # Add nodes (hosts)
-        for host in scan_result.hosts:
-            if host.get('status') == 'up':
-                ip = host['ip_address']
-                
-                # Get hostname - handle different possible formats
-                hostname = None
-                if isinstance(host.get('hostname'), str):
-                    hostname = host['hostname']
-                elif isinstance(host.get('hostnames'), list) and host['hostnames']:
-                    hostname = host['hostnames'][0].get('name') if isinstance(host['hostnames'][0], dict) else host['hostnames'][0]
-                
-                # Format label to show both hostname and IP
-                if hostname and hostname.strip():
-                    label = f"{hostname}\n{ip}"
-                    display_name = hostname
-                else:
-                    label = ip
-                    display_name = ip
-
-                host_services = [
-                    service for service in scan_result.services 
-                    if service.get('ip_address') == ip
-                ]
-                
-                host_vulns = [
-                    vuln for vuln in scan_result.vulnerabilities 
-                    if vuln.get('ip_address') == ip
-                ]
-                
-                # Determine node type
-                is_gateway = ip == gateway_ip
-                node_type = 'gateway' if is_gateway else 'host'
-                
-                # Calculate risk and size
-                risk_level = self._calculate_risk_level(len(host_vulns), len(host_services))
-                node_size = 30 if is_gateway else (20 + len(host_services))
-                
-                # Create node with enhanced properties
-                node_data = {
-                    'id': ip,
-                    'label': label,
-                    'title': self._generate_tooltip(
-                        ip,
-                        display_name,
-                        host_services,
-                        len(host_vulns),
-                        node_type
-                    ),
-                    'color': self._get_risk_color(risk_level, is_gateway),
-                    'value': node_size,
-                    'shape': 'diamond' if is_gateway else 'dot',
-                    'font': {
-                        'multi': 'md',
-                        'size': 14,
-                        'color': '#ffffff',
-                        'strokeWidth': 2,
-                        'strokeColor': '#000000',
-                        'align': 'center'
-                    },
-                    'services': len(host_services),
-                    'vulnerabilities': len(host_vulns),
-                    'type': node_type
-                }
-                
-                if is_gateway:
-                    node_data['fixed'] = True
-                    node_data['physics'] = False
-                
-                nodes.append(node_data)
-                
-                # Add to NetworkX graph
-                self.G.add_node(
-                    ip,
-                    type=node_type,
-                    hostname=display_name,
-                    services=host_services,
-                    vulnerabilities=len(host_vulns)
-                )
-
-        # Add edges with enhanced logic
-        for host in scan_result.hosts:
-            if host.get('status') != 'up':
-                continue
-                
-            source_ip = host['ip_address']
+    def analyze_topology(self, scan_data: Dict) -> Dict[str, Any]:
+        """Analyze network topology"""
+        try:
+            if not self.graph:
+                self.graph = self.create_graph_from_scan(scan_data)
             
-            # Always connect to gateway if it exists
-            if gateway_ip and source_ip != gateway_ip:
-                edges.append({
-                    'from': source_ip,
-                    'to': gateway_ip,
-                    'width': 2,
-                    'length': 200,  # Fixed length for better layout
-                    'title': 'Network Connection',
-                    'color': {'opacity': 0.5},
-                    'arrows': {
-                        'to': {
-                            'enabled': True,
-                            'scaleFactor': 0.5
-                        }
-                    },
-                    'smooth': {'type': 'curvedCW', 'roundness': 0.2}
-                })
-                self.G.add_edge(source_ip, gateway_ip, type='network')
+            # Convert connected components from sets to lists
+            connected_components = [list(comp) for comp in nx.connected_components(self.graph)]
             
-            # Add direct connections based on services
-            for target_host in scan_result.hosts:
-                if (target_host.get('status') != 'up' or 
-                    target_host['ip_address'] == source_ip):
-                    continue
-                    
-                target_ip = target_host['ip_address']
-                
-                # Skip if this would be a duplicate gateway connection
-                if gateway_ip and (source_ip == gateway_ip or target_ip == gateway_ip):
-                    continue
-                
-                # Check for service-based connections
-                source_services = {
-                    s['name'] for s in scan_result.services 
-                    if s.get('ip_address') == source_ip
-                }
-                target_services = {
-                    s['name'] for s in scan_result.services 
-                    if s.get('ip_address') == target_ip
-                }
-                
-                common_services = source_services & target_services
-                if common_services:
-                    edges.append({
-                        'from': source_ip,
-                        'to': target_ip,
-                        'width': 1 + len(common_services),
-                        'length': 250,  # Slightly longer for service connections
-                        'title': f"Common services: {', '.join(common_services)}",
-                        'color': {'opacity': 0.3},
-                        'dashes': [5, 5],
-                        'arrows': {'to': {'enabled': True, 'scaleFactor': 0.3}}
-                    })
-                    self.G.add_edge(
-                        source_ip,
-                        target_ip,
-                        type='service',
-                        services=list(common_services)
-                    )
-
-        # Calculate network statistics
-        stats = {
-            'total_nodes': self.G.number_of_nodes(),
-            'total_edges': self.G.number_of_edges(),
-            'density': nx.density(self.G),
-            'avg_degree': (sum(dict(self.G.degree()).values()) / 
-                         self.G.number_of_nodes() if self.G.number_of_nodes() > 0 else 0)
-        }
-
-        # Also return vis.js physics options for better layout
-        options = {
-            'physics': {
-                'enabled': True,
-                'barnesHut': {
-                    'gravitationalConstant': -3000,
-                    'centralGravity': 0.3,
-                    'springLength': 200,
-                    'springConstant': 0.04,
-                    'damping': 0.09,
-                    'avoidOverlap': 0.1
-                },
-                'minVelocity': 0.75,
-                'stabilization': {
-                    'enabled': True,
-                    'iterations': 1000,
-                    'updateInterval': 25
-                }
+            # Calculate centrality measures
+            centrality = {
+                'degree': dict(nx.degree_centrality(self.graph)),
+                'betweenness': dict(nx.betweenness_centrality(self.graph)),
+                'closeness': dict(nx.closeness_centrality(self.graph))
             }
-        }
-
-        return {
-            'nodes': nodes,
-            'edges': edges,
-            'stats': stats,
-            'options': options
-        }
-
-    def _find_gateway_ip(self, ips: List[str]) -> str:
-        """Attempt to identify the gateway IP"""
-        # Common gateway patterns
-        gateway_patterns = ['.1', '.254']  # Common last octets for gateways
-        
-        if not ips:
-            return None
             
-        # Try to find a gateway IP
-        for ip in ips:
-            last_octet = ip.split('.')[-1]
-            if last_octet in ['1', '254']:
-                return ip
-                
-        # If no gateway found, return None
-        return None
+            # Get communities
+            communities = self.detect_communities()
+            if 'communities' in communities:
+                # Convert community dictionary values to strings (they might be non-serializable)
+                communities['communities'] = {str(k): v for k, v in communities['communities'].items()}
+            
+            analysis = {
+                'node_count': self.graph.number_of_nodes(),
+                'edge_count': self.graph.number_of_edges(),
+                'density': float(nx.density(self.graph)),  # Ensure float
+                'average_degree': float(sum(dict(self.graph.degree()).values()) / self.graph.number_of_nodes()),
+                'connected_components': connected_components,  # Now a list of lists
+                'centrality': centrality,  # All values are now regular dictionaries
+                'communities': communities,
+                'critical_nodes': self.identify_critical_nodes()  # Already returns a list
+            }
+            
+            # Ensure all values are JSON serializable
+            return self._ensure_serializable(analysis)
+            
+        except Exception as e:
+            self.logger.error(f"Error in topology analysis: {str(e)}")
+            return {
+                'error': str(e),
+                'node_count': 0,
+                'edge_count': 0,
+                'density': 0.0,
+                'average_degree': 0.0,
+                'connected_components': [],
+                'centrality': {},
+                'communities': {},
+                'critical_nodes': []
+            }
 
-    def _calculate_risk_level(self, vuln_count: int, service_count: int) -> float:
-        """Calculate risk level based on vulnerabilities and services"""
-        risk = 0.0
-        risk += min(vuln_count * 0.3, 0.6)  # Up to 60% from vulnerabilities
-        risk += min(service_count * 0.1, 0.4)  # Up to 40% from services
-        return min(risk, 1.0)
-
-    def _get_risk_color(self, risk_level: float, is_gateway: bool = False) -> Dict[str, str]:
-        """Get color configuration for Vis.js node based on risk level"""
-        if is_gateway:
-            return {
-                'background': '#4a90e2',
-                'border': '#357abd',
-                'highlight': {'background': '#5d9fee', 'border': '#4a90e2'}
-            }
-        elif risk_level >= 0.7:
-            return {
-                'background': '#dc3545',
-                'border': '#b02a37',
-                'highlight': {'background': '#ef4655', 'border': '#dc3545'}
-            }
-        elif risk_level >= 0.4:
-            return {
-                'background': '#ffc107',
-                'border': '#d39e00',
-                'highlight': {'background': '#ffcd39', 'border': '#ffc107'}
-            }
+    def _ensure_serializable(self, obj):
+        """Recursively convert all values to JSON serializable types"""
+        if isinstance(obj, dict):
+            return {str(k): self._ensure_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple, set)):
+            return [self._ensure_serializable(item) for item in obj]
+        elif isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
         else:
-            return {
-                'background': '#28a745',
-                'border': '#208637',
-                'highlight': {'background': '#34ce57', 'border': '#28a745'}
-            }
-
-    def _generate_tooltip(self, ip: str, hostname: str, services: List[Dict], 
-                         vuln_count: int, node_type: str) -> str:
-        """Generate HTML tooltip for node"""
-        service_names = [s.get('name', 'unknown') for s in services]
-        node_type_display = 'Gateway' if node_type == 'gateway' else 'Host'
+            return str(obj)  # Convert any other types to strings
         
-        return f"""
-            <div style='padding:10px; max-width:300px;'>
-                <div style='font-weight:bold; margin-bottom:5px;'>{node_type_display}</div>
-                <strong>IP:</strong> {ip}<br>
-                {f"<strong>Hostname:</strong> {hostname}<br>" if hostname else ""}
-                <strong>Services:</strong> {len(services)}<br>
-                {f"<strong>Open Services:</strong> {', '.join(service_names)}<br>" if service_names else ""}
-                <strong>Vulnerabilities:</strong> {vuln_count}
-            </div>
-        """.strip()
+    def detect_communities(self) -> Dict[str, Any]:
+        """Detect network communities"""
+        if not self.graph:
+            return {}
+            
+        communities = community.best_partition(self.graph)
+        modularity = community.modularity(communities, self.graph)
+        
+        return {
+            'communities': communities,
+            'modularity': modularity,
+            'count': len(set(communities.values()))
+        }
+        
+    def identify_critical_nodes(self) -> List[str]:
+        """Identify critical nodes in the network"""
+        if not self.graph:
+            return []
+            
+        betweenness = nx.betweenness_centrality(self.graph)
+        degree = nx.degree_centrality(self.graph)
+        
+        critical_nodes = []
+        for node in self.graph.nodes():
+            if betweenness[node] > 0.5 or degree[node] > 0.5:
+                critical_nodes.append(node)
+                
+        return critical_nodes
+        
+    def visualize_topology(self, output_path: str) -> bool:
+        """Generate topology visualization"""
+        if not self.graph:
+            return False
+            
+        try:
+            plt.figure(figsize=(12, 8))
+            pos = nx.spring_layout(self.graph, k=1, iterations=50)
+            
+            # Draw nodes
+            nx.draw_networkx_nodes(self.graph, pos,
+                                 node_color='lightblue',
+                                 node_size=500,
+                                 alpha=0.7)
+            
+            # Draw edges
+            nx.draw_networkx_edges(self.graph, pos,
+                                 edge_color='gray',
+                                 alpha=0.5)
+            
+            # Add labels
+            labels = {node: node for node in self.graph.nodes()}
+            nx.draw_networkx_labels(self.graph, pos,
+                                  labels=labels,
+                                  font_size=8,
+                                  font_weight='bold')
+            
+            plt.title("Network Topology", pad=20)
+            plt.savefig(output_path, bbox_inches='tight')
+            plt.close()
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error visualizing topology: {e}")
+            return False
+
+# Keep the existing functions
+def create_network_from_scan(scan_data: Dict) -> nx.Graph:
+    """Convert scan data to NetworkX graph"""
+    G = nx.Graph()
+    
+    # Add nodes first
+    for host in scan_data.get('hosts', []):
+        G.add_node(host['ip_address'], **{
+            'type': host.get('device_type', 'unknown'),
+            'services': host.get('services', []),
+            'os': host.get('os_info', {}).get('os_match', 'unknown')
+        })
+    
+    # Add edges based on various connection types
+    for host in scan_data.get('hosts', []):
+        source_ip = host['ip_address']
+        
+        # 1. Direct connections from scan data
+        if 'connections' in host:
+            for target_ip in host['connections']:
+                if target_ip in G.nodes():
+                    G.add_edge(source_ip, target_ip)
+        
+        # 2. Subnet-based connections
+        ip_parts = source_ip.split('.')
+        for other_host in scan_data.get('hosts', []):
+            other_ip = other_host['ip_address']
+            if other_ip != source_ip:
+                other_parts = other_ip.split('.')
+                # Same /24 subnet
+                if ip_parts[:3] == other_parts[:3]:
+                    G.add_edge(source_ip, other_ip)
+    
+    return G
+
+def updateTopologyVisualization(scan_data: Dict[str, Any], base_dir: str) -> bool:
+    """Update network topology visualization based on scan data"""
+    try:
+        # Create network graph from scan data
+        G = nx.Graph()
+        
+        # Add nodes with simplified data
+        for host in scan_data.get('hosts', []):
+            if host.get('status') == 'up':
+                G.add_node(host['ip_address'], 
+                          type='host',  # Simplified type
+                          status='up')   # Add status
+        
+        # Add edges based on subnet relationships
+        nodes = list(G.nodes())
+        for i in range(len(nodes)):
+            for j in range(i + 1, len(nodes)):
+                ip1_parts = nodes[i].split('.')
+                ip2_parts = nodes[j].split('.')
+                if ip1_parts[:3] == ip2_parts[:3]:  # Same /24 subnet
+                    G.add_edge(nodes[i], nodes[j])
+        
+        # Save topology data as JSON with simplified format
+        topology_data = {
+            'nodes': [{
+                'id': node,
+                'type': 'host',
+                'status': 'up'
+            } for node in G.nodes()],
+            'edges': []  # Keep edges empty for now
+        }
+        
+        output_dir = os.path.join(base_dir, 'src', 'data', 'topology')
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Save JSON data with scan-specific filename
+        subnet = scan_data.get('subnet', '').replace('/', '_')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        scan_type = scan_data.get('scan_type', 'scan')
+        json_path = os.path.join(output_dir, f"{subnet}_{timestamp}_{scan_type}_topology.json")
+        
+        with open(json_path, 'w') as f:
+            json.dump(topology_data, f, indent=2)
+        
+        # Generate visualization
+        plt.figure(figsize=(15, 10))
+        pos = nx.spring_layout(G, k=2, iterations=50)
+        
+        # Draw nodes with simple coloring
+        nx.draw_networkx_nodes(G, pos,
+                             node_color='lightblue',
+                             node_size=800,
+                             alpha=0.7)
+        
+        nx.draw_networkx_edges(G, pos,
+                             edge_color='gray',
+                             alpha=0.5,
+                             width=2)
+        
+        # Add simple labels
+        labels = {node: node for node in G.nodes()}
+        nx.draw_networkx_labels(G, pos,
+                              labels=labels,
+                              font_size=8,
+                              font_weight='bold',
+                              font_color='black')
+        
+        plt.title("Network Topology", pad=20)
+        
+        # Save PNG with same naming convention
+        png_path = os.path.join(output_dir, f"{subnet}_{timestamp}_{scan_type}_topology.png")
+        plt.savefig(png_path, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        logger.info(f"Updated topology visualization saved to {png_path}")
+        logger.info(f"Topology data saved to {json_path}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating topology visualization: {str(e)}")
+        return False

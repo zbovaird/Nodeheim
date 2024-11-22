@@ -1,0 +1,235 @@
+{
+  "scan_id": "3f747708-a164-4f8f-a172-834a52de0dfe",
+  "timestamp": "20241121_194838",
+  "scan_type": "quick_scan",
+  "hosts": [
+    {
+      "ip_address": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.10",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.11",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.2",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.3",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.4",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.5",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.6",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.8",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    },
+    {
+      "ip_address": "192.168.1.9",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 0,
+        "os_type": "unknown",
+        "os_vendor": "unknown",
+        "os_family": "unknown",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "open_ports_count": 0,
+      "device_type": "unknown"
+    }
+  ],
+  "ports": [],
+  "services": [],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Thu Nov 21 19:48:43 2024",
+    "elapsed": "4.94",
+    "uphosts": "10",
+    "downhosts": "246",
+    "totalhosts": "256"
+  },
+  "summary": {
+    "total_hosts": 10,
+    "active_hosts": 10,
+    "total_ports": 0,
+    "total_services": 0,
+    "total_vulnerabilities": 0
+  }
+}

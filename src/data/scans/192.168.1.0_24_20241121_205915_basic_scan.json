@@ -1,0 +1,336 @@
+{
+  "timestamp": "20241121_205915",
+  "scan_type": "basic_scan",
+  "hosts": [
+    {
+      "ip_address": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "OpenWrt 18 (Linux 4.14)",
+        "os_accuracy": 100,
+        "os_type": "WAP",
+        "os_vendor": "Linux",
+        "os_family": "Linux",
+        "os_generation": "4.X"
+      },
+      "ports": [
+        {
+          "port": 53,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "domain",
+          "service_details": "domain (dnsmasq 2.85)",
+          "ip_address": "192.168.1.1"
+        },
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http",
+          "service_details": "http",
+          "ip_address": "192.168.1.1"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "https",
+          "service_details": "https",
+          "ip_address": "192.168.1.1"
+        }
+      ],
+      "services": [
+        {
+          "name": "domain",
+          "product": "dnsmasq",
+          "version": "2.85",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 3
+    },
+    {
+      "ip_address": "192.168.1.10",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.2",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "Linux 3.2 - 4.14",
+        "os_accuracy": 100,
+        "os_type": "general purpose",
+        "os_vendor": "Linux",
+        "os_family": "Linux",
+        "os_generation": "3.X"
+      },
+      "ports": [
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http",
+          "service_details": "http",
+          "ip_address": "192.168.1.2"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "https",
+          "service_details": "https",
+          "ip_address": "192.168.1.2"
+        }
+      ],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 2
+    },
+    {
+      "ip_address": "192.168.1.3",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.4",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.5",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.6",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.8",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    },
+    {
+      "ip_address": "192.168.1.9",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0
+    }
+  ],
+  "ports": [
+    {
+      "port": 53,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "domain",
+      "service_details": "domain (dnsmasq 2.85)",
+      "ip_address": "192.168.1.1"
+    },
+    {
+      "port": 80,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http",
+      "service_details": "http",
+      "ip_address": "192.168.1.1"
+    },
+    {
+      "port": 443,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "https",
+      "service_details": "https",
+      "ip_address": "192.168.1.1"
+    },
+    {
+      "port": 80,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http",
+      "service_details": "http",
+      "ip_address": "192.168.1.2"
+    },
+    {
+      "port": 443,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "https",
+      "service_details": "https",
+      "ip_address": "192.168.1.2"
+    }
+  ],
+  "services": [
+    {
+      "name": "domain",
+      "product": "dnsmasq",
+      "version": "2.85",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.1",
+      "ip_address": "192.168.1.1",
+      "port": 53
+    }
+  ],
+  "vulnerabilities": [],
+  "os_matches": [
+    {
+      "ip_address": "192.168.1.1",
+      "os_match": "OpenWrt 18 (Linux 4.14)",
+      "os_accuracy": 100,
+      "os_type": "WAP",
+      "os_vendor": "Linux",
+      "os_family": "Linux",
+      "os_generation": "4.X"
+    },
+    {
+      "ip_address": "192.168.1.2",
+      "os_match": "Linux 3.2 - 4.14",
+      "os_accuracy": 100,
+      "os_type": "general purpose",
+      "os_vendor": "Linux",
+      "os_family": "Linux",
+      "os_generation": "3.X"
+    }
+  ],
+  "scan_stats": {
+    "timestr": "Thu Nov 21 21:00:30 2024",
+    "elapsed": "75.21",
+    "uphosts": "9",
+    "downhosts": "247",
+    "totalhosts": "256"
+  }
+}

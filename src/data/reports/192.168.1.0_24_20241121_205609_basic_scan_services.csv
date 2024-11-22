@@ -1,0 +1,2 @@
+name,product,version,extra_info,tunnel,host,ip_address,port
+domain,dnsmasq,2.85,,,192.168.1.1,192.168.1.1,53

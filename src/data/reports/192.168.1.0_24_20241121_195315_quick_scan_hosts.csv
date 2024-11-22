@@ -1,0 +1,12 @@
+ip_address,status,hostnames,os_info,ports,open_ports_count,device_type
+192.168.1.1,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.10,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.11,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.12,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.2,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.3,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.4,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.5,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.6,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.8,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown
+192.168.1.9,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 0, 'os_type': 'unknown', 'os_vendor': 'unknown', 'os_family': 'unknown', 'os_generation': 'unknown'}",[],0,unknown

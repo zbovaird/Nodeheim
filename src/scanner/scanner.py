@@ -13,6 +13,8 @@ from dataclasses import dataclass, asdict
 import ipaddress
 import ctypes
 import socket
+from threading import Thread
+import re
 
 # Third-party imports
 import psutil
@@ -38,6 +40,10 @@ class NetworkScanner:
         """Initialize the network scanner"""
         # Set up logger
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize scan control variables
+        self.current_scan = None
+        self.scan_stopped = False
         
         # Validate output directory if provided
         if output_dir is not None:
@@ -67,10 +73,6 @@ class NetworkScanner:
             # 4. Initialize vulnerability checker
             self.vuln_checker = BatchVulnerabilityChecker()
             
-            # 5. Initialize scan control variables
-            self.current_scan_process = None
-            self.scan_stopped = False
-            
             self.logger.info("Scanner initialization completed successfully")
             
         except Exception as e:
@@ -85,28 +87,41 @@ class NetworkScanner:
         # Common nmap paths by OS
         nmap_paths = {
             'darwin': [  # macOS
-                '/opt/homebrew/bin/nmap',  # M1/M2 Mac Homebrew location
                 '/usr/local/bin/nmap',     # Intel Mac Homebrew location
+                '/opt/homebrew/bin/nmap',  # M1/M2 Mac Homebrew location
                 '/usr/bin/nmap',           # Default macOS location
+                'nmap'                     # PATH lookup
             ],
             'linux': [
                 '/usr/bin/nmap',
                 '/usr/local/bin/nmap',
-                '/opt/nmap/bin/nmap'
+                '/opt/nmap/bin/nmap',
+                'nmap'
             ],
             'windows': [
                 r'C:\Program Files (x86)\Nmap\nmap.exe',
                 r'C:\Program Files\Nmap\nmap.exe',
+                'nmap'
             ]
         }
         
-        # Get paths for current OS, add 'nmap' as fallback
-        paths_to_try = nmap_paths.get(system, []) + ['nmap']
+        # Get paths for current OS
+        paths_to_try = nmap_paths.get(system, ['nmap'])
         
         # Try each path
         for nmap_path in paths_to_try:
             try:
                 self.logger.info(f"Trying nmap path: {nmap_path}")
+                # First check if the path exists and is executable
+                if nmap_path != 'nmap':  # Skip check for PATH lookup
+                    if not os.path.exists(nmap_path):
+                        self.logger.debug(f"Nmap not found at {nmap_path}")
+                        continue
+                    if not os.access(nmap_path, os.X_OK):
+                        self.logger.debug(f"Nmap at {nmap_path} is not executable")
+                        continue
+                
+                # Try to run nmap version check
                 result = subprocess.run([nmap_path, '--version'], 
                                     capture_output=True, 
                                     text=True)
@@ -117,7 +132,6 @@ class NetworkScanner:
                         scanner = nmap.PortScanner(nmap_search_path=[nmap_path])
                         version = scanner.nmap_version()
                         self.logger.info(f"Successfully initialized nmap {version}")
-                        # Explicitly set nmap_path
                         scanner.nmap_path = nmap_path
                         return scanner
                     except Exception as e:
@@ -132,7 +146,7 @@ class NetworkScanner:
                 continue
         
         # If we get here, we couldn't find nmap
-        error_msg = f"Could not find or initialize nmap. Please ensure nmap is installed and accessible."
+        error_msg = "Could not find or initialize nmap. Please ensure nmap is installed and accessible."
         self.logger.error(error_msg)
         raise RuntimeError(error_msg)
 
@@ -174,42 +188,63 @@ class NetworkScanner:
 
     def basic_scan(self, target: str) -> ScanResult:
         """Enhanced basic port scan with OS and device type detection"""
-        logging.info(f"Starting enhanced basic port scan on {target}")
+        self.logger.info(f"Starting basic scan on {target}")
         
         try:
-            # Enhanced scan arguments for better OS and service detection
+            # More conservative scan arguments - removed vulnerability checks
             arguments = (
-                '-sT '               # TCP connect scan
+                '-sT '               # TCP connect scan (more reliable than SYN)
                 '-sV '               # Version detection
                 '-O '               # OS detection
-                '--privileged '      # run with privileges
-                '--osscan-guess '    # Make aggressive OS guesses
-                '--version-intensity 5 '  # Lower intensity for faster scans
+                '--osscan-limit '    # Limit OS detection to promising targets
+                '--version-intensity 4 ' # Slightly lower intensity
                 '--version-light '    # Try light probes first
-                '--version-all '      # Try all probes
-                '-p 1-1000 '         # Scan first 1000 ports
-                '-T4 '               # Aggressive timing
-                '--min-rate 100 '    # Minimum packet rate
-                '--max-rate 1000 '   # Maximum packet rate
-                '--max-retries 2 '   # Limit retries
-                '--host-timeout 30m ' # Host timeout of 30 minutes
-                '--max-rtt-timeout 500ms ' # Maximum round-trip timeout
-                '--initial-rtt-timeout 300ms ' # Initial round-trip timeout
-                '--min-hostgroup 64 '      # Scan larger groups simultaneously
-                '--min-parallelism 10 '    # Minimum probe parallelization
-                '-sC '               # Default scripts
-                '--script-args http.useragent="Mozilla/5.0" ' # Set user agent
-                '--script banner,ssh-hostkey,ssl-cert,http-title,http-headers,'
-                'smb-os-discovery,http-server-header,http-robots.txt'
+                '-p 21-23,25,53,80,110,139,443,445,3306,3389 '  # Most common ports only
+                '-T3 '               # Normal timing
+                '--min-rate 50 '     # Lower minimum rate
+                '--max-rate 150 '    # Lower maximum rate
+                '--max-retries 3 '   # Slightly more retries
+                '--host-timeout 15m ' # Shorter host timeout
+                '--max-rtt-timeout 1000ms ' # Longer RTT timeout
+                '--initial-rtt-timeout 500ms ' # Longer initial timeout
+                '--min-hostgroup 32 '  # Smaller groups
+                '--min-parallelism 5 ' # Less parallelization
+                '--script banner'     # Only basic banner script
             )
             
-            logging.info("Using enhanced OS and service detection")
+            # Add progress monitoring
+            def monitor_progress():
+                while True:
+                    time.sleep(5)  # Check every 5 seconds
+                    if self.current_scan:
+                        try:
+                            stats = self.nm.scanstats()
+                            progress = (int(stats.get('timestr', '0')) / 
+                                      int(stats.get('totaltimestr', '100'))) * 100
+                            self.logger.info(f"Scan progress: {progress:.1f}%")
+                        except:
+                            pass
+                    else:
+                        break
+
+            # Start progress monitoring in separate thread
+            progress_thread = Thread(target=monitor_progress)
+            progress_thread.daemon = True
+            progress_thread.start()
+
+            self.logger.info(f"Using scan arguments: {arguments}")
             result = self._run_scan(target, arguments, 'basic_scan')
+            
+            # Process results without vulnerability checks
+            for host in result.hosts:
+                host['vulnerabilities'] = []  # Empty list for basic scan
+            
+            result.vulnerabilities = []  # No vulnerabilities in basic scan
             
             return result
             
         except Exception as e:
-            logging.error(f"Basic scan failed: {e}")
+            self.logger.error(f"Basic scan failed: {e}")
             raise
 
     def _get_os_info(self, host: str) -> dict:
@@ -446,26 +481,28 @@ class NetworkScanner:
                     services.extend(host_services)
             
             # Process vulnerabilities in smaller batches with timeouts
-            batch_size = 10  # Reduced batch size
+            batch_size = 5  # Reduced from 10
             all_vulns = {}
             
             for i in range(0, len(services), batch_size):
                 try:
                     batch = services[i:i + batch_size]
-                    # Add timeout to vulnerability check
                     batch_results = self.vuln_checker.batch_check_services(
                         batch,
-                        timeout=30  # 30 second timeout per batch
+                        timeout=45  # Increased from 30
                     )
                     all_vulns.update(batch_results)
                     
-                    # Update progress
+                    # Add delay between batches
+                    time.sleep(2)  # 2 second delay between batches
+                    
                     progress = min(100, (i + batch_size) * 100 // len(services))
                     self.logger.info(f"Vulnerability check progress: {progress}%")
                     
                 except Exception as e:
                     self.logger.warning(f"Error checking batch {i//batch_size}: {e}")
-                    continue  # Continue with next batch even if this one fails
+                    time.sleep(5)  # Longer delay after error
+                    continue
             
             # Add vulnerability information to scan results
             for host in basic_results.hosts:
@@ -551,24 +588,28 @@ class NetworkScanner:
         self.logger.info(f"Starting {scan_type} on {target}")
 
         try:
-            # Reset stop flag
+            # Reset stop flag and set current scan
             self.scan_stopped = False
+            self.current_scan = {
+                'target': target,
+                'type': scan_type,
+                'start_time': timestamp
+            }
             
             # Add timeout and rate limiting to arguments
             safe_arguments = (f"{arguments} "
-                            "--max-retries 2 "
-                            "--host-timeout 30m "  # Increased timeout
-                            "--min-rate 100 "      # Minimum rate of packets per second
-                            "--max-rate 1000")     # Maximum rate of packets per second
+                            "--max-retries 3 "
+                            "--host-timeout 15m "
+                            "--min-rate 50 "
+                            "--max-rate 150")
 
             self.logger.info(f"Running nmap with arguments: {safe_arguments}")
             
-            # Start scan
             try:
                 scan_results = self.nm.scan(
                     target,
                     arguments=safe_arguments,
-                    timeout=1800  # 30 minutes timeout
+                    timeout=900
                 )
                 
                 if not scan_results:
@@ -584,9 +625,13 @@ class NetworkScanner:
             except Exception as e:
                 self.logger.error(f"Scan execution failed: {str(e)}")
                 raise
+            finally:
+                # Clear current scan when done
+                self.current_scan = None
 
         except Exception as e:
             self.logger.error(f"Scan failed: {str(e)}")
+            self.current_scan = None  # Make sure to clear current scan on error
             raise
 
     def _process_results(self, scan_type: str, timestamp: str) -> ScanResult:
@@ -599,147 +644,85 @@ class NetworkScanner:
 
         for host in self.nm.all_hosts():
             try:
-                logging.info(f"\nProcessing host: {host}")
+                self.logger.info(f"\nProcessing host: {host}")
                 
-                # Get OS information first
-                os_info = self._get_os_info(host)
-                
-                # Basic host information
+                # Basic host information - use 'host' as the IP address
                 host_info = {
-                    'ip_address': host,
+                    'ip_address': str(host),  # Ensure consistent key name
                     'status': self.nm[host].state(),
                     'hostnames': self.nm[host].hostnames(),
-                    'os_info': os_info,
-                    'ports': []
+                    'os_info': self._get_os_info(host),
+                    'ports': [],
+                    'services': [],
+                    'device_type': 'unknown'
                 }
 
                 # Process ports and services for this host
-                host_ports = []  # Track ports for this specific host
+                host_ports = []
+                host_services = []
+                
                 for proto in self.nm[host].all_protocols():
                     port_list = list(self.nm[host][proto].keys())
-                    logging.info(f"Host {host} has {len(port_list)} ports for protocol {proto}")
+                    self.logger.info(f"Host {host} has {len(port_list)} ports for protocol {proto}")
                     
                     for port in port_list:
                         try:
-                            port_num = int(port)
                             port_info = self.nm[host][proto][port]
                             port_state = port_info.get('state', 'unknown')
                             
-                            # Log raw port info for debugging
-                            logging.debug(f"Raw port info for {host}:{port} - {port_info}")
-                            
-                            # Only process open ports
                             if port_state == 'open':
-                                # Get detailed service information
-                                service_name = port_info.get('name', 'unknown')
-                                service_product = port_info.get('product', '')
-                                service_version = port_info.get('version', '')
-                                service_extra = port_info.get('extrainfo', '')
-                                tunnel_type = port_info.get('tunnel', '')  # For SSL/TLS services
-                                
-                                # Build detailed service string
-                                service_details = service_name
-                                if any([service_product, service_version, service_extra, tunnel_type]):
-                                    service_details += " ("
-                                    details_parts = []
-                                    
-                                    if tunnel_type:
-                                        service_details = f"{tunnel_type}/{service_name}"
-                                        
-                                    if service_product:
-                                        details_parts.append(service_product)
-                                        if service_version:
-                                            details_parts[-1] += f" {service_version}"
-                                            
-                                    if service_extra:
-                                        details_parts.append(service_extra)
-                                        
-                                    if details_parts:
-                                        service_details += f" ({'; '.join(details_parts)})"
-                                
-                                port_data = {
-                                    'port': port_num,
-                                    'protocol': proto,
-                                    'state': port_state,
-                                    'service': service_name,
-                                    'service_details': service_details,
-                                    'product': service_product,
-                                    'version': service_version,
-                                    'extra_info': service_extra,
-                                    'tunnel_type': tunnel_type,
-                                    'ip_address': host
+                                service_info = {
+                                    'name': port_info.get('name', 'unknown'),
+                                    'product': port_info.get('product', ''),
+                                    'version': port_info.get('version', ''),
+                                    'extra_info': port_info.get('extrainfo', ''),
+                                    'tunnel': port_info.get('tunnel', '')
                                 }
                                 
-                                logging.info(f"Found open port on {host}: {port_num} - {service_details}")
+                                port_entry = {
+                                    'port': int(port),
+                                    'protocol': str(proto),
+                                    'state': str(port_state),
+                                    'service': service_info['name'],
+                                    'service_details': self._format_service_details(service_info),
+                                    'ip_address': str(host)  # Ensure consistent key name
+                                }
                                 
-                                # Add to host's ports list
-                                host_ports.append(port_data)
+                                host_ports.append(port_entry)
+                                ports.append(port_entry)
                                 
-                                # Add to global ports list with host information
-                                ports.append(port_data)
+                                if service_info['product'] or service_info['version']:
+                                    host_services.append(service_info)
+                                    services.append({
+                                        **service_info,
+                                        'host': str(host),  # Change this to ip_address for consistency
+                                        'ip_address': str(host),  # Add this line
+                                        'port': int(port)
+                                    })
                                 
-                                # Add detailed service information
-                                services.append({
-                                    'ip_address': host,
-                                    'port': port_num,
-                                    'name': service_name,
-                                    'product': service_product,
-                                    'version': service_version,
-                                    'extra_info': service_extra,
-                                    'protocol': proto,
-                                    'service_details': service_details
-                                })
+                                self.logger.info(f"Found open port on {host}: {port} - {port_entry['service_details']}")
                                 
-                        except (ValueError, TypeError) as e:
-                            logging.warning(f"Error processing port {port} for host {host}: {e}")
+                        except Exception as e:
+                            self.logger.warning(f"Error processing port {port} for host {host}: {e}")
                             continue
 
-                # Add ports to host info
+                # Add ports and services to host info
                 host_info['ports'] = host_ports
+                host_info['services'] = host_services
                 host_info['open_ports_count'] = len(host_ports)
-
-                # Determine device type after processing ports
-                host_info['device_type'] = self._determine_device_type({
-                    'ports': host_ports,
-                    'os_info': os_info
-                })
-
-                # Add to os_matches if we got valid OS info
-                if os_info['os_match'] != 'unknown':
-                    os_matches.append({
-                        'ip_address': host,
-                        **os_info
-                    })
                 
-                # Log summary for this host
-                if host_ports:
-                    logging.info(f"\nHost {host} summary:")
-                    logging.info(f"Open ports count: {len(host_ports)}")
-                    logging.info(f"OS Info: {os_info['os_match']} ({os_info['os_accuracy']}% accuracy)")
-                    logging.info(f"Device Type: {host_info['device_type']}")
-                    for port in host_ports:
-                        logging.info(f"  Port {port['port']}/{port['protocol']}: {port.get('service_details', 'unknown')}")
+                # Add OS match if found
+                if host_info['os_info']['os_match'] != 'unknown':
+                    os_matches.append({
+                        'ip_address': str(host),  # Ensure consistent key name
+                        **host_info['os_info']
+                    })
 
                 hosts.append(host_info)
 
             except Exception as e:
-                logging.error(f"Error processing host {host}: {e}")
+                self.logger.error(f"Error processing host {host}: {e}")
                 continue
-
-        # Log final summary
-        logging.info(f"\nFinal Scan Summary:")
-        logging.info(f"Total hosts scanned: {len(hosts)}")
-        logging.info(f"Total open ports found: {len(ports)}")
-        logging.info(f"Total services identified: {len(services)}")
-        logging.info(f"OS matches found: {len(os_matches)}")
-        logging.info("\nPorts by host:")
-        for host_info in hosts:
-            if host_info['open_ports_count'] > 0:
-                logging.info(f"\nHost {host_info['ip_address']}:")
-                logging.info(f"Device Type: {host_info['device_type']}")
-                logging.info(f"OS: {host_info['os_info']['os_match']}")
-                for port in host_info['ports']:
-                    logging.info(f"  {port['port']}/{port['protocol']} - {port.get('service_details', 'unknown')}")
 
         return ScanResult(
             timestamp=timestamp,
@@ -915,6 +898,79 @@ class NetworkScanner:
         except Exception as e:
             logging.error(f"Error checking requirements: {e}")
             return requirements
+
+    def diagnose_scan_issues(self, target: str) -> Dict[str, Any]:
+        """Diagnose potential scan issues"""
+        try:
+            results = {
+                'connectivity': False,
+                'latency': None,
+                'packet_loss': None,
+                'firewall': False,
+                'rate_limiting': False
+            }
+            
+            # Test basic connectivity
+            try:
+                ping_result = subprocess.run(['ping', '-c', '1', '-W', '2', target], 
+                                           capture_output=True, text=True)
+                results['connectivity'] = ping_result.returncode == 0
+                
+                # Parse latency if ping successful
+                if results['connectivity']:
+                    latency_match = re.search(r'time=(\d+\.?\d*)', ping_result.stdout)
+                    if latency_match:
+                        results['latency'] = float(latency_match.group(1))
+            except Exception as e:
+                self.logger.warning(f"Ping test failed: {e}")
+                
+            # Test for packet loss
+            try:
+                loss_result = subprocess.run(['ping', '-c', '10', '-W', '2', target],
+                                           capture_output=True, text=True)
+                loss_match = re.search(r'(\d+)% packet loss', loss_result.stdout)
+                if loss_match:
+                    results['packet_loss'] = int(loss_match.group(1))
+            except Exception as e:
+                self.logger.warning(f"Packet loss test failed: {e}")
+                
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Diagnosis failed: {e}")
+            return {}
+
+    def _format_service_details(self, service_info: Dict) -> str:
+        """Format service information into a detailed string"""
+        try:
+            # Start with the basic service name
+            service_details = service_info['name']
+            details_parts = []
+            
+            # Add tunnel type if present (e.g., ssl/http)
+            if service_info.get('tunnel'):
+                service_details = f"{service_info['tunnel']}/{service_info['name']}"
+            
+            # Add product and version if available
+            if service_info.get('product'):
+                product_str = service_info['product']
+                if service_info.get('version'):
+                    product_str += f" {service_info['version']}"
+                details_parts.append(product_str)
+            
+            # Add any extra information
+            if service_info.get('extra_info'):
+                details_parts.append(service_info['extra_info'])
+            
+            # Combine all parts
+            if details_parts:
+                service_details += f" ({'; '.join(details_parts)})"
+            
+            return service_details
+        
+        except Exception as e:
+            self.logger.warning(f"Error formatting service details: {e}")
+            return service_info.get('name', 'unknown')
 
 if __name__ == "__main__":
     # Set up logging

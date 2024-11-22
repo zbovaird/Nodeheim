@@ -1,0 +1,12 @@
+ip_address,status,hostnames,os_info,ports,services,device_type,open_ports_count
+192.168.1.1,up,"[{'name': '', 'type': ''}]","{'os_match': 'OpenWrt 18 (Linux 4.14)', 'os_accuracy': 100, 'os_type': 'WAP', 'os_vendor': 'Linux', 'os_family': 'Linux', 'os_generation': '4.X'}",[],[],linux_workstation,0
+192.168.1.10,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.11,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.2,up,"[{'name': '', 'type': ''}]","{'os_match': 'Linux 3.2 - 4.14', 'os_accuracy': 100, 'os_type': 'general purpose', 'os_vendor': 'Linux', 'os_family': 'Linux', 'os_generation': '3.X'}",[],[],linux_workstation,0
+192.168.1.3,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.4,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.5,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.6,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.7,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.8,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0
+192.168.1.9,up,"[{'name': '', 'type': ''}]","{'os_match': 'unknown', 'os_accuracy': 80, 'os_type': 'Network Infrastructure', 'os_vendor': 'Microsoft', 'os_family': 'Network Device', 'os_generation': 'unknown'}",[],[],unknown,0

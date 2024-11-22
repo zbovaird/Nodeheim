@@ -415,126 +415,68 @@ class NetworkAnalyzer:
     def analyze_network(self, scan_result):
         """Run complete network analysis with IT security focus"""
         try:
+            self.logger.info("Starting network analysis...")
+            
             if not hasattr(scan_result, 'hosts') or not scan_result.hosts:
                 raise ValueError("Invalid scan result: no hosts data found")
 
+            # Create graph from scan data
             self.create_graph_from_scan(scan_result)
             
             if self.G.number_of_nodes() == 0:
                 raise ValueError("No valid nodes could be created from scan results")
             
-            default_metrics = {
-                'spectral_radius': 0.0,
-                'fiedler_value': 0.0,
-                'network_density': 0.0,
-                'average_degree': 0.0,
-                'total_nodes': 0,
-                'total_edges': 0,
-                'components': 0,
-                'high_risk_nodes': 0
-            }
+            self.logger.info(f"Created graph with {self.G.number_of_nodes()} nodes and {self.G.number_of_edges()} edges")
             
+            # Run analyses
             try:
                 structure = self.analyze_network_structure()
                 security_metrics = self.analyze_security_metrics()
                 bottleneck_analysis = self.analyze_bottlenecks()
-                anomalies = self.detect_anomalies()
-                spectral_metrics = self.calculate_spectral_metrics()
-                port_analysis = self.analyze_port_data(scan_result)
-                zone_analysis = self.analyze_zone_isolation()
-                attack_paths = self.analyze_attack_paths()
                 node_criticality = self.analyze_node_criticality()
+                port_analysis = self.analyze_port_data(scan_result)
                 
-                # Calculate risk scores with validation
-                risk_scores = {}
-                for node in self.G.nodes():
-                    try:
-                        anomaly_risk = float(anomalies.get(node, {}).get('risk_score', 50))
-                        centrality_risk = float(self.centrality_measures['Betweenness_Centrality'][node] * 100)
-                        security_risk = float(security_metrics[node]['connectivity_risk'] * 100)
-                        node_crit = float(node_criticality['node_criticality'].get(node, {}).get('total_impact', 0) * 20)
-                        
-                        weighted_risk = (
-                            0.3 * anomaly_risk +
-                            0.2 * centrality_risk +
-                            0.2 * security_risk +
-                            0.3 * node_crit
-                        )
-                        risk_scores[node] = min(100, max(0, weighted_risk))
-                    except (KeyError, TypeError, ValueError) as e:
-                        logging.warning(f"Error calculating risk score for node {node}: {e}")
-                        risk_scores[node] = 50
-                        
-                metrics = default_metrics.copy()
-                metrics.update({
-                    'spectral_radius': float(spectral_metrics.get('spectral_radius', 0.0)),
-                    'fiedler_value': float(spectral_metrics.get('fiedler_value', 0.0)),
-                    'network_density': float(structure.get('density', 0.0)),
-                    'average_degree': float(structure.get('average_degree', 0.0)),
-                    'total_nodes': self.G.number_of_nodes(),
-                    'total_edges': self.G.number_of_edges(),
-                    'components': len(structure.get('components', [])),
-                    'high_risk_nodes': sum(1 for score in risk_scores.values() if score > 75)
-                })
-
                 analysis_result = {
                     'timestamp': datetime.now().isoformat(),
                     'network_structure': structure,
                     'security_metrics': security_metrics,
                     'bottleneck_analysis': bottleneck_analysis,
-                    'anomalies': anomalies,
-                    'spectral_metrics': spectral_metrics,
-                    'risk_scores': risk_scores,
-                    'port_analysis': port_analysis,
-                    'zone_analysis': zone_analysis,
-                    'attack_paths': attack_paths,
                     'node_criticality': node_criticality,
+                    'port_analysis': port_analysis,
                     'summary': {
-                        'total_nodes': metrics['total_nodes'],
-                        'total_edges': metrics['total_edges'],
-                        'total_open_ports': port_analysis.get('total_open_ports', 0),
-                        'high_risk_nodes': metrics['high_risk_nodes'],
-                        'isolated_nodes': len(structure.get('endpoints', [])),
-                        'components': metrics['components'],
-                        'average_degree': metrics['average_degree'],
-                        'network_density': metrics['network_density'],
-                        'critical_bottlenecks': sum(1 for metrics in bottleneck_analysis.values() 
-                                                if metrics.get('is_critical', False)),
-                        'spectral_radius': metrics['spectral_radius'],
-                        'fiedler_value': metrics['fiedler_value'],
-                        'zone_violations': zone_analysis['summary']['total_violations'],
-                        'high_risk_attack_paths': attack_paths['summary']['high_risk_paths'],
-                        'critical_assets': attack_paths['summary']['total_critical_assets'],
-                        'high_risk_services': len(port_analysis['interesting_ports']['high_risk']),
-                        'remote_access_services': len(port_analysis['interesting_ports']['remote_access']),
-                        'database_services': len(port_analysis['interesting_ports']['databases']),
-                        'web_services': len(port_analysis['interesting_ports']['web_services'])
+                        'total_nodes': self.G.number_of_nodes(),
+                        'total_edges': self.G.number_of_edges(),
+                        'high_risk_nodes': len([n for n, m in security_metrics.items() 
+                                              if m.get('connectivity_risk', 0) > 0.5]),
+                        'critical_bottlenecks': len([n for n in bottleneck_analysis.values() 
+                                                   if n.get('is_critical', False)])
                     }
                 }
                 
-                try:
-                    output_file = os.path.join(self.output_dir, 
-                                            f'analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
-                    with open(output_file, 'w') as f:
-                        json.dump(analysis_result, f, indent=2, default=str)
-                    logging.info(f"Analysis results saved to {output_file}")
-                except Exception as e:
-                    logging.error(f"Failed to save analysis results: {str(e)}")
+                # Ensure all values are JSON serializable
+                analysis_result = self._ensure_serializable(analysis_result)
                 
+                self.logger.info("Network analysis completed successfully")
                 return analysis_result
                 
-            except Exception as e:
-                logging.error(f"Error in analysis components: {e}")
-                return {
-                    'timestamp': datetime.now().isoformat(),
-                    'error': str(e),
-                    'summary': default_metrics
-                }
+            except Exception as analysis_error:
+                self.logger.error(f"Error during analysis components: {str(analysis_error)}")
+                raise
                 
         except Exception as e:
-            logging.error(f"Critical error in network analysis: {e}")
+            self.logger.error(f"Error in network analysis: {str(e)}", exc_info=True)
             raise
 
+    def _ensure_serializable(self, obj):
+        """Ensure all objects are JSON serializable"""
+        if isinstance(obj, dict):
+            return {str(k): self._ensure_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple, set)):
+            return [self._ensure_serializable(item) for item in obj]
+        elif isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+        else:
+            return str(obj)
 
     def visualize_network(self):
         """Generate network visualization"""
@@ -1737,6 +1679,7 @@ def generate_action_items(G1: nx.Graph, G2: nx.Graph, bridge_nodes: list,
         })
     
     return action_items
+
 
 
 def calculate_network_metrics(G):
