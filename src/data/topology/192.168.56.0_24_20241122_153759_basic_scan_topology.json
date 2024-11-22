@@ -1,0 +1,21 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.56.1",
+      "type": "host",
+      "status": "up"
+    },
+    {
+      "id": "192.168.56.1:139",
+      "type": "service",
+      "name": "netbios-ssn"
+    }
+  ],
+  "edges": [
+    {
+      "source": "192.168.56.1",
+      "target": "192.168.56.1:139",
+      "type": "has_service"
+    }
+  ]
+}

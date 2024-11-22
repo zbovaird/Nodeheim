@@ -121,6 +121,18 @@ def process_scan_results(results: ScanResult, scan_id: str):
         scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
         os.makedirs(scans_dir, exist_ok=True)
 
+        # Get subnet from first host's IP address
+        subnet = '0.0.0.0'
+        if results.hosts:
+            first_host = results.hosts[0].get('ip_address', '')
+            if first_host:
+                subnet_parts = first_host.split('.')
+                if len(subnet_parts) == 4:
+                    subnet = f"{'.'.join(subnet_parts[:3])}.0_24"
+
+        # Format timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
         # Format results for saving
         formatted_results = {
             'scan_id': scan_id,
@@ -141,8 +153,8 @@ def process_scan_results(results: ScanResult, scan_id: str):
             }
         }
         
-        # Save results to file
-        output_file = os.path.join(scans_dir, f'{scan_id}.json')
+        # Use consistent filename format
+        output_file = os.path.join(scans_dir, f'{subnet}_{timestamp}_{results.scan_type}.json')
         with open(output_file, 'w') as f:
             json.dump(formatted_results, f, indent=2)
             
@@ -1362,24 +1374,71 @@ def get_snapshots():
     """Get list of available network snapshots"""
     try:
         scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        logger.info(f"Looking for snapshots in: {scans_dir}")
+        
         if not os.path.exists(scans_dir):
+            logger.warning(f"Scans directory not found: {scans_dir}")
             return jsonify({'snapshots': []})
 
         snapshots = []
-        for file in os.listdir(scans_dir):
+        files = os.listdir(scans_dir)
+        logger.info(f"Found {len(files)} files in scans directory")
+        
+        for file in files:
+            # Skip analysis files
+            if file.endswith('_analysis.json'):
+                continue
+                
             if file.endswith('.json'):
-                with open(os.path.join(scans_dir, file), 'r') as f:
-                    data = json.load(f)
-                    snapshots.append({
-                        'id': file.replace('.json', ''),
-                        'timestamp': data.get('timestamp'),
-                        'type': data.get('scan_type')
-                    })
+                file_path = os.path.join(scans_dir, file)
+                try:
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                        
+                        # Extract scan ID - handle both naming formats
+                        if '_basic_scan.json' in file:
+                            # Old format: 192.168.1.0_24_20241122_141315_basic_scan.json
+                            scan_id = file.replace('.json', '')
+                        else:
+                            # UUID format or new format
+                            scan_id = file.replace('.json', '')
+                        
+                        # Get subnet from the data or filename
+                        subnet = None
+                        if '_24_' in file:
+                            # Extract from filename
+                            subnet = file.split('_24_')[0] + '/24'
+                        elif data.get('hosts'):
+                            # Extract from first host
+                            first_host = data['hosts'][0].get('ip_address', '')
+                            if first_host:
+                                subnet_parts = first_host.split('.')
+                                if len(subnet_parts) == 4:
+                                    subnet = f"{'.'.join(subnet_parts[:3])}.0/24"
+                        
+                        snapshot = {
+                            'id': scan_id,
+                            'timestamp': data.get('timestamp'),
+                            'type': data.get('scan_type', 'unknown'),
+                            'subnet': subnet or 'unknown',
+                            'summary': data.get('summary', {})
+                        }
+                        
+                        logger.info(f"Found snapshot: {snapshot}")
+                        snapshots.append(snapshot)
+                except Exception as e:
+                    logger.warning(f"Error reading scan file {file}: {str(e)}")
+                    continue
 
+        # Sort snapshots by timestamp, most recent first
+        snapshots.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        logger.info(f"Returning {len(snapshots)} snapshots")
         return jsonify({'snapshots': snapshots})
+
     except Exception as e:
-        logger.error(f"Error getting snapshots: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting snapshots: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'snapshots': []}), 500
 
 @app.route('/api/compare', methods=['POST'])
 def compare_networks():
@@ -1725,17 +1784,24 @@ def get_topology(scan_id):
                 'os': host.get('os_info', {}).get('os_match', 'unknown'),
                 'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
             }
+            
             topology_data['nodes'].append(node)
 
         # Create links based on network relationships
         processed_links = set()
+        
         for host in scan_data.get('hosts', []):
             source = host.get('ip_address')
+            if not source:
+                continue
             
             # Add subnet-based connections
             source_parts = source.split('.')
             for other_host in scan_data.get('hosts', []):
                 target = other_host.get('ip_address')
+                if not target:
+                    continue
+                    
                 if source != target:
                     target_parts = target.split('.')
                     if source_parts[:3] == target_parts[:3]:  # Same /24 subnet

@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.56.1",
+      "hostname": "",
+      "type": "unknown",
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "os": "unknown",
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds"
+        }
+      ]
+    }
+  ],
+  "links": []
+}

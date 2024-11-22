@@ -1,0 +1,22 @@
+{
+  "192.168.56.1": {
+    "type": "unknown",
+    "services": [
+      {
+        "name": "netbios-ssn",
+        "product": "Microsoft Windows netbios-ssn",
+        "version": "",
+        "extra_info": "",
+        "tunnel": ""
+      }
+    ],
+    "open_ports": [],
+    "os": "unknown",
+    "degree": 0,
+    "neighbors": [],
+    "is_critical": false,
+    "risk_score": 0,
+    "vulnerabilities": [],
+    "zone": "unknown"
+  }
+}
