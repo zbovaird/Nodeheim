@@ -163,57 +163,21 @@ def process_scan_results(results: ScanResult, scan_id: str):
             # Update scan status with analysis results
             formatted_results['network_analysis'] = analysis_results
             
-        except Exception as analysis_error:
-            logger.error(f"Error in network analysis: {str(analysis_error)}")
-        
-        # Update scan status
-        scan_statuses[scan_id].update({
-            'status': 'completed',
-            'progress': 100,
-            'end_time': datetime.now().isoformat(),
-            'summary': formatted_results['summary']
-        })
-        
-    except Exception as e:
-        logger.error(f"Error processing scan results: {str(e)}", exc_info=True)
-        scan_statuses[scan_id].update({
-            'status': 'failed',
-            'error': str(e)
-        })
-        
-        # Save results to file
-        output_file = os.path.join(scans_dir, f'{scan_id}.json')
-        with open(output_file, 'w') as f:
-            json.dump(formatted_results, f, indent=2)
-            
-        logger.info(f"Scan results saved to {output_file}")
-        
-        try:
-            # Run network analysis
-            analysis_results = topology_analyzer.analyze_topology(formatted_results)
-            
-            # Save analysis results
-            analysis_file = os.path.join(scans_dir, f'{scan_id}_analysis.json')
-            with open(analysis_file, 'w') as f:
-                json.dump(analysis_results, f, indent=2)
-            
-            # Use the imported updateTopologyVisualization function
-            updateTopologyVisualization(formatted_results, BASE_DIR)
-            
-            # Update scan status with analysis results
-            formatted_results['network_analysis'] = analysis_results
+            # Update scan status
+            scan_statuses[scan_id].update({
+                'status': 'completed',
+                'progress': 100,
+                'end_time': datetime.now().isoformat(),
+                'summary': formatted_results['summary']
+            })
             
         except Exception as analysis_error:
             logger.error(f"Error in network analysis: {str(analysis_error)}")
-        
-        # Update scan status
-        scan_statuses[scan_id].update({
-            'status': 'completed',
-            'progress': 100,
-            'end_time': datetime.now().isoformat(),
-            'summary': formatted_results['summary']
-        })
-        
+            scan_statuses[scan_id].update({
+                'status': 'failed',
+                'error': str(analysis_error)
+            })
+            
     except Exception as e:
         logger.error(f"Error processing scan results: {str(e)}", exc_info=True)
         scan_statuses[scan_id].update({
@@ -1554,14 +1518,16 @@ def get_networks():
             networks = NetworkDiscovery.get_local_networks()
             logger.info(f"Found networks: {networks}")
             
-            # Verify networks data structure
-            if not isinstance(networks, list):
-                raise Exception("Networks data is not a list")
-            
+            # Clean up network display names - add this code
             for network in networks:
-                if not isinstance(network, dict):
-                    raise Exception("Network entry is not a dictionary")
-                logger.info(f"Network entry: {network}")
+                if 'name' in network:
+                    # Remove GUID if present
+                    if '(' in network['name']:
+                        network['name'] = network['name'].split('(')[0].strip()
+                    # Clean up any other unwanted characters
+                    network['name'] = network['name'].replace('\\', '/').strip()
+                    
+            logger.info(f"Cleaned networks: {networks}")
                 
         except Exception as e:
             logger.error(f"Error in get_local_networks: {e}", exc_info=True)
@@ -1583,7 +1549,6 @@ def get_networks():
         
     except Exception as e:
         logger.error(f"Error getting networks: {str(e)}", exc_info=True)
-        # Don't return fallback response on error, return the actual networks found
         return jsonify({
             'status': 'success',  # Changed to success since we have networks
             'networks': networks if 'networks' in locals() else [],
@@ -1759,7 +1724,7 @@ def get_topology(scan_id):
                 'services': host.get('services', []),
                 'os': host.get('os_info', {}).get('os_match', 'unknown'),
                 'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
-            }  # Close the node dictionary
+            }
             topology_data['nodes'].append(node)
 
         # Create links based on network relationships
@@ -1767,19 +1732,6 @@ def get_topology(scan_id):
         for host in scan_data.get('hosts', []):
             source = host.get('ip_address')
             
-            # Add connections from scan data
-            for connection in host.get('connections', []):
-                target = connection
-                link_id = tuple(sorted([source, target]))
-                
-                if link_id not in processed_links:
-                    topology_data['links'].append({
-                        'source': source,
-                        'target': target,
-                        'type': 'direct'
-                    })
-                    processed_links.add(link_id)
-
             # Add subnet-based connections
             source_parts = source.split('.')
             for other_host in scan_data.get('hosts', []):
@@ -1796,7 +1748,6 @@ def get_topology(scan_id):
                             })
                             processed_links.add(link_id)
 
-        logger.info(f"Generated topology data with {len(topology_data['nodes'])} nodes and {len(topology_data['links'])} links")
         return jsonify(topology_data)
 
     except Exception as e:
@@ -2201,24 +2152,28 @@ def get_network_analysis(scan_id):
 
 @app.route('/api/topology/image/<scan_id>')
 def get_topology_image(scan_id):
-    """Get the latest topology image for a scan"""
+    """Get the latest topology data for a scan"""
     try:
         topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
-        # Get all topology files for this scan
+        # Update file pattern to match actual filenames
         topology_files = [f for f in os.listdir(topology_dir) 
-                         if f.startswith('topology_') and f.endswith('.png')]
+                         if f.endswith('_topology.json')]
         
         if not topology_files:
-            return jsonify({'error': 'No topology image found'}), 404
+            return jsonify({'error': 'No topology data found'}), 404
             
         # Get the most recent topology file
         latest_file = max(topology_files, key=lambda x: os.path.getctime(os.path.join(topology_dir, x)))
-        image_path = os.path.join(topology_dir, latest_file)
+        topology_path = os.path.join(topology_dir, latest_file)
         
-        return send_file(image_path, mimetype='image/png')
+        # Read and return the JSON data
+        with open(topology_path, 'r') as f:
+            topology_data = json.load(f)
+            
+        return jsonify(topology_data)
         
     except Exception as e:
-        logger.error(f"Error serving topology image: {str(e)}")
+        logger.error(f"Error serving topology data: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analysis/history')
@@ -2244,28 +2199,6 @@ def get_analysis_history():
     except Exception as e:
         logger.error(f"Error getting analysis history: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-
-        # Save topology data
-        topology_dir = os.path.join(base_dir, 'src', 'data', 'topology')
-        os.makedirs(topology_dir, exist_ok=True)
-        
-        topology_file = os.path.join(
-            topology_dir, 
-            f"topology_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        )
-        
-        with open(topology_file, 'w') as f:
-            json.dump(topology_data, f, indent=2)
-            
-        logger.info(f"Saved topology data to {topology_file}")
-        logger.info(f"Generated topology with {len(topology_data['nodes'])} nodes and {len(topology_data['links'])} links")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error updating topology visualization: {e}", exc_info=True)
-        return False
 
 if __name__ == '__main__':
     try:

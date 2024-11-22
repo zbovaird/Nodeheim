@@ -39,12 +39,15 @@ class NetworkDiscovery:
                                     f"{ip}/{netmask}", 
                                     strict=False
                                 )
+                                # Clean up interface name - remove GUID
+                                clean_iface = iface.split('{')[0].strip()
                                 networks.append({
                                     'network': str(network),
-                                    'interface': iface,
+                                    'interface': clean_iface,
                                     'ip': ip,
                                     'netmask': netmask,
-                                    'description': f'Network on {iface}'
+                                    'name': str(network),  # Use network address as name instead of interface
+                                    'description': f'Network on {clean_iface}'
                                 })
                             except ValueError as e:
                                 logger.warning(f"Error calculating network for {ip}/{netmask}: {e}")
@@ -73,6 +76,7 @@ class NetworkDiscovery:
                     'interface': 'default',
                     'ip': ip,
                     'netmask': str(network.netmask),
+                    'name': str(network),  # Use network address as name
                     'description': 'Default Network'
                 })
                 
@@ -82,6 +86,7 @@ class NetworkDiscovery:
             'network': 'custom',
             'ip': '',
             'netmask': '',
+            'name': 'Custom Network',  # Clean name for manual option
             'description': 'Enter custom network/IP'
         })
         
