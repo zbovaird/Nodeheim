@@ -1,0 +1,26 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.56.1",
+      "label": "192.168.56.1",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "139",
+        "445"
+      ],
+      "services": [
+        "netbios-ssn"
+      ],
+      "group": "unknown"
+    }
+  ],
+  "links": [],
+  "metadata": {
+    "timestamp": "2024-11-25T15:24:49.583937",
+    "total_nodes": 1,
+    "total_links": 0,
+    "subnet": "192.168.56.0/24"
+  }
+}

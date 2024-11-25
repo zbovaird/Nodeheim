@@ -694,6 +694,50 @@
     max-width: 300px;
     pointer-events: none;
 }
+
+/* Host Details Styles */
+.host-details-panel {
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.host-details-panel .table {
+    margin-bottom: 0;
+}
+
+.host-details-panel th {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    color: var(--accent-color);
+    font-weight: 500;
+}
+
+.host-details-panel td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    vertical-align: middle;
+}
+
+.host-details-panel tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.service-info {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 2px;
+    border-radius: 4px;
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 1px solid var(--accent-color);
+    font-size: 0.9rem;
+}
+
+.port-number {
+    font-weight: bold;
+    color: var(--accent-color);
+}
     </style>
 </head>
 <body>
@@ -816,7 +860,34 @@
             </div>
         </div>
 
-        <div class="port-analysis-panel"></div>
+        <!-- Host Details Section -->
+        <div class="host-details-panel mt-4">
+            <div class="card bg-dark">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Host Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover" id="host-details-table">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>Hostname</th>
+                                    <th>Open Ports</th>
+                                    <th>Services</th>
+                                    <th>OS Info</th>
+                                </tr>
+                            </thead>
+                            <tbody id="host-details-body">
+                                <!-- Host details will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="port-analysis-panel">
             <h3 class="card-header">Port Analysis</h3>
             <div class="port-analysis-grid">
                 <div class="chart-container">
@@ -947,7 +1018,6 @@
                     <button id="viewHistoryBtn" class="scan-button ms-2" onclick="showAnalysisHistory()">
                         View Analysis History
                     </button>
-                    <!-- Add the new Generate Report button here -->
                     <button class="scan-button ms-2" onclick="generateReport()">
                         Generate Report
                     </button>
@@ -1073,58 +1143,14 @@
         </div>
     </div>
 </div>
-           
-<div class="comparison-section p-4 mt-4"></div>
-    <div class="card bg-dark">
-        <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">Network Comparison</h5>
-        </div>
-        <div class="card-body">
-            <div class="row mb-4">
-                <div class="col-md-8">
-                    <h4>Select Network Snapshots</h4>
-                    <select multiple id="snapshotSelect" class="form-select bg-dark text-white mb-3" size="5">
-                        <!-- Populated dynamically -->
-                    </select>
-                    <button id="compareButton" class="btn btn-primary me-2">Compare Networks</button>
-                    <button id="resetButton" class="btn btn-secondary">Reset</button>
-                </div>
-                <div class="col-md-4">
-                    <div class="selected-files bg-darker p-3 rounded">
-                        <h5>Selected Snapshots:</h5>
-                        <ul id="selectedFiles" class="list-unstyled">
-                            <!-- Populated dynamically -->
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="comparisonResults" class="comparison-results" style="display: none;">
-                <!-- Results content (from previous HTML) goes here -->
-            </div>
-        </div>
-    </div>
-</div>
 
-            <div class="recommendations">
-                <div class="card-header">Security Recommendations</div>
-                <div id="recommendations-list">
-                    <!-- Recommendations will be populated here -->
-                </div>
-            </div>
-        </div>
-
-        <div id="results-panel">
-            <!-- Scan results will be displayed here -->
-        </div>
-    </main>
-    <!-- Move script to end of body -->
-    <script type="module">
-        import { loadNetworks, startScan, stopScan, updateScanStatus } from '/static/js/app.js';
-        window.loadNetworks = loadNetworks;
-        window.startScan = startScan;
-        window.stopScan = stopScan;
-        window.updateScanStatus = updateScanStatus;
-    </script>
+<script type="module" src="{{ url_for('static', filename='js/topology.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script type="module">
+    import { startAnalysis, showAnalysisHistory, generateReport } from '/static/js/app.js';
+    window.startAnalysis = startAnalysis;
+    window.showAnalysisHistory = showAnalysisHistory;
+    window.generateReport = generateReport;
+</script>
 </body>
 </html>

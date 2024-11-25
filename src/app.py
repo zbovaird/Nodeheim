@@ -66,7 +66,20 @@ logger.info(f"Base directory set to: {BASE_DIR}")
 # Local imports
 from scanner.scanner import NetworkScanner, ScanResult
 from scanner.network_discovery import NetworkDiscovery
-from analyzer.network_analysis import NetworkAnalyzer, calculate_network_metrics
+from analyzer.network_analysis import (
+    create_network_from_scan,
+    calculate_network_metrics,
+    analyze_changes,
+    identify_critical_paths,
+    identify_bridge_nodes,
+    calculate_network_segmentation
+)
+from analyzer.visualization import (
+    visualize_network_overview,
+    visualize_critical_infrastructure,
+    visualize_node_metrics_heatmap,
+    create_markdown_report
+)
 from api.analysis import analysis_bp
 from scanner.vulnerability_checker import BatchVulnerabilityChecker
 
@@ -76,24 +89,14 @@ app = Flask(__name__, static_url_path='/static')
 # Register the blueprint
 app.register_blueprint(analysis_bp)
 
-# Initialize analyzer
+# Initialize scanner and output directories
 try:
     data_dir = os.path.join(BASE_DIR, 'src', 'data')
-    analyzer = NetworkAnalyzer(data_dir=data_dir)
-    analyzer.output_dir = os.path.join(data_dir, 'analysis')
-    os.makedirs(analyzer.output_dir, exist_ok=True)
-    analyzer.logger = logging.getLogger(__name__)
-    logger.info("Network analyzer initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize analyzer: {str(e)}")
-    raise
-
-# Initialize scanner
-try:
-    scanner = NetworkScanner(output_dir=os.path.join(BASE_DIR, 'src', 'data'))
-    # Test scanner functionality
+    analysis_dir = os.path.join(data_dir, 'analysis')
+    os.makedirs(analysis_dir, exist_ok=True)
+    
+    scanner = NetworkScanner(output_dir=data_dir)
     test_result = scanner.test_scanner()
-    logger.info(f"Scanner test results: {test_result}")
     if test_result['status'] != 'operational':
         raise Exception(f"Scanner initialization failed: {test_result}")
     logger.info("Scanner initialized successfully")
@@ -385,52 +388,6 @@ def analyze_network_changes(G1: nx.Graph, G2: nx.Graph) -> Dict:
             'removed_edges': set(),
             'degree_distribution_change': 0
         }
-
-def create_network_from_scan(scan_data):
-    """Create a NetworkX graph from scan data"""
-    G = nx.Graph()
-    
-    # Add nodes
-    hosts = scan_data.get('hosts', [])
-    for host in hosts:
-        ip = host.get('ip_address')
-        if ip:
-            # Add node with host data
-            G.add_node(ip, **{
-                'status': host.get('status'),
-                'os': host.get('os_info', {}).get('os_match', 'unknown'),
-                'services': [s.get('name') for s in host.get('services', [])],
-                'ports': [p.get('port') for p in host.get('ports', []) if p.get('state') == 'open']
-            })
-    
-    # Infer connections based on network topology
-    for host in hosts:
-        source_ip = host.get('ip_address')
-        if not source_ip:
-            continue
-            
-        # Get open ports for this host
-        source_ports = set(p.get('port') for p in host.get('ports', []) if p.get('state') == 'open')
-        
-        for other_host in hosts:
-            target_ip = other_host.get('ip_address')
-            if not target_ip or target_ip == source_ip:
-                continue
-                
-            # Check for potential connections based on open ports
-            target_ports = set(p.get('port') for p in other_host.get('ports', []) if p.get('state') == 'open')
-            
-            # Common services that indicate connections
-            common_ports = source_ports.intersection(target_ports)
-            if common_ports:
-                G.add_edge(source_ip, target_ip, ports=list(common_ports))
-            
-            # Check for client-server relationships
-            for port in target_ports:
-                if port in [80, 443, 22, 21, 3389, 445, 139]:  # Common server ports
-                    G.add_edge(source_ip, target_ip, service=f'port_{port}')
-    
-    return G
 
 def calculate_node_centrality_metrics(G: nx.Graph) -> Dict:
     """Calculate comprehensive node centrality metrics"""
@@ -1880,21 +1837,26 @@ def get_network_analysis(scan_id):
         with open(scan_file, 'r') as f:
             scan_data = json.load(f)
         
-        # Create ScanResult object
-        scan_result = ScanResult(
-            timestamp=scan_data.get('timestamp'),
-            scan_type=scan_data.get('scan_type'),
-            hosts=scan_data.get('hosts', []),
-            ports=scan_data.get('ports', []),
-            services=scan_data.get('services', []),
-            vulnerabilities=scan_data.get('vulnerabilities', []),
-            os_matches=scan_data.get('os_matches', []),
-            scan_stats=scan_data.get('scan_stats', {})
-        )
+        # Create network graph
+        G = create_network_from_scan(scan_data)
         
-        # Run analysis
-        analyzer = NetworkAnalyzer()
-        analysis_results = analyzer.analyze_network(scan_result)
+        # Calculate metrics
+        metrics = calculate_network_metrics(G)
+        
+        # Additional analysis
+        critical_paths = identify_critical_paths(G)
+        bridge_nodes = identify_bridge_nodes(G)
+        segmentation = calculate_network_segmentation(G)
+        
+        # Prepare analysis results
+        analysis_results = {
+            'scan_id': scan_id,
+            'timestamp': datetime.now().isoformat(),
+            'metrics': metrics,
+            'critical_paths': critical_paths,
+            'bridge_nodes': bridge_nodes,
+            'segmentation': segmentation
+        }
         
         # Save analysis results
         os.makedirs(analysis_dir, exist_ok=True)
@@ -2002,6 +1964,16 @@ def download_analysis_report(comparison_id):
     try:
         report_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
         
+        # Check if report already exists
+        report_file = os.path.join(report_dir, 'network_analysis_report.md')
+        if os.path.exists(report_file):
+            return send_file(
+                report_file,
+                mimetype='text/markdown',
+                as_attachment=True,
+                download_name=f'network_analysis_report_{comparison_id}.md'
+            )
+        
         # Load analysis results
         results_file = os.path.join(report_dir, 'results.json')
         if not os.path.exists(results_file):
@@ -2010,14 +1982,18 @@ def download_analysis_report(comparison_id):
         with open(results_file, 'r') as f:
             results = json.load(f)
             
-        # Generate report
-        analyzer = NetworkAnalyzer()
-        report = analyzer.generate_executive_report(results)
-        
-        # Save report
-        report_file = os.path.join(report_dir, 'report.md')
-        with open(report_file, 'w') as f:
-            f.write(report)
+        # Generate report using the visualization module
+        create_markdown_report(
+            before_data=results.get('before_data', {}),
+            after_data=results.get('after_data', {}),
+            changes=results.get('structural_changes', {}),
+            metrics_before=results.get('before_metrics', {}),
+            metrics_after=results.get('after_metrics', {}),
+            critical_paths=results.get('critical_paths', {}),
+            bridge_nodes=results.get('bridge_nodes', []),
+            segmentation=results.get('segmentation', {}),
+            output_folder=report_dir
+        )
             
         return send_file(
             report_file,
@@ -2193,33 +2169,63 @@ def create_comparison():
         logger.info(f"Before graph: {len(before_graph.nodes())} nodes, {len(before_graph.edges())} edges")
         logger.info(f"After graph: {len(after_graph.nodes())} nodes, {len(after_graph.edges())} edges")
             
-        # Calculate structural changes
-        before_nodes = set(before_graph.nodes())
-        after_nodes = set(after_graph.nodes())
-        new_nodes = after_nodes - before_nodes
-        removed_nodes = before_nodes - after_nodes
-        
-        # Calculate edge changes
-        before_edges = set(map(tuple, map(sorted, before_graph.edges())))
-        after_edges = set(map(tuple, map(sorted, after_graph.edges())))
-        new_edges = after_edges - before_edges
-        removed_edges = before_edges - after_edges
-        
-        # Calculate network metrics
+        # Calculate changes and metrics
+        changes = analyze_changes(before_graph, after_graph)
         before_metrics = calculate_network_metrics(before_graph)
         after_metrics = calculate_network_metrics(after_graph)
         
+        # Additional analysis
+        critical_paths = identify_critical_paths(after_graph)
+        bridge_nodes = identify_bridge_nodes(after_graph)
+        segmentation = calculate_network_segmentation(after_graph)
+        
         # Create comparison result
         comparison_id = f"comparison_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        output_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Generate visualizations
+        visualize_network_overview(before_graph, after_graph, output_dir)
+        visualize_critical_infrastructure(after_graph, bridge_nodes, critical_paths, output_dir)
+        
+        # Calculate centrality changes for heatmap
+        centrality_metrics = {
+            'Degree': nx.degree_centrality,
+            'Betweenness': nx.betweenness_centrality,
+            'Closeness': nx.closeness_centrality,
+            'Eigenvector': nx.eigenvector_centrality
+        }
+        
+        centrality_changes = pd.DataFrame()
+        for metric_name, metric_func in centrality_metrics.items():
+            try:
+                before_values = pd.Series(metric_func(before_graph))
+                after_values = pd.Series(metric_func(after_graph))
+                centrality_changes[metric_name] = after_values - before_values.reindex(after_values.index)
+            except:
+                logger.warning(f"Could not calculate {metric_name} centrality changes")
+        
+        if not centrality_changes.empty:
+            visualize_node_metrics_heatmap(centrality_changes, output_dir)
+        
+        # Create markdown report
+        create_markdown_report(
+            before_data=before_data,
+            after_data=after_data,
+            changes=changes,
+            metrics_before=before_metrics,
+            metrics_after=after_metrics,
+            critical_paths=critical_paths,
+            bridge_nodes=bridge_nodes,
+            segmentation=segmentation,
+            output_folder=output_dir
+        )
+        
+        # Prepare response
         result = {
             'comparison_id': comparison_id,
             'timestamp': datetime.now().isoformat(),
-            'structural_changes': {
-                'New_Nodes': len(new_nodes),
-                'Removed_Nodes': len(removed_nodes),
-                'New_Edges': len(new_edges),
-                'Removed_Edges': len(removed_edges)
-            },
+            'structural_changes': changes,
             'before_metrics': before_metrics,
             'after_metrics': after_metrics,
             'metric_changes': {
@@ -2227,28 +2233,60 @@ def create_comparison():
                 'Network_Density': after_metrics['Network_Density'] - before_metrics['Network_Density'],
                 'Average_Degree': after_metrics['Average_Degree'] - before_metrics['Average_Degree'],
                 'Components': after_metrics['Components'] - before_metrics['Components']
+            },
+            'analysis': {
+                'critical_paths': len(critical_paths),
+                'bridge_nodes': len(bridge_nodes),
+                'segments': segmentation['num_segments'],
+                'isolation_score': segmentation['isolation_score']
+            },
+            'report_url': f'/api/comparisons/{comparison_id}/report',
+            'visualizations': {
+                'network_overview': f'/api/comparisons/{comparison_id}/network_overview.png',
+                'critical_infrastructure': f'/api/comparisons/{comparison_id}/critical_infrastructure.png',
+                'node_metrics': f'/api/comparisons/{comparison_id}/node_metrics_changes_heatmap.png'
             }
         }
         
-        # Add debug information
-        result['debug'] = {
-            'new_nodes': list(new_nodes),
-            'removed_nodes': list(removed_nodes),
-            'new_edges': [{'source': s, 'target': t} for s, t in new_edges],
-            'removed_edges': [{'source': s, 'target': t} for s, t in removed_edges]
-        }
-        
-        # Save comparison result
-        comparisons_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
-        os.makedirs(comparisons_dir, exist_ok=True)
-        
-        with open(os.path.join(comparisons_dir, 'results.json'), 'w') as f:
+        # Save result
+        with open(os.path.join(output_dir, 'results.json'), 'w') as f:
             json.dump(result, f, indent=2)
             
         return jsonify(result)
         
     except Exception as e:
         logger.error(f"Error creating comparison: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/comparisons/<comparison_id>/report')
+def get_comparison_report(comparison_id):
+    """Get the markdown report for a comparison"""
+    try:
+        report_path = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id, 'network_analysis_report.md')
+        if not os.path.exists(report_path):
+            return jsonify({'error': 'Report not found'}), 404
+            
+        with open(report_path, 'r') as f:
+            content = f.read()
+            
+        return Response(content, mimetype='text/markdown')
+        
+    except Exception as e:
+        logger.error(f"Error getting comparison report: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/comparisons/<comparison_id>/<path:filename>')
+def get_comparison_file(comparison_id, filename):
+    """Get a file from a comparison (visualization or report)"""
+    try:
+        file_path = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id, filename)
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+            
+        return send_file(file_path)
+        
+    except Exception as e:
+        logger.error(f"Error getting comparison file: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

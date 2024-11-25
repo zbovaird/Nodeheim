@@ -1,0 +1,2 @@
+name,product,version,extra_info,tunnel,host,ip_address,port
+netbios-ssn,Microsoft Windows netbios-ssn,,,,192.168.56.1,192.168.56.1,139
