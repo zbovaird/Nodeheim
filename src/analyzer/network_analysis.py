@@ -1,24 +1,37 @@
 # src/analyzer/network_analysis.py
 
-import pandas as pd
-import numpy as np
-import networkx as nx
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-import logging
-from pathlib import Path
+# Standard library imports
 import os
 import json
-from datetime import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
-from collections import Counter, defaultdict
+import logging
 import warnings
+from datetime import datetime
+from pathlib import Path
+from collections import Counter, defaultdict
 from itertools import combinations
 from typing import Dict, Counter, List
+
+# Third-party imports
+import numpy as np
+import pandas as pd
 import networkx as nx
-warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
 import community
+
+# Configure warnings
+warnings.filterwarnings('ignore')
+
+# Configure logger
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 class NetworkAnalyzer:
     def __init__(self, data_dir=None):
@@ -468,10 +481,9 @@ class NetworkAnalyzer:
             topology_dir = os.path.join(self.data_dir, 'topology')
             os.makedirs(topology_dir, exist_ok=True)
             
-            topology_file = os.path.join(
-                topology_dir, 
-                f"topology_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            )
+            # Use scan timestamp if available, otherwise current time
+            timestamp = getattr(scan_result, 'timestamp', datetime.now().strftime('%Y%m%d_%H%M%S'))
+            topology_file = os.path.join(topology_dir, f"topology_{timestamp}.json")
             
             topology_data = {
                 'nodes': [],
@@ -480,12 +492,19 @@ class NetworkAnalyzer:
 
             # Process hosts into nodes
             for host in scan_result.hosts:
+                if not host.get('ip_address'):
+                    continue
+
+                # Create node with more detailed information
                 node = {
                     'id': host.get('ip_address'),
+                    'label': host.get('ip_address'),  # Use IP as label
                     'type': host.get('device_type', 'unknown'),
-                    'services': host.get('services', []),
+                    'services': [s.get('name', 'unknown') for s in host.get('services', [])],
                     'os': host.get('os_info', {}).get('os_match', 'unknown'),
-                    'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
+                    'ports': [str(p.get('port')) for p in host.get('ports', []) if p.get('state') == 'open'],
+                    'status': host.get('status', 'unknown'),
+                    'group': host.get('device_type', 'unknown')  # For visualization grouping
                 }
                 topology_data['nodes'].append(node)
 
@@ -495,14 +514,14 @@ class NetworkAnalyzer:
                 source = host.get('ip_address')
                 if not source:
                     continue
-                    
+
                 # Add subnet-based connections
                 source_parts = source.split('.')
                 for other_host in scan_result.hosts:
                     target = other_host.get('ip_address')
                     if not target or source == target:
                         continue
-                        
+
                     target_parts = target.split('.')
                     if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
                         link_id = tuple(sorted([source, target]))
@@ -510,18 +529,48 @@ class NetworkAnalyzer:
                             topology_data['links'].append({
                                 'source': source,
                                 'target': target,
-                                'type': 'subnet'
+                                'type': 'network',
+                                'value': 1  # For visualization weight
                             })
                             processed_links.add(link_id)
+
+                # Add service-based connections
+                for port in host.get('ports', []):
+                    if isinstance(port, dict) and port.get('state') == 'open':
+                        service = port.get('service', '')
+                        if service in ['http', 'https', 'ssh', 'rdp', 'smb']:
+                            # These services often indicate direct connections
+                            for other_host in scan_result.hosts:
+                                if other_host.get('ip_address') != source:
+                                    link_id = tuple(sorted([source, other_host.get('ip_address')]))
+                                    if link_id not in processed_links:
+                                        topology_data['links'].append({
+                                            'source': source,
+                                            'target': other_host.get('ip_address'),
+                                            'type': 'service',
+                                            'service': service,
+                                            'value': 2  # Stronger connection for service-based links
+                                        })
+                                        processed_links.add(link_id)
+
+            # Add metadata
+            topology_data['metadata'] = {
+                'timestamp': timestamp,
+                'total_nodes': len(topology_data['nodes']),
+                'total_links': len(topology_data['links']),
+                'subnet': scan_result.subnet if hasattr(scan_result, 'subnet') else 'unknown'
+            }
 
             # Save topology data
             with open(topology_file, 'w') as f:
                 json.dump(topology_data, f, indent=2)
                 
             self.logger.info(f"Saved topology data to {topology_file}")
+            return topology_file
             
         except Exception as e:
             self.logger.error(f"Error saving topology visualization: {e}")
+            return None
 
     def _ensure_serializable(self, obj):
         """Ensure all objects are JSON serializable"""
@@ -928,14 +977,14 @@ class NetworkAnalyzer:
             }
 
             # Log analysis start
-            logging.info(f"\nStarting port analysis:")
-            logging.info(f"Total hosts in scan: {len(scan_result.hosts)}")
+            self.logger.info(f"\nStarting port analysis:")
+            self.logger.info(f"Total hosts in scan: {len(scan_result.hosts)}")
 
             # Process each host
             for host in scan_result.hosts:
                 host_ip = host.get('ip_address')
                 if not host_ip:
-                    logging.warning(f"Found host without IP address: {host}")
+                    self.logger.warning(f"Found host without IP address: {host}")
                     continue
 
                 # Initialize host entry
@@ -946,7 +995,7 @@ class NetworkAnalyzer:
                 }
 
                 # Process ports for this host
-                logging.info(f"\nAnalyzing ports for host {host_ip}")
+                self.logger.info(f"\nAnalyzing ports for host {host_ip}")
                 for port_info in host.get('ports', []):
                     if isinstance(port_info, dict):
                         port_num = port_info.get('port')
@@ -1020,27 +1069,27 @@ class NetworkAnalyzer:
                                     if category == 'high_risk':
                                         port_analysis['hosts_with_ports'][host_ip]['high_risk_ports'].append(port_num)
 
-                            logging.info(f"Added open port for {host_ip}: {port_num} - {service_key}")
+                            self.logger.info(f"Added open port for {host_ip}: {port_num} - {service_key}")
 
             # Generate detailed summary
-            logging.info("\nPort Analysis Summary:")
+            self.logger.info("\nPort Analysis Summary:")
             for host_ip, host_data in port_analysis['hosts_with_ports'].items():
                 if host_data['open_ports']:
-                    logging.info(f"\nHost {host_ip}:")
+                    self.logger.info(f"\nHost {host_ip}:")
                     for port in host_data['open_ports']:
                         service_str = port['service_details'] if port.get('service_details') else port['service']
-                        logging.info(f"  Port {port['port']}/{port['protocol']}: {service_str}")
+                        self.logger.info(f"  Port {port['port']}/{port['protocol']}: {service_str}")
 
             # Log statistics
-            logging.info(f"\nTotal Statistics:")
-            logging.info(f"Total open ports found: {port_analysis['total_open_ports']}")
-            logging.info(f"Unique services found: {len(port_analysis['services'])}")
-            logging.info(f"Hosts with open ports: {len([h for h in port_analysis['hosts_with_ports'].values() if h['open_ports']])}")
+            self.logger.info(f"\nTotal Statistics:")
+            self.logger.info(f"Total open ports found: {port_analysis['total_open_ports']}")
+            self.logger.info(f"Unique services found: {len(port_analysis['services'])}")
+            self.logger.info(f"Hosts with open ports: {len([h for h in port_analysis['hosts_with_ports'].values() if h['open_ports']])}")
 
             return port_analysis
 
         except Exception as e:
-            logging.error(f"Error analyzing port data: {e}", exc_info=True)
+            self.logger.error(f"Error analyzing port data: {e}", exc_info=True)
             return {
                 'total_open_ports': 0,
                 'hosts_with_ports': {},
@@ -1484,262 +1533,6 @@ class NetworkAnalyzer:
         return 'Unknown'
     
 def calculate_network_metrics(G: nx.Graph) -> Dict:
-    """Calculate comprehensive network metrics"""
-    metrics = {
-        'Average_Clustering': nx.average_clustering(G),
-        'Network_Density': nx.density(G),
-        'Average_Degree': sum(dict(G.degree()).values()) / G.number_of_nodes(),
-        'Components': nx.number_connected_components(G)
-    }
-    
-    # Add connected-only metrics if graph is connected
-    if nx.is_connected(G):
-        metrics.update({
-            'Average_Path_Length': nx.average_shortest_path_length(G),
-            'Network_Diameter': nx.diameter(G)
-        })
-        
-        # Calculate spectral metrics
-        try:
-            L = nx.laplacian_matrix(G).todense()
-            eigvals = np.linalg.eigvalsh(L)
-            metrics['Spectral_Radius'] = float(max(abs(eigvals)))
-            if len(eigvals) >= 2:
-                metrics['Fiedler_Value'] = float(eigvals[1])
-        except:
-            metrics['Spectral_Radius'] = 0.0
-            metrics['Fiedler_Value'] = 0.0
-    
-    return metrics
-
-def analyze_network_changes(G1: nx.Graph, G2: nx.Graph) -> Dict:
-    """Analyze changes between two network snapshots"""
-    changes = {
-        'New_Nodes': len(set(G2.nodes()) - set(G1.nodes())),
-        'Removed_Nodes': len(set(G1.nodes()) - set(G2.nodes())),
-        'New_Edges': len(set(G2.edges()) - set(G1.edges())),
-        'Removed_Edges': len(set(G1.edges()) - set(G2.edges())),
-    }
-    
-    degrees1 = Counter(dict(G1.degree()).values())
-    degrees2 = Counter(dict(G2.degree()).values())
-    changes['Degree_Distribution_Change'] = sum((degrees2 - degrees1).values())
-    
-    metrics1 = calculate_network_metrics(G1)
-    metrics2 = calculate_network_metrics(G2)
-    
-    metric_changes = {}
-    for key in metrics1:
-        if key in metrics2:
-            metric_changes[key] = metrics2[key] - metrics1[key]
-    
-    return {
-        'structural_changes': changes,
-        'metric_changes': metric_changes,
-        'before_metrics': metrics1,
-        'after_metrics': metrics2
-    }
-
-def load_network_from_json(scan_data: dict) -> nx.Graph:
-    """Create NetworkX graph directly from scan JSON data"""
-    G = nx.Graph()
-    
-    # Add nodes (hosts) with all their attributes
-    for host in scan_data.get('hosts', []):
-        if host.get('status') == 'up':
-            G.add_node(
-                host['ip_address'],
-                type=host.get('device_type', 'unknown'),
-                os=host.get('os_info', {}).get('os_match', 'unknown'),
-                services=host.get('services', []),
-                ports=host.get('ports', []),
-                vulnerabilities=host.get('vulnerabilities', [])
-            )
-    
-    # Add edges based on network connections
-    # First, identify likely gateway/router nodes
-    gateway_candidates = [h['ip_address'] for h in scan_data.get('hosts', [])
-                        if h.get('device_type', '').lower() in ['router', 'gateway', 'firewall']]
-    
-    # If no explicit gateway found, look for common gateway IPs
-    if not gateway_candidates:
-        gateway_candidates = [h['ip_address'] for h in scan_data.get('hosts', [])
-                            if h['ip_address'].endswith(('.1', '.254'))]
-    
-    # Add edges based on service connections and network topology
-    for host in scan_data.get('hosts', []):
-        if host.get('status') != 'up':
-            continue
-            
-        source = host['ip_address']
-        
-        # Connect to gateway if exists
-        if gateway_candidates and source not in gateway_candidates:
-            G.add_edge(source, gateway_candidates[0])
-        
-        # Add edges based on service relationships
-        for port in host.get('ports', []):
-            if 'connections' in port:
-                for target in port['connections']:
-                    if target in G:
-                        G.add_edge(source, target, service=port.get('service'))
-    
-    return G
-
-def compare_networks(scan_data1: dict, scan_data2: dict) -> dict:
-    """Compare two network snapshots from scan data"""
-    # Create NetworkX graphs
-    G1 = load_network_from_json(scan_data1)
-    G2 = load_network_from_json(scan_data2)
-    
-    # Basic structural changes
-    changes = {
-        'New_Nodes': len(set(G2.nodes()) - set(G1.nodes())),
-        'Removed_Nodes': len(set(G1.nodes()) - set(G2.nodes())),
-        'New_Edges': len(set(G2.edges()) - set(G1.edges())),
-        'Removed_Edges': len(set(G1.edges()) - set(G2.edges())),
-    }
-    
-    # Network metrics comparison
-    metrics1 = calculate_network_metrics(G1)
-    metrics2 = calculate_network_metrics(G2)
-    
-    # Service changes
-    services1 = set(s['name'] for h in scan_data1.get('hosts', [])
-                   for s in h.get('services', []))
-    services2 = set(s['name'] for h in scan_data2.get('hosts', [])
-                   for s in h.get('services', []))
-    
-    service_changes = {
-        'New_Services': list(services2 - services1),
-        'Removed_Services': list(services1 - services2)
-    }
-    
-    # Vulnerability changes
-    vulns1 = set(v['id'] for h in scan_data1.get('hosts', [])
-                 for v in h.get('vulnerabilities', []))
-    vulns2 = set(v['id'] for h in scan_data2.get('hosts', [])
-                 for v in h.get('vulnerabilities', []))
-    
-    vuln_changes = {
-        'New_Vulnerabilities': list(vulns2 - vulns1),
-        'Removed_Vulnerabilities': list(vulns1 - vulns2)
-    }
-    
-def identify_critical_paths(G: nx.Graph) -> Dict:
-    betweenness = nx.betweenness_centrality(G)
-    threshold = np.percentile(list(betweenness.values()), 90)
-    critical_nodes = [n for n, c in betweenness.items() if c >= threshold]
-    
-    critical_paths = {}
-    for source in critical_nodes:
-        for target in critical_nodes:
-            if source != target:
-                try:
-                    path = nx.shortest_path(G, source, target)
-                    if len(path) > 2:
-                        critical_paths[f"{source}->{target}"] = path
-                except nx.NetworkXNoPath:
-                    continue
-    return critical_paths
-
-def identify_bridge_nodes(G: nx.Graph) -> List:
-    bridges = []
-    for node in G.nodes():
-        G_temp = G.copy()
-        G_temp.remove_node(node)
-        original_components = nx.number_connected_components(G)
-        new_components = nx.number_connected_components(G_temp)
-        if new_components > original_components:
-            bridges.append((node, new_components - original_components))
-    return sorted(bridges, key=lambda x: x[1], reverse=True)
-
-def calculate_network_segmentation(G: nx.Graph) -> Dict:
-    communities = community.best_partition(G)
-    modularity = community.modularity(communities, G)
-    segment_sizes = Counter(communities.values())
-    cross_segment_edges = sum(1 for u, v in G.edges() 
-                            if communities[u] != communities[v])
-    total_edges = G.number_of_edges()
-    isolation_score = 1 - (cross_segment_edges / total_edges) if total_edges > 0 else 0
-    
-    return {
-        'num_segments': len(set(communities.values())),
-        'modularity': modularity,
-        'segment_sizes': segment_sizes,
-        'cross_segment_edges': cross_segment_edges,
-        'isolation_score': isolation_score,
-        'communities': communities
-    }
-
-    # Critical infrastructure analysis
-    critical_paths = identify_critical_paths(G2)
-    bridge_nodes = identify_bridge_nodes(G2)
-    segmentation = calculate_network_segmentation(G2)
-    
-    # Generate action items
-    action_items = generate_action_items(G1, G2, bridge_nodes, critical_paths,
-                                       segmentation, scan_data2)
-    
-    return {
-        'changes': changes,
-        'metrics_before': metrics1,
-        'metrics_after': metrics2,
-        'service_changes': service_changes,
-        'vulnerability_changes': vuln_changes,
-        'critical_infrastructure': {
-            'bridge_nodes': bridge_nodes,
-            'critical_paths': critical_paths
-        },
-        'segmentation': segmentation,
-        'action_items': action_items
-    }
-
-def generate_action_items(G1: nx.Graph, G2: nx.Graph, bridge_nodes: list,
-                         critical_paths: dict, segmentation: dict,
-                         current_scan: dict) -> list:
-    """Generate prioritized action items based on detected changes"""
-    action_items = []
-    
-    # Check bridge nodes
-    for node, impact in bridge_nodes[:3]:  # Top 3 most critical
-        action_items.append({
-            'Priority': 'HIGH',
-            'Category': 'Network Segmentation',
-            'Finding': f'Critical node {node} could split network into {impact} segments if compromised',
-            'Action': f'Implement redundant paths around node {node}; Consider network segmentation at this point'
-        })
-    
-    # Check for new services
-    new_services = []
-    for host in current_scan.get('hosts', []):
-        for service in host.get('services', []):
-            if service.get('name') in ['telnet', 'ftp', 'rsh']:
-                new_services.append((host['ip_address'], service['name']))
-    
-    for ip, service in new_services:
-        action_items.append({
-            'Priority': 'HIGH',
-            'Category': 'Insecure Services',
-            'Finding': f'Insecure service {service} detected on {ip}',
-            'Action': f'Remove or replace {service} with secure alternative'
-        })
-    
-    # Check for critical paths
-    for path_name, path in list(critical_paths.items())[:3]:
-        action_items.append({
-            'Priority': 'HIGH',
-            'Category': 'Attack Vector',
-            'Finding': f'Critical path identified: {" -> ".join(map(str, path))}',
-            'Action': 'Implement access controls and monitoring along this path'
-        })
-    
-    return action_items
-
-
-
-
-def calculate_network_metrics(G):
     """Calculate comprehensive network metrics."""
     metrics = {
         'Average_Clustering': nx.average_clustering(G),

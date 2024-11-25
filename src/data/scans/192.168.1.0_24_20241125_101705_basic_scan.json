@@ -1,0 +1,807 @@
+{
+  "scan_id": "fc8b0c7a-e5ee-4217-9aa1-4e1e274dd97d",
+  "timestamp": "20241125_101551",
+  "scan_type": "basic_scan",
+  "hosts": [
+    {
+      "ip_address": "192.168.1.1",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SAX1V1K.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 53,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "domain",
+          "service_details": "domain (Cloudflare public DNS)",
+          "ip_address": "192.168.1.1"
+        },
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http",
+          "service_details": "http (lighttpd 1.4.59)",
+          "ip_address": "192.168.1.1"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http",
+          "service_details": "http (lighttpd 1.4.59)",
+          "ip_address": "192.168.1.1"
+        }
+      ],
+      "services": [
+        {
+          "name": "domain",
+          "product": "Cloudflare public DNS",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        },
+        {
+          "name": "http",
+          "product": "lighttpd",
+          "version": "1.4.59",
+          "extra_info": "",
+          "tunnel": ""
+        },
+        {
+          "name": "http",
+          "product": "lighttpd",
+          "version": "1.4.59",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 3,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.123",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.124",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.127",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM01.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+          "ip_address": "192.168.1.127"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "ip_address": "192.168.1.127"
+        }
+      ],
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.145",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RPT013.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 23,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "telnet",
+          "service_details": "telnet",
+          "ip_address": "192.168.1.145"
+        }
+      ],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 1,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.152",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "BRWDCE99452FC3A.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 80,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http",
+          "service_details": "http (Debut embedded httpd 1.30; Brother/HP printer http admin)",
+          "ip_address": "192.168.1.152"
+        },
+        {
+          "port": 443,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "http",
+          "service_details": "http (Debut embedded httpd 1.30; Brother/HP printer http admin)",
+          "ip_address": "192.168.1.152"
+        }
+      ],
+      "services": [
+        {
+          "name": "http",
+          "product": "Debut embedded httpd",
+          "version": "1.30",
+          "extra_info": "Brother/HP printer http admin",
+          "tunnel": ""
+        },
+        {
+          "name": "http",
+          "product": "Debut embedded httpd",
+          "version": "1.30",
+          "extra_info": "Brother/HP printer http admin",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.154",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM04.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+          "ip_address": "192.168.1.154"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "ip_address": "192.168.1.154"
+        }
+      ],
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.197",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03-148.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+          "ip_address": "192.168.1.197"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "ip_address": "192.168.1.197"
+        }
+      ],
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.214",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-82.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.220",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "SYSTEM03.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+          "ip_address": "192.168.1.220"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds",
+          "ip_address": "192.168.1.220"
+        }
+      ],
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.221",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "Watch.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.64",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "iPhone.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.82",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "RingStickUpCam-e6.lan",
+          "type": "PTR"
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [],
+      "services": [],
+      "device_type": "unknown",
+      "open_ports_count": 0,
+      "vulnerabilities": []
+    },
+    {
+      "ip_address": "192.168.1.84",
+      "status": "up",
+      "hostnames": [
+        {
+          "name": "",
+          "type": ""
+        }
+      ],
+      "os_info": {
+        "os_match": "unknown",
+        "os_accuracy": 80,
+        "os_type": "Network Infrastructure",
+        "os_vendor": "Microsoft",
+        "os_family": "Network Device",
+        "os_generation": "unknown"
+      },
+      "ports": [
+        {
+          "port": 139,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "netbios-ssn",
+          "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+          "ip_address": "192.168.1.84"
+        },
+        {
+          "port": 445,
+          "protocol": "tcp",
+          "state": "open",
+          "service": "microsoft-ds",
+          "service_details": "microsoft-ds (Microsoft Windows 7 - 10 microsoft-ds; workgroup: WORKGROUP)",
+          "ip_address": "192.168.1.84"
+        }
+      ],
+      "services": [
+        {
+          "name": "netbios-ssn",
+          "product": "Microsoft Windows netbios-ssn",
+          "version": "",
+          "extra_info": "",
+          "tunnel": ""
+        },
+        {
+          "name": "microsoft-ds",
+          "product": "Microsoft Windows 7 - 10 microsoft-ds",
+          "version": "",
+          "extra_info": "workgroup: WORKGROUP",
+          "tunnel": ""
+        }
+      ],
+      "device_type": "unknown",
+      "open_ports_count": 2,
+      "vulnerabilities": []
+    }
+  ],
+  "ports": [
+    {
+      "port": 53,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "domain",
+      "service_details": "domain (Cloudflare public DNS)",
+      "ip_address": "192.168.1.1"
+    },
+    {
+      "port": 80,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http",
+      "service_details": "http (lighttpd 1.4.59)",
+      "ip_address": "192.168.1.1"
+    },
+    {
+      "port": 443,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http",
+      "service_details": "http (lighttpd 1.4.59)",
+      "ip_address": "192.168.1.1"
+    },
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "netbios-ssn",
+      "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+      "ip_address": "192.168.1.127"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "microsoft-ds",
+      "service_details": "microsoft-ds",
+      "ip_address": "192.168.1.127"
+    },
+    {
+      "port": 23,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "telnet",
+      "service_details": "telnet",
+      "ip_address": "192.168.1.145"
+    },
+    {
+      "port": 80,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http",
+      "service_details": "http (Debut embedded httpd 1.30; Brother/HP printer http admin)",
+      "ip_address": "192.168.1.152"
+    },
+    {
+      "port": 443,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http",
+      "service_details": "http (Debut embedded httpd 1.30; Brother/HP printer http admin)",
+      "ip_address": "192.168.1.152"
+    },
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "netbios-ssn",
+      "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+      "ip_address": "192.168.1.154"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "microsoft-ds",
+      "service_details": "microsoft-ds",
+      "ip_address": "192.168.1.154"
+    },
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "netbios-ssn",
+      "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+      "ip_address": "192.168.1.197"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "microsoft-ds",
+      "service_details": "microsoft-ds",
+      "ip_address": "192.168.1.197"
+    },
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "netbios-ssn",
+      "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+      "ip_address": "192.168.1.220"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "microsoft-ds",
+      "service_details": "microsoft-ds",
+      "ip_address": "192.168.1.220"
+    },
+    {
+      "port": 139,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "netbios-ssn",
+      "service_details": "netbios-ssn (Microsoft Windows netbios-ssn)",
+      "ip_address": "192.168.1.84"
+    },
+    {
+      "port": 445,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "microsoft-ds",
+      "service_details": "microsoft-ds (Microsoft Windows 7 - 10 microsoft-ds; workgroup: WORKGROUP)",
+      "ip_address": "192.168.1.84"
+    }
+  ],
+  "services": [
+    {
+      "name": "domain",
+      "product": "Cloudflare public DNS",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.1",
+      "ip_address": "192.168.1.1",
+      "port": 53
+    },
+    {
+      "name": "http",
+      "product": "lighttpd",
+      "version": "1.4.59",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.1",
+      "ip_address": "192.168.1.1",
+      "port": 80
+    },
+    {
+      "name": "http",
+      "product": "lighttpd",
+      "version": "1.4.59",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.1",
+      "ip_address": "192.168.1.1",
+      "port": 443
+    },
+    {
+      "name": "netbios-ssn",
+      "product": "Microsoft Windows netbios-ssn",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.127",
+      "ip_address": "192.168.1.127",
+      "port": 139
+    },
+    {
+      "name": "http",
+      "product": "Debut embedded httpd",
+      "version": "1.30",
+      "extra_info": "Brother/HP printer http admin",
+      "tunnel": "",
+      "host": "192.168.1.152",
+      "ip_address": "192.168.1.152",
+      "port": 80
+    },
+    {
+      "name": "http",
+      "product": "Debut embedded httpd",
+      "version": "1.30",
+      "extra_info": "Brother/HP printer http admin",
+      "tunnel": "",
+      "host": "192.168.1.152",
+      "ip_address": "192.168.1.152",
+      "port": 443
+    },
+    {
+      "name": "netbios-ssn",
+      "product": "Microsoft Windows netbios-ssn",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.154",
+      "ip_address": "192.168.1.154",
+      "port": 139
+    },
+    {
+      "name": "netbios-ssn",
+      "product": "Microsoft Windows netbios-ssn",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.197",
+      "ip_address": "192.168.1.197",
+      "port": 139
+    },
+    {
+      "name": "netbios-ssn",
+      "product": "Microsoft Windows netbios-ssn",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.220",
+      "ip_address": "192.168.1.220",
+      "port": 139
+    },
+    {
+      "name": "netbios-ssn",
+      "product": "Microsoft Windows netbios-ssn",
+      "version": "",
+      "extra_info": "",
+      "tunnel": "",
+      "host": "192.168.1.84",
+      "ip_address": "192.168.1.84",
+      "port": 139
+    },
+    {
+      "name": "microsoft-ds",
+      "product": "Microsoft Windows 7 - 10 microsoft-ds",
+      "version": "",
+      "extra_info": "workgroup: WORKGROUP",
+      "tunnel": "",
+      "host": "192.168.1.84",
+      "ip_address": "192.168.1.84",
+      "port": 445
+    }
+  ],
+  "vulnerabilities": [],
+  "os_matches": [],
+  "scan_stats": {
+    "timestr": "Mon Nov 25 10:17:05 2024",
+    "elapsed": "73.71",
+    "uphosts": "14",
+    "downhosts": "242",
+    "totalhosts": "256"
+  },
+  "summary": {
+    "total_hosts": 14,
+    "active_hosts": 14,
+    "total_ports": 16,
+    "total_services": 11,
+    "total_vulnerabilities": 0
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "comparison_id": "comparison_20241125100456",
+  "timestamp": "2024-11-25T10:04:58.132760",
+  "structural_changes": {
+    "New_Nodes": 0,
+    "Removed_Nodes": 0,
+    "New_Edges": 0,
+    "Removed_Edges": 0,
+    "Degree_Distribution_Change": 0
+  },
+  "metric_changes": {
+    "Degree": {},
+    "Clustering": {},
+    "Betweenness": {},
+    "Closeness": {}
+  },
+  "before_metrics": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 1,
+    "Spectral_Radius": 0.0,
+    "Fiedler_Value": 0.0
+  },
+  "after_metrics": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 1,
+    "Spectral_Radius": 0.0,
+    "Fiedler_Value": 0.0
+  },
+  "centrality_before": {
+    "degree_centrality": {
+      "192.168.56.1": 1
+    },
+    "betweenness_centrality": {
+      "192.168.56.1": 0.0
+    },
+    "closeness_centrality": {
+      "192.168.56.1": 0.0
+    },
+    "eigenvector_centrality": {
+      "192.168.56.1": 1.0
+    }
+  },
+  "centrality_after": {
+    "degree_centrality": {
+      "192.168.56.1": 1
+    },
+    "betweenness_centrality": {
+      "192.168.56.1": 0.0
+    },
+    "closeness_centrality": {
+      "192.168.56.1": 0.0
+    },
+    "eigenvector_centrality": {
+      "192.168.56.1": 1.0
+    }
+  },
+  "robustness_analysis": {},
+  "kcore_analysis": {
+    "core_numbers": {
+      "192.168.56.1": 0
+    },
+    "core_metrics": {},
+    "critical_cores": {},
+    "max_core": 0
+  },
+  "kcore_changes": [],
+  "bridge_nodes": [],
+  "critical_paths": {},
+  "lateral_movement": {
+    "lateral_paths": {},
+    "high_risk_paths": [],
+    "segmentation_issues": {
+      "direct_violations": [],
+      "trust_violations": [],
+      "service_violations": [],
+      "path_violations": [],
+      "summary": {
+        "total_violations": 0,
+        "critical_violations": 0,
+        "affected_segments": []
+      }
+    },
+    "critical_junctions": {}
+  },
+  "segmentation_violations": {
+    "direct_violations": [],
+    "trust_violations": [],
+    "service_violations": [],
+    "path_violations": [],
+    "summary": {
+      "total_violations": 0,
+      "critical_violations": 0,
+      "affected_segments": []
+    }
+  },
+  "segmentation_report": null
+}

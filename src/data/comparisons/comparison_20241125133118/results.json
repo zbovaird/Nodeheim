@@ -1,0 +1,42 @@
+{
+  "comparison_id": "comparison_20241125133118",
+  "timestamp": "2024-11-25T13:31:18.186899",
+  "structural_changes": {
+    "New_Nodes": 0,
+    "Removed_Nodes": 0,
+    "New_Edges": 0,
+    "Removed_Edges": 0
+  },
+  "before_metrics": {
+    "Average_Clustering": 0.8564102564102565,
+    "Network_Density": 0.7333333333333333,
+    "Average_Degree": 10.266666666666667,
+    "Components": 1,
+    "Average_Path_Length": 1.2666666666666666,
+    "Network_Diameter": 2,
+    "Spectral_Radius": 15.000000000000014,
+    "Fiedler_Value": 6.999999999999991
+  },
+  "after_metrics": {
+    "Average_Clustering": 0.8564102564102565,
+    "Network_Density": 0.7333333333333333,
+    "Average_Degree": 10.266666666666667,
+    "Components": 1,
+    "Average_Path_Length": 1.2666666666666666,
+    "Network_Diameter": 2,
+    "Spectral_Radius": 15.000000000000014,
+    "Fiedler_Value": 6.999999999999991
+  },
+  "metric_changes": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0.0,
+    "Average_Degree": 0.0,
+    "Components": 0
+  },
+  "debug": {
+    "new_nodes": [],
+    "removed_nodes": [],
+    "new_edges": [],
+    "removed_edges": []
+  }
+}

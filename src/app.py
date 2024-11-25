@@ -66,7 +66,7 @@ logger.info(f"Base directory set to: {BASE_DIR}")
 # Local imports
 from scanner.scanner import NetworkScanner, ScanResult
 from scanner.network_discovery import NetworkDiscovery
-from analyzer.network_analysis import NetworkAnalyzer
+from analyzer.network_analysis import NetworkAnalyzer, calculate_network_metrics
 from api.analysis import analysis_bp
 from scanner.vulnerability_checker import BatchVulnerabilityChecker
 
@@ -128,16 +128,18 @@ def process_scan_results(results: ScanResult, scan_id: str):
             if first_host:
                 subnet_parts = first_host.split('.')
                 if len(subnet_parts) == 4:
-                    subnet = f"{'.'.join(subnet_parts[:3])}.0_24"
+                    subnet = f"{'.'.join(subnet_parts[:3])}.0/24"
 
-        # Format timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
+        # Format timestamp consistently
+        timestamp = datetime.now()
+        timestamp_str = timestamp.strftime('%Y%m%d_%H%M%S')
+        
         # Format results for saving
         formatted_results = {
             'scan_id': scan_id,
-            'timestamp': results.timestamp,
+            'timestamp': timestamp.isoformat(),  # ISO format for the actual timestamp
             'scan_type': results.scan_type,
+            'subnet': subnet,
             'hosts': results.hosts,
             'ports': results.ports,
             'services': results.services,
@@ -153,12 +155,15 @@ def process_scan_results(results: ScanResult, scan_id: str):
             }
         }
         
-        # Use consistent filename format
-        output_file = os.path.join(scans_dir, f'{subnet}_{timestamp}_{results.scan_type}.json')
-        with open(output_file, 'w') as f:
+        # Sanitize subnet for filename (replace / with _)
+        safe_subnet = subnet.replace('/', '_')
+        
+        # Save with consistent naming format: subnet_timestamp_scanid.json
+        scan_file = os.path.join(scans_dir, f'{safe_subnet}_{timestamp_str}_{scan_id}.json')
+        with open(scan_file, 'w') as f:
             json.dump(formatted_results, f, indent=2)
             
-        logger.info(f"Scan results saved to {output_file}")
+        logger.info(f"Scan results saved to {scan_file}")
         
         try:
             # Run network analysis
@@ -169,7 +174,7 @@ def process_scan_results(results: ScanResult, scan_id: str):
             with open(analysis_file, 'w') as f:
                 json.dump(analysis_results, f, indent=2)
             
-            # Use the imported updateTopologyVisualization function
+            # Update topology visualization
             updateTopologyVisualization(formatted_results, BASE_DIR)
             
             # Update scan status with analysis results
@@ -349,80 +354,81 @@ def visualize_critical_infrastructure(G: nx.Graph, bridge_nodes: List,
 
 def analyze_network_changes(G1: nx.Graph, G2: nx.Graph) -> Dict:
     """Analyze changes between two network snapshots"""
-    changes = {
-        'New_Nodes': len(set(G2.nodes()) - set(G1.nodes())),
-        'Removed_Nodes': len(set(G1.nodes()) - set(G2.nodes())),
-        'New_Edges': len(set(G2.edges()) - set(G1.edges())),
-        'Removed_Edges': len(set(G1.edges()) - set(G2.edges())),
-        'Degree_Distribution_Change': sum((Counter(dict(G2.degree()).values()) - 
-                                         Counter(dict(G1.degree()).values())).values())
-    }
-    
-    def calculate_spectral_metrics(G):
-        metrics = {
-            'Average_Clustering': nx.average_clustering(G),
-            'Network_Density': nx.density(G),
-            'Average_Degree': sum(dict(G.degree()).values()) / G.number_of_nodes(),
-            'Components': nx.number_connected_components(G)
-        }
+    try:
+        # Get sets of nodes and edges
+        nodes1 = set(G1.nodes())
+        nodes2 = set(G2.nodes())
+        edges1 = set(G1.edges())
+        edges2 = set(G2.edges())
         
-        # Add spectral metrics
-        try:
-            L = nx.laplacian_matrix(G).todense()
-            eigvals = np.linalg.eigvalsh(L)
-            metrics['Spectral_Radius'] = float(max(abs(eigvals)))
-            if len(eigvals) >= 2:
-                metrics['Fiedler_Value'] = float(eigvals[1])
-            else:
-                metrics['Fiedler_Value'] = 0.0
-        except Exception as e:
-            logger.error(f"Error calculating spectral metrics: {str(e)}")
-            metrics['Spectral_Radius'] = 0.0
-            metrics['Fiedler_Value'] = 0.0
-            
-        return metrics
-    
-    metrics1 = calculate_spectral_metrics(G1)
-    metrics2 = calculate_spectral_metrics(G2)
-    
-    return {
-        'structural_changes': changes,
-        'metric_changes': {k: metrics2[k] - metrics1[k] for k in metrics1},
-        'before_metrics': metrics1,
-        'after_metrics': metrics2
-    }
+        # Calculate changes
+        new_nodes = nodes2 - nodes1
+        removed_nodes = nodes1 - nodes2
+        new_edges = edges2 - edges1
+        removed_edges = edges1 - edges2
+        
+        # Return changes dictionary
+        return {
+            'new_nodes': new_nodes,
+            'removed_nodes': removed_nodes,
+            'new_edges': new_edges,
+            'removed_edges': removed_edges,
+            'degree_distribution_change': sum((Counter(dict(G2.degree()).values()) - 
+                                          Counter(dict(G1.degree()).values())).values())
+        }
+    except Exception as e:
+        logger.error(f"Error analyzing network changes: {str(e)}", exc_info=True)
+        return {
+            'new_nodes': set(),
+            'removed_nodes': set(),
+            'new_edges': set(),
+            'removed_edges': set(),
+            'degree_distribution_change': 0
+        }
 
-def create_network_from_scan(scan_data: Dict) -> nx.Graph:
-    """Convert scan data to NetworkX graph"""
+def create_network_from_scan(scan_data):
+    """Create a NetworkX graph from scan data"""
     G = nx.Graph()
     
-    # Add nodes first
-    for host in scan_data.get('hosts', []):
-        G.add_node(host['ip_address'], **{
-            'type': host.get('device_type', 'unknown'),
-            'services': host.get('services', []),
-            'os': host.get('os_info', {}).get('os_match', 'unknown')
-        })
+    # Add nodes
+    hosts = scan_data.get('hosts', [])
+    for host in hosts:
+        ip = host.get('ip_address')
+        if ip:
+            # Add node with host data
+            G.add_node(ip, **{
+                'status': host.get('status'),
+                'os': host.get('os_info', {}).get('os_match', 'unknown'),
+                'services': [s.get('name') for s in host.get('services', [])],
+                'ports': [p.get('port') for p in host.get('ports', []) if p.get('state') == 'open']
+            })
     
-    # Add edges based on various connection types
-    for host in scan_data.get('hosts', []):
-        source_ip = host['ip_address']
+    # Infer connections based on network topology
+    for host in hosts:
+        source_ip = host.get('ip_address')
+        if not source_ip:
+            continue
+            
+        # Get open ports for this host
+        source_ports = set(p.get('port') for p in host.get('ports', []) if p.get('state') == 'open')
         
-        # 1. Direct connections from scan data
-        if 'connections' in host:
-            for target_ip in host['connections']:
-                if target_ip in G.nodes():
-                    G.add_edge(source_ip, target_ip)
-        
-        # 2. Subnet-based connections
-        ip_parts = source_ip.split('.')
-        for other_host in scan_data.get('hosts', []):
-            other_ip = other_host['ip_address']
-            if other_ip != source_ip:
-                other_parts = other_ip.split('.')
-                # Same /24 subnet
-                if ip_parts[:3] == other_parts[:3]:
-                    G.add_edge(source_ip, other_ip)
+        for other_host in hosts:
+            target_ip = other_host.get('ip_address')
+            if not target_ip or target_ip == source_ip:
+                continue
+                
+            # Check for potential connections based on open ports
+            target_ports = set(p.get('port') for p in other_host.get('ports', []) if p.get('state') == 'open')
+            
+            # Common services that indicate connections
+            common_ports = source_ports.intersection(target_ports)
+            if common_ports:
+                G.add_edge(source_ip, target_ip, ports=list(common_ports))
+            
+            # Check for client-server relationships
+            for port in target_ports:
+                if port in [80, 443, 22, 21, 3389, 445, 139]:  # Common server ports
+                    G.add_edge(source_ip, target_ip, service=f'port_{port}')
     
     return G
 
@@ -1209,8 +1215,6 @@ def format_scan_result(result: ScanResult) -> Dict[str, Any]:
                 'protocol': p.get('protocol', 'tcp')
             } for p in host_ports]
 
-            hosts_with_ports.append(formatted_host)
-
         formatted_result = {
             'timestamp': result.timestamp,
             'scan_type': result.scan_type,
@@ -1395,150 +1399,60 @@ def get_snapshots():
                     with open(file_path, 'r') as f:
                         data = json.load(f)
                         
-                        # Extract scan ID - handle both naming formats
-                        if '_basic_scan.json' in file:
-                            # Old format: 192.168.1.0_24_20241122_141315_basic_scan.json
-                            scan_id = file.replace('.json', '')
-                        else:
-                            # UUID format or new format
-                            scan_id = file.replace('.json', '')
+                        # Extract scan ID from filename
+                        scan_id = file.rsplit('.', 1)[0].split('_')[-1]
                         
-                        # Get subnet from the data or filename
-                        subnet = None
-                        if '_24_' in file:
-                            # Extract from filename
-                            subnet = file.split('_24_')[0] + '/24'
-                        elif data.get('hosts'):
-                            # Extract from first host
-                            first_host = data['hosts'][0].get('ip_address', '')
-                            if first_host:
-                                subnet_parts = first_host.split('.')
-                                if len(subnet_parts) == 4:
-                                    subnet = f"{'.'.join(subnet_parts[:3])}.0/24"
+                        # Get timestamp from the data
+                        timestamp = data.get('timestamp')
+                        if not timestamp:
+                            # If no timestamp in data, parse from filename
+                            parts = file.split('_')
+                            if len(parts) >= 2:
+                                try:
+                                    # Parse timestamp from filename (format: YYYYMMDD_HHMMSS)
+                                    dt = datetime.strptime(parts[1], '%Y%m%d_%H%M%S')
+                                    timestamp = dt.isoformat()
+                                except ValueError:
+                                    logger.warning(f"Could not parse timestamp from filename: {file}")
+                                    timestamp = datetime.now().isoformat()
+                        
+                        # Ensure timestamp is in ISO format
+                        try:
+                            if isinstance(timestamp, str):
+                                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                timestamp = dt.isoformat()
+                        except ValueError:
+                            logger.warning(f"Invalid timestamp format in file {file}: {timestamp}")
+                            timestamp = datetime.now().isoformat()
+                        
+                        # Get subnet from data or filename
+                        subnet = data.get('subnet')
+                        if not subnet:
+                            # Try to get subnet from filename
+                            parts = file.split('_')
+                            if parts:
+                                subnet = parts[0].replace('_', '/')
                         
                         snapshot = {
                             'id': scan_id,
-                            'timestamp': data.get('timestamp'),
-                            'type': data.get('scan_type', 'unknown'),
-                            'subnet': subnet or 'unknown',
-                            'summary': data.get('summary', {})
+                            'timestamp': timestamp,
+                            'subnet': subnet,
+                            'total_hosts': data.get('summary', {}).get('total_hosts', 0),
+                            'active_hosts': data.get('summary', {}).get('active_hosts', 0)
                         }
-                        
-                        logger.info(f"Found snapshot: {snapshot}")
                         snapshots.append(snapshot)
+                        
                 except Exception as e:
-                    logger.warning(f"Error reading scan file {file}: {str(e)}")
+                    logger.error(f"Error processing file {file}: {str(e)}")
                     continue
-
-        # Sort snapshots by timestamp, most recent first
-        snapshots.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
-        logger.info(f"Returning {len(snapshots)} snapshots")
+        # Sort snapshots by timestamp (newest first)
+        snapshots.sort(key=lambda x: x['timestamp'], reverse=True)
+        
         return jsonify({'snapshots': snapshots})
-
+        
     except Exception as e:
-        logger.error(f"Error getting snapshots: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e), 'snapshots': []}), 500
-
-@app.route('/api/compare', methods=['POST'])
-def compare_networks():
-    try:
-        data = request.json
-        logger.info(f"Received comparison request with data: {data}")
-        
-        if not data or 'files' not in data:
-            return jsonify({'error': 'No files specified'}), 400
-
-        file_ids = data['files']
-        if len(file_ids) < 2:
-            return jsonify({'error': 'At least 2 files required'}), 400
-
-        networks = []
-        for file_id in file_ids:
-            scan_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{file_id}.json')
-            logger.info(f"Looking for scan file at: {scan_file}")
-            
-            if not os.path.exists(scan_file):
-                logger.error(f"Scan file not found: {scan_file}")
-                return jsonify({'error': f'Scan file not found: {file_id}'}), 404
-
-            with open(scan_file, 'r') as f:
-                scan_data = json.load(f)
-                network = create_network_from_scan(scan_data)
-                networks.append(network)
-                logger.info(f"Loaded network with {len(network.nodes)} nodes and {len(network.edges)} edges")
-
-        comparison_id = f"comparison_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        output_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
-        os.makedirs(output_dir, exist_ok=True)
-        logger.info(f"Created output directory: {output_dir}")
-
-        # Generate all analysis results
-        results = analyze_network_changes(networks[0], networks[-1])
-        centrality_before = calculate_node_centrality_metrics(networks[0])
-        centrality_after = calculate_node_centrality_metrics(networks[-1])
-        metric_changes = calculate_node_metrics_comparison(networks[0], networks[-1])
-        robustness_analysis = analyze_network_robustness(networks[-1])
-        kcore_analysis = analyze_kcore_security(networks[-1])
-        kcore_changes = track_kcore_changes(networks[0], networks[-1])
-
-        # Generate visualizations
-        viz_success = visualize_network_overview(networks[0], networks[-1], output_dir)
-        logger.info(f"Network overview visualization success: {viz_success}")
-
-        bridge_nodes = identify_bridge_nodes(networks[-1])
-        critical_paths = identify_critical_paths(networks[-1])
-        infra_success = visualize_critical_infrastructure(networks[-1], bridge_nodes, critical_paths, output_dir)
-        logger.info(f"Critical infrastructure visualization success: {infra_success}")
-
-        kcore_viz_path = os.path.join(output_dir, 'kcore_analysis.png')
-        visualize_kcore_security(networks[-1], kcore_analysis, kcore_viz_path)
-
-        # Add lateral movement analysis
-        lateral_movement = analyze_lateral_movement(networks[-1])
-        
-        # Generate lateral movement visualization
-        lateral_viz_path = os.path.join(output_dir, 'lateral_movement.png')
-        visualize_lateral_paths(networks[-1], lateral_movement, lateral_viz_path)
-
-        # Add enhanced segmentation analysis
-        segmentation_violations = analyze_segmentation_violations(networks[-1])
-        segmentation_report = generate_segmentation_report(segmentation_violations)
-        
-        # Generate segmentation violation visualization
-        segmentation_viz_path = os.path.join(output_dir, 'segmentation_violations.png')
-        visualize_segmentation_violations(networks[-1], segmentation_violations, segmentation_viz_path)
-
-        # Prepare complete analysis results
-        complete_results = {
-            'comparison_id': comparison_id,
-            'timestamp': datetime.now().isoformat(),
-            'structural_changes': results['structural_changes'],
-            'metric_changes': metric_changes,
-            'before_metrics': results['before_metrics'],
-            'after_metrics': results['after_metrics'],
-            'centrality_before': centrality_before,
-            'centrality_after': centrality_after,
-            'robustness_analysis': robustness_analysis,
-            'kcore_analysis': kcore_analysis,
-            'kcore_changes': kcore_changes.to_dict('records') if not kcore_changes.empty else [],
-            'bridge_nodes': bridge_nodes,
-            'critical_paths': critical_paths,
-            'lateral_movement': lateral_movement,
-            'segmentation_violations': segmentation_violations,
-            'segmentation_report': segmentation_report
-        }
-
-        # Save complete results
-        results_file = os.path.join(output_dir, 'results.json')
-        with open(results_file, 'w') as f:
-            json.dump(complete_results, f, indent=2, default=str)
-        logger.info(f"Saved complete analysis results to {results_file}")
-
-        return jsonify(complete_results)
-
-    except Exception as e:
-        logger.error(f"Comparison failed: {str(e)}", exc_info=True)
+        logger.error(f"Error in get_snapshots: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/comparison/<comparison_id>/<image_name>')
@@ -1558,266 +1472,65 @@ def get_comparison_image(comparison_id, image_name):
         logger.error(f"Error serving comparison image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/networks')
-def get_networks():
-    """Get available networks for scanning"""
-    try:
-        logger.info("Starting network discovery...")
-        
-        # Test if netifaces is working
-        try:
-            interfaces = netifaces.interfaces()
-            logger.info(f"Available interfaces: {interfaces}")
-        except Exception as e:
-            logger.error(f"Error getting interfaces: {e}", exc_info=True)
-            raise Exception(f"Failed to get network interfaces: {str(e)}")
 
-        # Get networks
-        try:
-            networks = NetworkDiscovery.get_local_networks()
-            logger.info(f"Found networks: {networks}")
-            
-            # Clean up network display names - add this code
-            for network in networks:
-                if 'name' in network:
-                    # Remove GUID if present
-                    if '(' in network['name']:
-                        network['name'] = network['name'].split('(')[0].strip()
-                    # Clean up any other unwanted characters
-                    network['name'] = network['name'].replace('\\', '/').strip()
-                    
-            logger.info(f"Cleaned networks: {networks}")
+@app.route('/api/topology/image/<scan_id>')
+def get_topology_image(scan_id):
+    """Get the topology visualization image for a scan"""
+    try:
+        topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
+        image_file = os.path.join(topology_dir, f'topology_{scan_id}.png')
+        
+        if not os.path.exists(image_file):
+            # Try to generate the image
+            topology_file = os.path.join(topology_dir, f'topology_{scan_id}.json')
+            if not os.path.exists(topology_file):
+                return jsonify({'error': 'Topology data not found'}), 404
                 
-        except Exception as e:
-            logger.error(f"Error in get_local_networks: {e}", exc_info=True)
-            raise Exception(f"Failed to discover networks: {str(e)}")
-
-        response_data = {
-            'status': 'success',
-            'networks': networks,
-            'message': f'Found {len(networks)-1} networks',  # Subtract 1 for manual option
-            'debug_info': {
-                'interfaces': interfaces,
-                'platform': platform.system(),
-                'python_version': platform.python_version()
-            }
-        }
-        
-        logger.info(f"Sending response: {response_data}")
-        return jsonify(response_data)
+            with open(topology_file, 'r') as f:
+                topology_data = json.load(f)
+                
+            # Generate and save the visualization
+            updateTopologyVisualization(topology_data, BASE_DIR)
+            
+        if not os.path.exists(image_file):
+            return jsonify({'error': 'Failed to generate topology image'}), 500
+            
+        return send_file(image_file, mimetype='image/png')
         
     except Exception as e:
-        logger.error(f"Error getting networks: {str(e)}", exc_info=True)
-        return jsonify({
-            'status': 'success',  # Changed to success since we have networks
-            'networks': networks if 'networks' in locals() else [],
-            'message': str(e),
-            'debug_info': {
-                'platform': platform.system(),
-                'python_version': platform.python_version()
-            }
-        }), 200
-
-@app.route('/api/comparison/<comparison_id>/report', methods=['GET'])
-def download_analysis_report(comparison_id):
-    try:
-        report_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
-        
-        # Load analysis results
-        with open(os.path.join(report_dir, 'results.json'), 'r') as f:
-            results = json.load(f)
-
-        # Generate markdown report
-        markdown_report = [
-            f"# Network Analysis Report - {comparison_id}",
-            f"\nGenerated on: {results.get('timestamp', 'N/A')}\n",
-            
-            "## Network Topology Changes\n",
-            "### Before and After Comparison\n",
-            
-            "## Structural Changes",
-            "| Metric | Value |",
-            "|--------|--------|",
-        ]
-        
-        # Add structural changes
-        structural = results.get('structural_changes', {})
-        for key, value in structural.items():
-            markdown_report.append(f"| {key.replace('_', ' ')} | {value} |")
-            
-        # Add network metrics comparison
-        markdown_report.extend([
-            "\n## Network Metrics Comparison",
-            "| Metric | Before | After | Change |",
-            "|--------|---------|--------|---------|",
-        ])
-        
-        before_metrics = results.get('before_metrics', {})
-        after_metrics = results.get('after_metrics', {})
-        for key in before_metrics:
-            before_val = before_metrics[key]
-            after_val = after_metrics[key]
-            change = after_val - before_val
-            change_str = f"+{change:.3f}" if change > 0 else f"{change:.3f}"
-            markdown_report.append(
-                f"| {key.replace('_', ' ')} | {before_val:.3f} | {after_val:.3f} | {change_str} |"
-            )
-            
-        # Add robustness analysis
-        robustness = results.get('robustness_analysis', {})
-        markdown_report.extend([
-            "\n## Network Robustness Analysis",
-            "\n### Community Structure",
-            f"- Modularity Score: {robustness.get('modularity', 0):.3f}",
-            f"- Number of Bridge Nodes: {len(robustness.get('bridge_nodes', []))}",
-            f"- Isolation Score: {robustness.get('segment_analysis', {}).get('isolation_score', 0):.3f}",
-            
-            "\n### Critical Paths",
-        ])
-        
-        # Add vulnerability paths
-        for i, path in enumerate(robustness.get('vulnerability_paths', []), 1):
-            markdown_report.extend([
-                f"\n**Critical Path {i}**",
-                f"- Path: {' → '.join(path['path'])}",
-                f"- Length: {path['length']}",
-                f"- Risk Score: {path['risk_score']}"
-            ])
-            
-        # Add k-core analysis
-        kcore = results.get('kcore_analysis', {})
-        markdown_report.extend([
-            "\n## K-Core Analysis",
-            f"\n- Maximum Core Number: {kcore.get('max_core', 0)}",
-            f"- Number of Critical Cores: {len(kcore.get('critical_cores', {}))}",
-            
-            "\n### Core Metrics",
-            "| Core Level | Size | Density | Average Degree |",
-            "|------------|------|---------|----------------|",
-        ])
-        
-        for k, metrics in kcore.get('core_metrics', {}).items():
-            markdown_report.append(
-                f"| {k} | {metrics['size']} | {metrics['density']:.3f} | {metrics['avg_degree']:.3f} |"
-            )
-            
-        # Add recommendations section
-        markdown_report.extend([
-            "\n## Security Recommendations",
-            "\n### High Priority Actions",
-            "1. Monitor identified bridge nodes for suspicious activity",
-            "2. Review security of high-risk paths",
-            "3. Implement network segmentation for critical cores",
-            
-            "\n### Medium Priority Actions",
-            "1. Document network community structure",
-            "2. Regular monitoring of cross-segment connections",
-            "3. Update access controls for high centrality nodes",
-            
-            "\n### Monitoring Guidelines",
-            "- Regular review of network topology changes",
-            "- Track changes in core structure",
-            "- Monitor community isolation metrics"
-        ])
-        
-        # Join all lines with newlines
-        report_content = '\n'.join(markdown_report)
-        
-        # Create response with markdown file
-        response = make_response(report_content)
-        response.headers['Content-Type'] = 'text/markdown'
-        response.headers['Content-Disposition'] = f'attachment; filename=analysis_report_{comparison_id}.md'
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"Error generating report: {str(e)}")
+        logger.error(f"Error getting topology image: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/comparison/<comparison_id>/node/<node_id>')
-def get_node_data(comparison_id, node_id):
-    """Get detailed node information"""
+@app.route('/api/topology/latest')
+def get_latest_topology():
+    """Get latest network topology data"""
     try:
-        node_data_path = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', 
-                                     comparison_id, 'node_data.json')
+        topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
+        if not os.path.exists(topology_dir):
+            return jsonify({'error': 'No topology data found'}), 404
+            
+        # Get all topology files
+        topology_files = [f for f in os.listdir(topology_dir) 
+                         if f.endswith('_topology.json')]
         
-        if not os.path.exists(node_data_path):
-            return jsonify({'error': 'Node data not found'}), 404
+        if not topology_files:
+            return jsonify({'error': 'No topology data found'}), 404
             
-        with open(node_data_path, 'r') as f:
-            node_data = json.load(f)
-            
-        if node_id not in node_data:
-            return jsonify({'error': 'Node not found'}), 404
-            
-        return jsonify(node_data[node_id])
+        # Get the most recent topology file
+        latest_file = max(topology_files, 
+                         key=lambda x: os.path.getctime(os.path.join(topology_dir, x)))
+        topology_path = os.path.join(topology_dir, latest_file)
         
-    except Exception as e:
-        logger.error(f"Error getting node data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/topology/<scan_id>')
-def get_topology(scan_id):
-    """Get network topology data for visualization"""
-    try:
-        # Load scan result
-        scan_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
-        if not os.path.exists(scan_file):
-            logger.error(f"Scan file not found: {scan_file}")
-            return jsonify({'error': 'Scan result not found'}), 404
-
-        with open(scan_file, 'r') as f:
-            scan_data = json.load(f)
-
-        # Create topology data structure
-        topology_data = {
-            'nodes': [],
-            'links': []
-        }
-
-        # Process hosts into nodes
-        for host in scan_data.get('hosts', []):
-            node = {
-                'id': host.get('ip_address'),
-                'type': host.get('device_type', 'unknown'),
-                'services': host.get('services', []),
-                'os': host.get('os_info', {}).get('os_match', 'unknown'),
-                'ports': [p for p in host.get('ports', []) if p.get('state') == 'open']
-            }
-            
-            topology_data['nodes'].append(node)
-
-        # Create links based on network relationships
-        processed_links = set()
+        logger.info(f"Serving topology data from: {topology_path}")
         
-        for host in scan_data.get('hosts', []):
-            source = host.get('ip_address')
-            if not source:
-                continue
+        # Read and return the JSON data
+        with open(topology_path, 'r') as f:
+            topology_data = json.load(f)
             
-            # Add subnet-based connections
-            source_parts = source.split('.')
-            for other_host in scan_data.get('hosts', []):
-                target = other_host.get('ip_address')
-                if not target:
-                    continue
-                    
-                if source != target:
-                    target_parts = target.split('.')
-                    if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
-                        link_id = tuple(sorted([source, target]))
-                        if link_id not in processed_links:
-                            topology_data['links'].append({
-                                'source': source,
-                                'target': target,
-                                'type': 'subnet'
-                            })
-                            processed_links.add(link_id)
-
         return jsonify(topology_data)
-
+        
     except Exception as e:
-        logger.error(f"Error generating topology: {str(e)}", exc_info=True)
+        logger.error(f"Error serving topology data: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analysis/ports/<scan_id>')
@@ -2148,24 +1861,24 @@ def get_network_analysis(scan_id):
         logger.info(f"Starting network analysis for scan {scan_id}")
         
         # Check for existing analysis
-        analysis_file = os.path.join(BASE_DIR, 'src', 'data', 'analysis', f'{scan_id}_analysis.json')
+        analysis_dir = os.path.join(BASE_DIR, 'src', 'data', 'analysis')
+        analysis_file = os.path.join(analysis_dir, f"{scan_id}_analysis.json")
+        
         if os.path.exists(analysis_file):
-            logger.info(f"Found existing analysis for scan {scan_id}")
+            logger.info(f"Loading existing analysis from {analysis_file}")
             with open(analysis_file, 'r') as f:
                 return jsonify(json.load(f))
-        
-        logger.info("No existing analysis found, running new analysis...")
-        
+                
         # Load scan data
-        scan_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        scan_file = os.path.join(scans_dir, f"{scan_id}.json")
+        
         if not os.path.exists(scan_file):
             logger.error(f"Scan file not found: {scan_file}")
-            return jsonify({'error': 'Scan not found'}), 404
+            return jsonify({'error': 'Scan data not found'}), 404
             
         with open(scan_file, 'r') as f:
             scan_data = json.load(f)
-            
-        logger.info("Loaded scan data, creating ScanResult object...")
         
         # Create ScanResult object
         scan_result = ScanResult(
@@ -2179,67 +1892,19 @@ def get_network_analysis(scan_id):
             scan_stats=scan_data.get('scan_stats', {})
         )
         
-        logger.info("Running network analysis...")
-        network_analysis = analyzer.analyze_network(scan_result)
-        
-        logger.info("Running topology analysis...")
-        topology_analysis = topology_analyzer.analyze_topology(scan_data)
-        
-        # Combine results
-        analysis_results = {
-            'timestamp': datetime.now().isoformat(),
-            'scan_id': scan_id,
-            'topology_analysis': topology_analysis,
-            'network_analysis': network_analysis,
-            'summary': {
-                'total_nodes': topology_analysis.get('node_count', 0),
-                'total_edges': topology_analysis.get('edge_count', 0),
-                'network_density': topology_analysis.get('density', 0),
-                'average_degree': topology_analysis.get('average_degree', 0),
-                'critical_nodes': len(topology_analysis.get('critical_nodes', [])),
-                'communities': topology_analysis.get('communities', {}).get('count', 0)
-            }
-        }
+        # Run analysis
+        analyzer = NetworkAnalyzer()
+        analysis_results = analyzer.analyze_network(scan_result)
         
         # Save analysis results
-        os.makedirs(os.path.dirname(analysis_file), exist_ok=True)
+        os.makedirs(analysis_dir, exist_ok=True)
         with open(analysis_file, 'w') as f:
-            json.dump(analysis_results, f, indent=2, default=str)
-        
-        logger.info(f"Analysis completed and saved to {analysis_file}")
+            json.dump(analysis_results, f, indent=2)
+            
         return jsonify(analysis_results)
         
     except Exception as e:
-        logger.error(f"Error in network analysis: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': 'Analysis failed',
-            'message': str(e)
-        }), 500
-
-@app.route('/api/topology/image/<scan_id>')
-def get_topology_image(scan_id):
-    """Get the latest topology data for a scan"""
-    try:
-        topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
-        # Update file pattern to match actual filenames
-        topology_files = [f for f in os.listdir(topology_dir) 
-                         if f.endswith('_topology.json')]
-        
-        if not topology_files:
-            return jsonify({'error': 'No topology data found'}), 404
-            
-        # Get the most recent topology file
-        latest_file = max(topology_files, key=lambda x: os.path.getctime(os.path.join(topology_dir, x)))
-        topology_path = os.path.join(topology_dir, latest_file)
-        
-        # Read and return the JSON data
-        with open(topology_path, 'r') as f:
-            topology_data = json.load(f)
-            
-        return jsonify(topology_data)
-        
-    except Exception as e:
-        logger.error(f"Error serving topology data: {str(e)}")
+        logger.error(f"Error analyzing network: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analysis/history')
@@ -2264,6 +1929,326 @@ def get_analysis_history():
         
     except Exception as e:
         logger.error(f"Error getting analysis history: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/topology')
+def get_topology():
+    """Get latest network topology data"""
+    try:
+        topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
+        if not os.path.exists(topology_dir):
+            logger.error("Topology directory not found")
+            return jsonify({'error': 'No topology data found'}), 404
+            
+        # Get all topology files
+        topology_files = [f for f in os.listdir(topology_dir) 
+                         if f.endswith('_topology.json')]
+        
+        if not topology_files:
+            logger.error("No topology files found")
+            return jsonify({'error': 'No topology data found'}), 404
+            
+        # Get the most recent topology file
+        latest_file = max(topology_files, 
+                         key=lambda x: os.path.getctime(os.path.join(topology_dir, x)))
+        topology_path = os.path.join(topology_dir, latest_file)
+        
+        logger.info(f"Serving topology data from: {topology_path}")
+        
+        # Read and return the JSON data
+        with open(topology_path, 'r') as f:
+            topology_data = json.load(f)
+            
+        return jsonify(topology_data)
+        
+    except Exception as e:
+        logger.error(f"Error serving topology data: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/networks')
+def get_networks():
+    """Get available networks for scanning"""
+    try:
+        logger.info("Starting network discovery...")
+        
+        # Test if netifaces is working
+        try:
+            interfaces = netifaces.interfaces()
+            logger.info(f"Available interfaces: {interfaces}")
+        except Exception as e:
+            logger.error(f"Error getting interfaces: {e}", exc_info=True)
+            
+        # Get networks from discovery
+        discovery = NetworkDiscovery()
+        networks = discovery.get_local_networks()
+        
+        return jsonify({
+            'status': 'success',
+            'networks': networks,
+            'message': 'Successfully retrieved networks'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting networks: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'networks': [],
+            'message': str(e)
+        })
+
+@app.route('/api/comparison/<comparison_id>/report', methods=['GET'])
+def download_analysis_report(comparison_id):
+    """Download analysis report for a comparison"""
+    try:
+        report_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
+        
+        # Load analysis results
+        results_file = os.path.join(report_dir, 'results.json')
+        if not os.path.exists(results_file):
+            return jsonify({'error': 'Analysis results not found'}), 404
+            
+        with open(results_file, 'r') as f:
+            results = json.load(f)
+            
+        # Generate report
+        analyzer = NetworkAnalyzer()
+        report = analyzer.generate_executive_report(results)
+        
+        # Save report
+        report_file = os.path.join(report_dir, 'report.md')
+        with open(report_file, 'w') as f:
+            f.write(report)
+            
+        return send_file(
+            report_file,
+            mimetype='text/markdown',
+            as_attachment=True,
+            download_name=f'network_analysis_report_{comparison_id}.md'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/scan/<file_id>')
+def get_scan_file(file_id):
+    """Get scan file by ID"""
+    try:
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        scan_file = os.path.join(scans_dir, f"{file_id}.json")
+        
+        # If file doesn't exist directly, try to find it by matching pattern
+        if not os.path.exists(scan_file):
+            matching_files = [f for f in os.listdir(scans_dir) 
+                            if f.startswith(file_id) and f.endswith('.json')]
+            if matching_files:
+                scan_file = os.path.join(scans_dir, matching_files[0])
+            else:
+                logger.error(f"Scan file not found: {scan_file}")
+                return jsonify({'error': f'Scan file not found: {file_id}'}), 404
+
+        logger.info(f"Loading scan file: {scan_file}")
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+            
+        return jsonify(scan_data)
+        
+    except Exception as e:
+        logger.error(f"Error loading scan file: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/topology/scan/<scan_id>')
+def get_scan_topology(scan_id):
+    """Get topology data for a specific scan"""
+    try:
+        # First check if topology file exists
+        topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
+        topology_file = os.path.join(topology_dir, f"{scan_id}_topology.json")
+        
+        if os.path.exists(topology_file):
+            with open(topology_file, 'r') as f:
+                return jsonify(json.load(f))
+                
+        # If not found, try to generate from scan data
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        scan_file = os.path.join(scans_dir, f"{scan_id}.json")
+        
+        if not os.path.exists(scan_file):
+            # Try looking for files with the scan ID in the name
+            matching_files = [f for f in os.listdir(scans_dir) 
+                            if scan_id in f and f.endswith('.json')]
+            
+            if matching_files:
+                scan_file = os.path.join(scans_dir, matching_files[0])
+            else:
+                logger.error(f"Scan file not found: {scan_file}")
+                return jsonify({'error': 'Scan data not found'}), 404
+                
+        with open(scan_file, 'r') as f:
+            scan_data = json.load(f)
+            
+        # Generate topology data
+        topology_data = generate_topology_data(scan_data)
+        
+        # Save for future use
+        os.makedirs(topology_dir, exist_ok=True)
+        with open(topology_file, 'w') as f:
+            json.dump(topology_data, f, indent=2)
+            
+        return jsonify(topology_data)
+        
+    except Exception as e:
+        logger.error(f"Error serving topology data: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+def generate_topology_data(scan_data):
+    """Generate network topology data from scan results"""
+    nodes = []
+    links = []
+    processed_links = set()
+    
+    # Create nodes for hosts
+    for host in scan_data.get('hosts', []):
+        if not host.get('ip_address'):
+            continue
+            
+        # Create node with detailed information
+        node = {
+            'id': host['ip_address'],
+            'label': host['ip_address'],
+            'type': host.get('device_type', 'unknown'),
+            'status': host.get('status', 'unknown'),
+            'os': host.get('os_info', {}).get('os_match', 'unknown'),
+            'ports': [str(p.get('port')) for p in host.get('ports', []) if p.get('state') == 'open'],
+            'services': [s.get('name', 'unknown') for s in host.get('services', [])],
+            'group': host.get('device_type', 'unknown')
+        }
+        nodes.append(node)
+        
+    # Create links based on network relationships
+    for host in scan_data.get('hosts', []):
+        source = host.get('ip_address')
+        if not source:
+            continue
+            
+        # Add subnet-based connections
+        source_parts = source.split('.')
+        for other_host in scan_data.get('hosts', []):
+            target = other_host.get('ip_address')
+            if not target or source == target:
+                continue
+                
+            target_parts = target.split('.')
+            if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
+                link_id = tuple(sorted([source, target]))
+                if link_id not in processed_links:
+                    links.append({
+                        'source': source,
+                        'target': target,
+                        'type': 'network',
+                        'value': 1
+                    })
+                    processed_links.add(link_id)
+                    
+    return {
+        'nodes': nodes,
+        'links': links,
+        'metadata': {
+            'timestamp': scan_data.get('timestamp'),
+            'total_nodes': len(nodes),
+            'total_links': len(links),
+            'subnet': scan_data.get('subnet', 'unknown')
+        }
+    }
+
+@app.route('/api/comparison/create', methods=['POST'])
+def create_comparison():
+    """Create a comparison between two network snapshots"""
+    try:
+        data = request.get_json()
+        before_scan_id = data.get('before_scan')
+        after_scan_id = data.get('after_scan')
+        
+        if not before_scan_id or not after_scan_id:
+            return jsonify({'error': 'Both before and after scan IDs are required'}), 400
+            
+        # Load scan data
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        before_files = [f for f in os.listdir(scans_dir) if before_scan_id in f and not f.endswith('_analysis.json')]
+        after_files = [f for f in os.listdir(scans_dir) if after_scan_id in f and not f.endswith('_analysis.json')]
+        
+        if not before_files or not after_files:
+            return jsonify({'error': 'Scan files not found'}), 404
+            
+        # Load scan data
+        with open(os.path.join(scans_dir, before_files[0])) as f:
+            before_data = json.load(f)
+        with open(os.path.join(scans_dir, after_files[0])) as f:
+            after_data = json.load(f)
+            
+        # Create NetworkX graphs
+        before_graph = create_network_from_scan(before_data)
+        after_graph = create_network_from_scan(after_data)
+        
+        logger.info(f"Before graph: {len(before_graph.nodes())} nodes, {len(before_graph.edges())} edges")
+        logger.info(f"After graph: {len(after_graph.nodes())} nodes, {len(after_graph.edges())} edges")
+            
+        # Calculate structural changes
+        before_nodes = set(before_graph.nodes())
+        after_nodes = set(after_graph.nodes())
+        new_nodes = after_nodes - before_nodes
+        removed_nodes = before_nodes - after_nodes
+        
+        # Calculate edge changes
+        before_edges = set(map(tuple, map(sorted, before_graph.edges())))
+        after_edges = set(map(tuple, map(sorted, after_graph.edges())))
+        new_edges = after_edges - before_edges
+        removed_edges = before_edges - after_edges
+        
+        # Calculate network metrics
+        before_metrics = calculate_network_metrics(before_graph)
+        after_metrics = calculate_network_metrics(after_graph)
+        
+        # Create comparison result
+        comparison_id = f"comparison_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        result = {
+            'comparison_id': comparison_id,
+            'timestamp': datetime.now().isoformat(),
+            'structural_changes': {
+                'New_Nodes': len(new_nodes),
+                'Removed_Nodes': len(removed_nodes),
+                'New_Edges': len(new_edges),
+                'Removed_Edges': len(removed_edges)
+            },
+            'before_metrics': before_metrics,
+            'after_metrics': after_metrics,
+            'metric_changes': {
+                'Average_Clustering': after_metrics['Average_Clustering'] - before_metrics['Average_Clustering'],
+                'Network_Density': after_metrics['Network_Density'] - before_metrics['Network_Density'],
+                'Average_Degree': after_metrics['Average_Degree'] - before_metrics['Average_Degree'],
+                'Components': after_metrics['Components'] - before_metrics['Components']
+            }
+        }
+        
+        # Add debug information
+        result['debug'] = {
+            'new_nodes': list(new_nodes),
+            'removed_nodes': list(removed_nodes),
+            'new_edges': [{'source': s, 'target': t} for s, t in new_edges],
+            'removed_edges': [{'source': s, 'target': t} for s, t in removed_edges]
+        }
+        
+        # Save comparison result
+        comparisons_dir = os.path.join(BASE_DIR, 'src', 'data', 'comparisons', comparison_id)
+        os.makedirs(comparisons_dir, exist_ok=True)
+        
+        with open(os.path.join(comparisons_dir, 'results.json'), 'w') as f:
+            json.dump(result, f, indent=2)
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error creating comparison: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

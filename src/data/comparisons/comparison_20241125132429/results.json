@@ -1,0 +1,28 @@
+{
+  "comparison_id": "comparison_20241125132429",
+  "timestamp": "2024-11-25T13:24:29.502876",
+  "structural_changes": {
+    "New_Nodes": 0,
+    "Removed_Nodes": 0,
+    "New_Edges": 0,
+    "Removed_Edges": 0
+  },
+  "before_metrics": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 15
+  },
+  "after_metrics": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 15
+  },
+  "metric_changes": {
+    "Average_Clustering": 0.0,
+    "Network_Density": 0,
+    "Average_Degree": 0.0,
+    "Components": 0
+  }
+}

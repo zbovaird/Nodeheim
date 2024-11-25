@@ -1,0 +1,29 @@
+# Cursor Rules for Nodeheim Project
+
+You are an expert in Javascript and Python, specializing in data analysis and visuazlation in dashboards. 
+
+# Rule 1: No Code Placeholders
+[no_placeholders]
+description = "Do not use code placeholders like '// ... existing code ...'"
+severity = "error"
+patterns = [
+    "// ... existing code ...",
+    "# ... existing code ...",
+    "// ...",
+    "# ...",
+    "// existing code",
+    "# existing code",
+    "// placeholder",
+    "# placeholder"
+]
+
+# Rule 2: No Duplicate Code
+[no_duplicates]
+description = "Avoid duplicate code blocks and route definitions"
+severity = "error"
+patterns = [
+    "@app.route\\(['\"]([^'\"]+)['\"]\\)",  # Check for duplicate route definitions
+    "def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("  # Check for duplicate function definitions
+]
+check_duplicates = true
+min_duplicate_lines = 3  # Consider blocks of 3 or more lines as potential duplicates 

@@ -674,53 +674,107 @@ class NetworkScanner:
 
     def _save_results(self, results: ScanResult, target: str, scan_type: str):
         """Save scan results in multiple formats"""
-        base_name = f"{target.replace('/', '_')}_{results.timestamp}_{scan_type}"
-        
-        # Save complete results as JSON
-        json_path = os.path.join(self.output_dir, 'scans', f"{base_name}.json")
-        with open(json_path, 'w') as f:
-            json.dump(asdict(results), f, indent=2)
+        try:
+            # Create output directories if they don't exist
+            os.makedirs(os.path.join(self.output_dir, 'scans'), exist_ok=True)
+            os.makedirs(os.path.join(self.output_dir, 'topology'), exist_ok=True)
+            os.makedirs(os.path.join(self.output_dir, 'reports'), exist_ok=True)
+            
+            # Format timestamp consistently
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            # Clean target for filename
+            target_clean = target.replace('/', '_').replace('\\', '_')
+            base_name = f"{target_clean}_{timestamp}_{scan_type}"
+            
+            # Save complete results as JSON
+            json_path = os.path.join(self.output_dir, 'scans', f"{base_name}.json")
+            with open(json_path, 'w') as f:
+                json.dump(asdict(results), f, indent=2)
+            
+            self.logger.info(f"Saved scan results to {json_path}")
 
-        # Save network topology data
-        self._save_topology_data(results, base_name)
+            # Save network topology data
+            topology_path = os.path.join(self.output_dir, 'topology', f"{base_name}_topology.json")
+            topology_data = self._generate_topology_data(results)
+            with open(topology_path, 'w') as f:
+                json.dump(topology_data, f, indent=2)
+            
+            self.logger.info(f"Saved topology data to {topology_path}")
 
-        # Save CSV reports
-        self._save_csv_reports(results, base_name)
+            # Save CSV reports
+            self._save_csv_reports(results, base_name)
+            
+            return json_path
+            
+        except Exception as e:
+            self.logger.error(f"Error saving results: {str(e)}", exc_info=True)
+            raise
 
-    def _save_topology_data(self, results: ScanResult, base_name: str):
-        """Save network topology data for visualization"""
-        nodes = []
-        edges = []
+    def _generate_topology_data(self, results: ScanResult) -> dict:
+        """Generate network topology data for visualization"""
+        try:
+            nodes = []
+            links = []
+            processed_links = set()
 
-        # Create nodes for hosts
-        for host in results.hosts:
-            nodes.append({
-                'id': host['ip_address'],
-                'type': 'host',
-                'status': host['status']
-            })
+            # Create nodes for hosts
+            for host in results.hosts:
+                if not host.get('ip_address'):
+                    continue
+                
+                # Create node with detailed information
+                node = {
+                    'id': host['ip_address'],
+                    'label': host['ip_address'],
+                    'type': host.get('device_type', 'unknown'),
+                    'status': host.get('status', 'unknown'),
+                    'os': host.get('os_info', {}).get('os_match', 'unknown'),
+                    'ports': [str(p.get('port')) for p in host.get('ports', []) if p.get('state') == 'open'],
+                    'services': [s.get('name', 'unknown') for s in host.get('services', [])],
+                    'group': host.get('device_type', 'unknown')
+                }
+                nodes.append(node)
 
-        # Create nodes and edges for services
-        for service in results.services:
-            service_id = f"{service['ip_address']}:{service['port']}"
-            nodes.append({
-                'id': service_id,
-                'type': 'service',
-                'name': service['name']
-            })
-            edges.append({
-                'source': service['ip_address'],
-                'target': service_id,
-                'type': 'has_service'
-            })
+            # Create links based on network relationships
+            for host in results.hosts:
+                source = host.get('ip_address')
+                if not source:
+                    continue
 
-        # Save topology data
-        topology_path = os.path.join(self.output_dir, 'topology', f"{base_name}_topology.json")
-        with open(topology_path, 'w') as f:
-            json.dump({
+                # Add subnet-based connections
+                source_parts = source.split('.')
+                for other_host in results.hosts:
+                    target = other_host.get('ip_address')
+                    if not target or source == target:
+                        continue
+
+                    target_parts = target.split('.')
+                    if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
+                        link_id = tuple(sorted([source, target]))
+                        if link_id not in processed_links:
+                            links.append({
+                                'source': source,
+                                'target': target,
+                                'type': 'network',
+                                'value': 1
+                            })
+                            processed_links.add(link_id)
+
+            return {
                 'nodes': nodes,
-                'edges': edges
-            }, f, indent=2)
+                'links': links,
+                'metadata': {
+                    'timestamp': results.timestamp,
+                    'total_nodes': len(nodes),
+                    'total_links': len(links),
+                    'subnet': results.subnet if hasattr(results, 'subnet') else 'unknown'
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error generating topology data: {str(e)}", exc_info=True)
+            raise
 
     def _save_csv_reports(self, results: ScanResult, base_name: str):
         """Save detailed CSV reports"""
