@@ -1333,85 +1333,62 @@ def comparison():
 
 @app.route('/api/snapshots')
 def get_snapshots():
-    """Get list of available network snapshots"""
+    """Get list of available network snapshots (scans)"""
     try:
         scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
-        logger.info(f"Looking for snapshots in: {scans_dir}")
-        
         if not os.path.exists(scans_dir):
-            logger.warning(f"Scans directory not found: {scans_dir}")
             return jsonify({'snapshots': []})
 
+        # Get all scan files
+        scan_files = [f for f in os.listdir(scans_dir) 
+                     if f.endswith('.json') and not f.endswith('_analysis.json')]
+        
         snapshots = []
-        files = os.listdir(scans_dir)
-        logger.info(f"Found {len(files)} files in scans directory")
-        
-        for file in files:
-            # Skip analysis files
-            if file.endswith('_analysis.json'):
-                continue
+        for filename in scan_files:
+            file_path = os.path.join(scans_dir, filename)
+            try:
+                # Get file creation time
+                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
                 
-            if file.endswith('.json'):
-                file_path = os.path.join(scans_dir, file)
-                try:
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                        
-                        # Extract scan ID from filename
-                        scan_id = file.rsplit('.', 1)[0].split('_')[-1]
-                        
-                        # Get timestamp from the data
-                        timestamp = data.get('timestamp')
-                        if not timestamp:
-                            # If no timestamp in data, parse from filename
-                            parts = file.split('_')
-                            if len(parts) >= 2:
-                                try:
-                                    # Parse timestamp from filename (format: YYYYMMDD_HHMMSS)
-                                    dt = datetime.strptime(parts[1], '%Y%m%d_%H%M%S')
-                                    timestamp = dt.isoformat()
-                                except ValueError:
-                                    logger.warning(f"Could not parse timestamp from filename: {file}")
-                                    timestamp = datetime.now().isoformat()
-                        
-                        # Ensure timestamp is in ISO format
-                        try:
-                            if isinstance(timestamp, str):
-                                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                                timestamp = dt.isoformat()
-                        except ValueError:
-                            logger.warning(f"Invalid timestamp format in file {file}: {timestamp}")
-                            timestamp = datetime.now().isoformat()
-                        
-                        # Get subnet from data or filename
-                        subnet = data.get('subnet')
-                        if not subnet:
-                            # Try to get subnet from filename
-                            parts = file.split('_')
-                            if parts:
-                                subnet = parts[0].replace('_', '/')
-                        
-                        snapshot = {
-                            'id': scan_id,
-                            'timestamp': timestamp,
-                            'subnet': subnet,
-                            'total_hosts': data.get('summary', {}).get('total_hosts', 0),
-                            'active_hosts': data.get('summary', {}).get('active_hosts', 0)
-                        }
-                        snapshots.append(snapshot)
-                        
-                except Exception as e:
-                    logger.error(f"Error processing file {file}: {str(e)}")
-                    continue
+                # Parse scan ID and network from filename
+                # Example filename: 192.168.1.0_24_20241126_142203_d3716d5b-909b-4e9c-affb-18f2e63c7cc6.json
+                parts = filename.split('_')
+                network = parts[0].replace('-', '.')  # Get network part
+                scan_id = parts[-1].replace('.json', '')  # Get scan ID
+                
+                # Read scan data for summary
+                with open(file_path, 'r') as f:
+                    scan_data = json.load(f)
+                    summary = scan_data.get('summary', {})
+                    total_hosts = summary.get('total_hosts', 0)
+                    active_hosts = summary.get('active_hosts', 0)
+                
+                snapshots.append({
+                    'id': scan_id,
+                    'timestamp': file_time.isoformat(),
+                    'network': network,
+                    'filename': filename,
+                    'total_hosts': total_hosts,
+                    'active_hosts': active_hosts
+                })
+            except Exception as e:
+                logger.error(f"Error processing scan file {filename}: {str(e)}")
+                continue
         
-        # Sort snapshots by timestamp (newest first)
+        # Sort snapshots by timestamp, most recent first
         snapshots.sort(key=lambda x: x['timestamp'], reverse=True)
         
-        return jsonify({'snapshots': snapshots})
+        return jsonify({
+            'status': 'success',
+            'snapshots': snapshots
+        })
         
     except Exception as e:
-        logger.error(f"Error in get_snapshots: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting snapshots: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @app.route('/api/comparison/<comparison_id>/<image_name>')
 def get_comparison_image(comparison_id, image_name):
