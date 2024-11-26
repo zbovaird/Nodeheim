@@ -1495,38 +1495,70 @@ def get_latest_topology():
 def get_port_analysis(scan_id):
     """Get detailed port analysis for a specific scan"""
     try:
-        # Load scan result
-        scan_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
-        if not os.path.exists(scan_file):
-            logger.error(f"Scan file not found: {scan_file}")
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        
+        # Look for files containing the scan_id
+        matching_files = [f for f in os.listdir(scans_dir) 
+                         if scan_id in f and not f.endswith('_analysis.json')]
+        
+        if not matching_files:
+            logger.error(f"No scan results found for ID: {scan_id}")
             return jsonify({'error': 'Scan results not found'}), 404
-
+            
+        # Use the most recent file if multiple matches
+        scan_file = os.path.join(scans_dir, matching_files[0])
+        if len(matching_files) > 1:
+            scan_file = os.path.join(scans_dir, 
+                max(matching_files, key=lambda f: os.path.getctime(os.path.join(scans_dir, f))))
+            
+        logger.info(f"Loading port analysis data from: {scan_file}")
         with open(scan_file, 'r') as f:
             scan_data = json.load(f)
 
-        # Analyze port data
+        # Initialize port analysis structure
         port_analysis = {
             'total_open_ports': 0,
+            'hosts_with_open_ports': 0,
             'common_ports': {},
             'services': {},
             'interesting_ports': {
-                'high_risk': [],
-                'remote_access': [],
-                'industrial': [],
-                'web_services': [],
-                'databases': []
-            }
+                'high_risk': set(),
+                'remote_access': set(),
+                'industrial': set(),
+                'web_services': set(),
+                'databases': set()
+            },
+            'port_details': []  # List to store detailed port information
         }
 
         # Process ports from scan data
+        hosts_with_ports = 0
         for host in scan_data.get('hosts', []):
+            host_has_ports = False
+            ip_address = host.get('ip_address')
+            
+            # Get services info for mapping to ports
+            services_map = {
+                s.get('name'): {
+                    'product': s.get('product', ''),
+                    'version': s.get('version', '')
+                }
+                for s in host.get('services', [])
+            }
+            
             for port in host.get('ports', []):
                 if port.get('state') == 'open':
                     port_num = str(port.get('port', ''))
                     service = port.get('service', 'unknown')
+                    protocol = port.get('protocol', 'tcp')
+                    service_details = port.get('service_details', '')
+                    
+                    # Get service details
+                    service_info = services_map.get(service, {})
                     
                     # Count total open ports
                     port_analysis['total_open_ports'] += 1
+                    host_has_ports = True
                     
                     # Track common ports
                     port_analysis['common_ports'][port_num] = \
@@ -1536,17 +1568,57 @@ def get_port_analysis(scan_id):
                     port_analysis['services'][service] = \
                         port_analysis['services'].get(service, 0) + 1
                     
+                    # Add detailed port information
+                    port_analysis['port_details'].append({
+                        'ip_address': ip_address,
+                        'port': port_num,
+                        'service': service,
+                        'protocol': protocol,
+                        'product': service_info.get('product', ''),
+                        'version': service_info.get('version', ''),
+                        'details': service_details
+                    })
+                    
                     # Categorize interesting ports
                     if port_num in ['21', '23', '445', '3389']:
-                        port_analysis['interesting_ports']['high_risk'].append(port_num)
-                    elif port_num in ['22', '3389', '5900']:
-                        port_analysis['interesting_ports']['remote_access'].append(port_num)
-                    elif port_num in ['502', '102', '44818']:
-                        port_analysis['interesting_ports']['industrial'].append(port_num)
-                    elif port_num in ['80', '443', '8080']:
-                        port_analysis['interesting_ports']['web_services'].append(port_num)
-                    elif port_num in ['1433', '3306', '5432']:
-                        port_analysis['interesting_ports']['databases'].append(port_num)
+                        port_analysis['interesting_ports']['high_risk'].add(port_num)
+                    if port_num in ['22', '3389', '5900']:
+                        port_analysis['interesting_ports']['remote_access'].add(port_num)
+                    if port_num in ['502', '102', '44818']:
+                        port_analysis['interesting_ports']['industrial'].add(port_num)
+                    if port_num in ['80', '443', '8080', '8443']:
+                        port_analysis['interesting_ports']['web_services'].add(port_num)
+                    if port_num in ['1433', '3306', '5432', '27017', '6379']:
+                        port_analysis['interesting_ports']['databases'].add(port_num)
+            
+            if host_has_ports:
+                hosts_with_ports += 1
+        
+        # Update final statistics
+        port_analysis['hosts_with_open_ports'] = hosts_with_ports
+        
+        # Convert sets to lists for JSON serialization
+        port_analysis['interesting_ports'] = {
+            category: list(ports)
+            for category, ports in port_analysis['interesting_ports'].items()
+        }
+        
+        # Sort port details by IP address and port number
+        port_analysis['port_details'].sort(key=lambda x: (
+            tuple(int(p) for p in x['ip_address'].split('.')),
+            int(x['port'])
+        ))
+        
+        # Calculate most common ports and services
+        port_analysis['most_common_ports'] = sorted(
+            port_analysis['common_ports'].items(),
+            key=lambda x: (-x[1], int(x[0]))  # Sort by count (descending) then port number
+        )[:10]  # Top 10 most common ports
+        
+        port_analysis['most_common_services'] = sorted(
+            port_analysis['services'].items(),
+            key=lambda x: (-x[1], x[0])  # Sort by count (descending) then service name
+        )[:10]  # Top 10 most common services
 
         logger.info(f"Completed port analysis for scan {scan_id}")
         return jsonify(port_analysis)

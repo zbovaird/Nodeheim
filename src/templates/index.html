@@ -699,29 +699,42 @@
 .host-details-panel {
     background-color: var(--secondary-color);
     border-radius: 8px;
+    padding: 20px;
     margin-top: 20px;
 }
 
 .host-details-panel .table {
-    margin-bottom: 0;
+    color: var(--text-color);
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    margin-top: 15px;
 }
 
-.host-details-panel th {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    padding: 1rem;
-    color: var(--accent-color);
-    font-weight: 500;
+.host-details-panel .table th {
+    background-color: var(--secondary-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px;
 }
 
-.host-details-panel td {
-    padding: 0.75rem 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    vertical-align: middle;
+.host-details-panel .table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.host-details-panel tr:hover {
+.host-details-panel .table tbody tr:hover {
     background-color: rgba(255, 255, 255, 0.05);
+}
+
+.host-details-panel ul {
+    margin: 0;
+}
+
+.host-details-panel li {
+    margin-bottom: 4px;
+}
+
+.host-details-panel li:last-child {
+    margin-bottom: 0;
 }
 
 .service-info {
@@ -806,350 +819,97 @@
                 <div class="card-header">
                     Network Topology
                     <div class="topology-controls">
-                        <select class="topology-layout" id="layout-select" onchange="changeLayout()">
-                            <option value="force">Force Directed</option>
-                            <option value="circular">Circular</option>
-                            <option value="hierarchical">Hierarchical</option>
-                        </select>
-                        <button class="refresh-button" onclick="refreshTopology()">
-                            Refresh View
-                        </button>
+                        <button id="resetViewButton" class="btn btn-sm btn-outline-primary">Reset View</button>
                     </div>
                 </div>
-                <div class="topology-container">
-                    <div id="network-visualization"></div>
-                    <div class="topology-legend">
-                        <div class="legend-item">
-                            <span class="legend-dot" style="background-color: #28a745"></span>
-                            Low Risk
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-dot" style="background-color: #ffc107"></span>
-                            Medium Risk
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-dot" style="background-color: #dc3545"></span>
-                            High Risk
-                        </div>
-                    </div>
-                </div>
+                <div id="network-topology" style="height: 600px; background-color: var(--primary-color); border-radius: 4px;"></div>
             </div>
 
             <div class="metrics-panel">
                 <div class="card-header">Network Metrics</div>
-                <div class="metric-item">
-                    <span>Total Nodes</span>
-                    <span id="total-nodes">0</span>
-                </div>
-                <div class="metric-item">
-                    <span>Active Hosts</span>
-                    <span id="active-hosts">0</span>
-                </div>
-                <div class="metric-item">
-                    <span>Open Ports</span>
-                    <span id="open-ports">0</span>
-                </div>
-                <div class="metric-item">
-                    <span>Potential Vulnerabilities</span>
-                    <span id="vulnerabilities">0</span>
-                </div>
-                <div class="metric-item">
-                    <span>Last Scan</span>
-                    <span id="last-scan">Never</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Host Details Section -->
-        <div class="host-details-panel mt-4">
-            <div class="card bg-dark">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Host Details</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover" id="host-details-table">
-                            <thead>
-                                <tr>
-                                    <th>IP Address</th>
-                                    <th>Hostname</th>
-                                    <th>Open Ports</th>
-                                    <th>Services</th>
-                                    <th>OS Info</th>
-                                </tr>
-                            </thead>
-                            <tbody id="host-details-body">
-                                <!-- Host details will be populated here -->
-                            </tbody>
-                        </table>
+                <div id="network-metrics">
+                    <div class="metric-item">
+                        <span>Total Hosts</span>
+                        <span id="total-hosts">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Active Hosts</span>
+                        <span id="active-hosts">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Total Open Ports</span>
+                        <span id="total-ports">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Total Services</span>
+                        <span id="total-services">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span>Total Vulnerabilities</span>
+                        <span id="total-vulnerabilities">-</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="port-analysis-panel">
-            <h3 class="card-header">Port Analysis</h3>
-            <div class="port-analysis-grid">
-                <div class="chart-container">
-                    <div id="common-ports-chart"></div>
-                </div>
-                <div class="chart-container">
-                    <div id="service-distribution-chart"></div>
-                </div>
-                <div class="chart-container">
-                    <div id="security-categories-chart"></div>
-                </div>
+            <div class="port-analysis-panel">
+                <div class="card-header">Port Analysis</div>
                 <div class="port-metrics">
                     <div class="port-metric-item">
                         <span class="port-metric-label">Total Open Ports</span>
-                        <span id="total-open-ports" class="port-metric-value">0</span>
+                        <span class="port-metric-value" id="open-ports-count">-</span>
                     </div>
                     <div class="port-metric-item">
                         <span class="port-metric-label">High Risk Services</span>
-                        <span id="high-risk-services" class="port-metric-value high-risk">0</span>
+                        <span class="port-metric-value high-risk" id="high-risk-services">-</span>
                     </div>
                     <div class="port-metric-item">
                         <span class="port-metric-label">Remote Access Services</span>
-                        <span id="remote-access-services" class="port-metric-value warning-risk">0</span>
+                        <span class="port-metric-value warning-risk" id="remote-access-services">-</span>
                     </div>
                     <div class="port-metric-item">
-                        <span class="port-metric-label">Industrial Services</span>
-                        <span id="industrial-services" class="port-metric-value">0</span>
+                        <span class="port-metric-label">Web Services</span>
+                        <span class="port-metric-value" id="web-services">-</span>
+                    </div>
+                </div>
+                <div class="port-analysis-grid">
+                    <div class="chart-container">
+                        <canvas id="commonPortsChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="servicesChart"></canvas>
                     </div>
                 </div>
             </div>
-        </div>    
 
-        <div class="device-analysis-section p-4 mt-4">
-            <div class="card bg-dark">
-              <div class="card-header bg-secondary text-white">
-                <h5 class="mb-0">Device & OS Analysis</h5>
-              </div>
-              <div class="card-body">
-                <!-- Device Summary Metrics -->
-                <div class="row mb-4">
-                  <div class="col-md-3">
-                    <div class="metric-item">
-                      <span class="metric-label">Total Devices</span>
-                      <span id="total-devices-metric" class="metric-value">0</span>
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="metric-item">
-                      <span class="metric-label">Identified Devices</span>
-                      <span id="identified-devices-metric" class="metric-value">0</span>
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="metric-item">
-                      <span class="metric-label">Unknown Devices</span>
-                      <span id="unknown-devices-metric" class="metric-value">0</span>
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="metric-item">
-                      <span class="metric-label">Suspicious Devices</span>
-                      <span id="suspicious-devices-metric" class="metric-value">0</span>
-                    </div>
-                  </div>
-                </div>
-          
-                <!-- Device Distribution Charts -->
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="chart-container bg-darker p-3 rounded">
-                      <h6 class="text-light mb-3">Device Type Distribution</h6>
-                      <canvas id="deviceTypeChart" height="250"></canvas>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="chart-container bg-darker p-3 rounded">
-                      <h6 class="text-light mb-3">Operating System Distribution</h6>
-                      <canvas id="osDistributionChart" height="250"></canvas>
-                    </div>
-                  </div>
-                </div>
-          
-                <!-- Suspicious Devices Panel -->
-                <div id="suspicious-devices-panel" class="mt-4">
-                  <h6 class="text-light mb-3">Suspicious Devices</h6>
-                  <div id="suspicious-devices-list" class="suspicious-devices-container">
-                    <!-- Suspicious devices will be inserted here -->
-                  </div>
-                </div>
-          
-                <!-- Device Details Table -->
-                <div class="mt-4">
-                  <h6 class="text-light mb-3">Device Details</h6>
-                  <div class="table-responsive">
-                    <table class="table table-dark table-hover" id="device-details-table">
-                      <thead>
-                        <tr>
-                          <th>IP Address</th>
-                          <th>Device Type</th>
-                          <th>OS</th>
-                          <th>Open Ports</th>
-                          <th>Status</th>
-                          <th>Risk Level</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <!-- Device rows will be inserted here -->
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>        <!-- Analysis Panel -->
-        
-<div class="analysis-section p-4 mt-4">
-    <div class="card bg-dark">
-        <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">Network Analysis</h5>
-        </div>
-        <div class="card-body">
-            <!-- Analysis Controls -->
-            <div class="row mb-4">
-                <div class="col">
-                    <button id="startAnalysisBtn" class="scan-button" onclick="startAnalysis()">
-                        Run Network Analysis
-                    </button>
-                    <button id="viewHistoryBtn" class="scan-button ms-2" onclick="showAnalysisHistory()">
-                        View Analysis History
-                    </button>
-                    <button class="scan-button ms-2" onclick="generateReport()">
-                        Generate Report
-                    </button>
-                </div>
-            </div>
-
-            <!-- Analysis Results -->
-            <div id="analysisResults" class="analysis-results d-none">
-                <h6 class="text-light">Analysis Summary</h6>
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="metric-item">
-                            <span>Total Nodes</span>
-                            <span id="analysis-total-nodes">-</span>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="metric-item">
-                            <span>High Risk Nodes</span>
-                            <span id="analysis-high-risk-nodes">-</span>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="metric-item">
-                            <span>Isolated Nodes</span>
-                            <span id="analysis-isolated-nodes">-</span>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="metric-item">
-                            <span>Components</span>
-                            <span id="analysis-components">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detailed Analysis -->
-                <div class="mt-4">
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active text-light" data-bs-toggle="tab" href="#securityMetrics">Security Metrics</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" data-bs-toggle="tab" href="#anomalies">Anomalies</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" data-bs-toggle="tab" href="#structure">Network Structure</a>
-                        </li>
-                    </ul>
-
-                    <div class="tab-content mt-3">
-                        <div class="tab-pane fade show active" id="securityMetrics">
-                            <div class="table-responsive">
-                                <table class="results-table" id="securityMetricsTable">
-                                    <thead>
-                                        <tr>
-                                            <th>Node</th>
-                                            <th>Device Type</th>
-                                            <th>OS</th>
-                                            <th>Connections</th>
-                                            <th>Risk Level</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="anomalies">
-                            <div class="table-responsive">
-                                <table class="results-table" id="anomaliesTable">
-                                    <thead>
-                                        <tr>
-                                            <th>Node</th>
-                                            <th>Risk Score</th>
-                                            <th>Anomaly Type</th>
-                                            <th>Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="structure">
-                            <div id="networkStats" class="mb-3 text-light">
-                                <p><strong>Network Density:</strong> <span id="networkDensity">-</span></p>
-                                <p><strong>Average Degree:</strong> <span id="averageDegree">-</span></p>
-                            </div>
-                            <div id="structureDetails" class="text-light"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Analysis History Modal -->
-<div class="modal fade" id="analysisHistoryModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark text-light">
-            <div class="modal-header">
-                <h5 class="modal-title">Analysis History</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
+            <!-- Host Details Section -->
+            <div class="host-details-panel mt-4">
+                <div class="card-header">Host Details</div>
                 <div class="table-responsive">
-                    <table class="results-table" id="analysisHistoryTable">
+                    <table class="table" id="host-details-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Total Nodes</th>
-                                <th>High Risk</th>
-                                <th>Actions</th>
+                                <th>IP Address</th>
+                                <th>Hostname</th>
+                                <th>Open Ports</th>
+                                <th>Services</th>
+                                <th>OS Info</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="host-details-body">
+                            <!-- Host details will be populated here -->
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
-    </div>
-</div>
+    </main>
 
-<script type="module" src="{{ url_for('static', filename='js/topology.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-<script type="module">
-    import { startScan, stopScan } from '/static/js/app.js';
-    window.startScan = startScan;
-    window.stopScan = stopScan;
-</script>
+    <script type="module" src="{{ url_for('static', filename='js/topology.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script type="module">
+        import { startScan, stopScan } from '/static/js/app.js';
+        window.startScan = startScan;
+        window.stopScan = stopScan;
+    </script>
 </body>
 </html>

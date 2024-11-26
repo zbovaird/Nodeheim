@@ -3,6 +3,76 @@ let network = null;
 let nodes = new vis.DataSet();
 let edges = new vis.DataSet();
 
+// Node color definitions
+const nodeColors = {
+    highRisk: '#dc3545',    // Red for high risk
+    mediumRisk: '#ffc107',  // Yellow for medium risk
+    lowRisk: '#28a745',     // Green for low risk
+    noServices: '#2196F3'   // Blue for no services
+};
+
+// Function to format host details for tooltip
+function formatHostDetails(node) {
+    let details = [];
+    details.push(`IP Address: ${node.ip_address || node.id}`);
+    
+    if (node.hostnames && node.hostnames.length > 0) {
+        details.push(`Hostname: ${node.hostnames.map(h => h.name).join(', ')}`);
+    }
+    
+    if (node.os_info) {
+        const os = [];
+        if (node.os_info.os_match && node.os_info.os_match !== 'unknown') {
+            os.push(node.os_info.os_match);
+        }
+        if (node.os_info.os_accuracy) {
+            os.push(`${node.os_info.os_accuracy}% accuracy`);
+        }
+        if (os.length > 0) {
+            details.push(`OS: ${os.join(' - ')}`);
+        }
+    }
+    
+    if (node.ports && node.ports.length > 0) {
+        details.push('\nOpen Ports:');
+        node.ports.forEach(port => {
+            let portInfo = `${port.port}/${port.protocol || 'tcp'}`;
+            if (port.service) {
+                portInfo += ` - ${port.service}`;
+                if (port.service_details) {
+                    portInfo += ` (${port.service_details})`;
+                }
+            }
+            details.push(portInfo);
+        });
+    }
+    
+    return details.join('\n');
+}
+
+// Function to determine node risk level
+function getNodeRiskLevel(node) {
+    if (!node.ports || node.ports.length === 0) return 'noServices';
+    
+    // Check for high-risk services (common vulnerable ports)
+    const highRiskPorts = ['21', '23', '445', '3389'];
+    const remoteAccessPorts = ['22', '3389', '5900'];
+    
+    const hasHighRiskService = node.ports.some(port => 
+        highRiskPorts.includes(port.port.toString()) && port.state === 'open'
+    );
+    if (hasHighRiskService) return 'highRisk';
+    
+    // Check for medium-risk services (remote access)
+    const hasMediumRiskService = node.ports.some(port => 
+        remoteAccessPorts.includes(port.port.toString()) && port.state === 'open'
+    );
+    if (hasMediumRiskService) return 'mediumRisk';
+    
+    // If has services but no high/medium risk ones
+    return 'lowRisk';
+}
+
 // Configuration for the network visualization
 const options = {
     nodes: {
@@ -49,233 +119,129 @@ const options = {
     interaction: {
         hover: true,
         tooltipDelay: 200,
-        hideEdgesOnDrag: true,
-        multiselect: true
+        zoomView: true,
+        dragView: true
     }
 };
 
-export function initializeTopology() {
-    const container = document.getElementById('network-visualization');
-    if (!container) return;
+// Create legend
+function createLegend(container) {
+    const legend = document.createElement('div');
+    legend.className = 'topology-legend';
+    legend.style.cssText = `
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+    `;
     
-    network = new vis.Network(container, { nodes, edges }, options);
+    const legendItems = [
+        { color: nodeColors.highRisk, label: 'High Risk (Known Vulnerable Ports)' },
+        { color: nodeColors.mediumRisk, label: 'Medium Risk (Remote Access)' },
+        { color: nodeColors.lowRisk, label: 'Low Risk (Other Services)' },
+        { color: nodeColors.noServices, label: 'No Open Services' }
+    ];
     
-    // Add event listeners
-    network.on('hoverNode', function(params) {
-        const node = nodes.get(params.node);
-        showNodeTooltip(node, params.event);
+    legendItems.forEach(item => {
+        const legendItem = document.createElement('div');
+        legendItem.style.cssText = `
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            color: white;
+            font-size: 12px;
+        `;
+        
+        const colorDot = document.createElement('span');
+        colorDot.style.cssText = `
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: ${item.color};
+            margin-right: 8px;
+            display: inline-block;
+        `;
+        
+        legendItem.appendChild(colorDot);
+        legendItem.appendChild(document.createTextNode(item.label));
+        legend.appendChild(legendItem);
     });
     
-    network.on('blurNode', function() {
-        hideNodeTooltip();
-    });
+    container.appendChild(legend);
 }
 
+// Initialize the network visualization
+function initNetwork() {
+    const container = document.getElementById('network-topology');
+    if (!container) {
+        console.error('Network topology container not found');
+        return;
+    }
+
+    network = new vis.Network(container, { nodes, edges }, options);
+    
+    // Add reset view button handler
+    const resetButton = document.getElementById('resetViewButton');
+    if (resetButton) {
+        resetButton.addEventListener('click', () => {
+            network.fit();
+        });
+    }
+    
+    // Create and add the legend
+    createLegend(container);
+}
+
+// Update the network visualization with new data
 export async function refreshTopology(scanId) {
     try {
         const response = await fetch(`/api/topology/scan/${scanId}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
         const data = await response.json();
         
-        if (!data.nodes || !data.links) {
-            console.error('Invalid topology data format:', data);
-            return;
-        }
-        
-        // Clear existing data
-        nodes.clear();
-        edges.clear();
-        
-        // Add nodes with enhanced visualization
-        const nodeData = data.nodes.map(node => ({
-            id: node.id,
-            label: `${node.id}\n${node.hostname || ''}`,
-            title: getNodeTitle(node),
-            color: getNodeColor(node.risk_level || 'low'),
-            shape: 'dot',
-            size: 30,
-            font: {
-                size: 14,
-                color: '#ffffff',
-                face: 'monospace',
-                strokeWidth: 2,
-                strokeColor: '#000000'
-            },
-            device_type: node.device_type,
-            os_info: node.os_info,
-            services: node.services,
-            risk_level: node.risk_level
-        }));
-        
-        // Add edges with enhanced visualization
-        const edgeData = data.links.map(link => ({
-            from: link.source,
-            to: link.target,
-            arrows: 'to',
-            color: {
-                color: '#848484',
-                highlight: '#848484',
-                hover: '#848484'
-            },
-            width: 2,
-            smooth: {
-                type: 'continuous'
+        if (response.ok) {
+            // Clear existing nodes and edges
+            nodes.clear();
+            edges.clear();
+            
+            // Add nodes with service information
+            data.nodes.forEach(node => {
+                const riskLevel = getNodeRiskLevel(node);
+                nodes.add({
+                    id: node.id,
+                    label: node.label || node.id,
+                    title: formatHostDetails(node),
+                    color: {
+                        background: nodeColors[riskLevel],
+                        border: '#ffffff'
+                    }
+                });
+            });
+            
+            // Add edges
+            data.links.forEach(link => {
+                edges.add({
+                    from: link.source,
+                    to: link.target
+                });
+            });
+            
+            // If network doesn't exist, initialize it
+            if (!network) {
+                initNetwork();
             }
-        }));
-        
-        // Add the data to the visualization
-        nodes.add(nodeData);
-        edges.add(edgeData);
-        
-        // Ensure the network is initialized
-        if (!network) {
-            initializeTopology();
+            
+            // Fit the network to view all nodes
+            network.fit();
+        } else {
+            console.error('Failed to fetch topology data:', data.error);
         }
-        
-        // Apply physics settings for better visualization
-        network.setOptions({
-            physics: {
-                enabled: true,
-                solver: 'forceAtlas2Based',
-                forceAtlas2Based: {
-                    gravitationalConstant: -26,
-                    centralGravity: 0.005,
-                    springLength: 230,
-                    springConstant: 0.18,
-                    damping: 0.4
-                },
-                stabilization: {
-                    enabled: true,
-                    iterations: 1000,
-                    updateInterval: 25
-                }
-            }
-        });
-        
-        // Fit the network to view
-        network.fit();
-        
     } catch (error) {
         console.error('Error refreshing topology:', error);
     }
 }
 
-function getNodeTitle(node) {
-    let title = `IP: ${node.id}\n`;
-    if (node.hostname) title += `Hostname: ${node.hostname}\n`;
-    if (node.device_type) title += `Type: ${node.device_type}\n`;
-    if (node.os_info?.os_match) title += `OS: ${node.os_info.os_match}\n`;
-    if (node.services?.length) {
-        title += 'Services:\n';
-        node.services.forEach(svc => {
-            title += `- ${svc}\n`;
-        });
-    }
-    if (node.ports?.length) {
-        title += 'Open Ports:\n';
-        title += node.ports.join(', ');
-    }
-    return title;
-}
-
-function getNodeColor(riskLevel) {
-    switch (riskLevel.toLowerCase()) {
-        case 'high':
-            return '#dc3545';
-        case 'medium':
-            return '#ffc107';
-        case 'low':
-        default:
-            return '#28a745';
-    }
-}
-
-function applyLayout(layout) {
-    if (!network) return;
-    
-    switch (layout) {
-        case 'circular':
-            network.setOptions({
-                layout: {
-                    randomSeed: 42,
-                    improvedLayout: true,
-                    hierarchical: false
-                },
-                physics: {
-                    enabled: true,
-                    solver: 'forceAtlas2Based'
-                }
-            });
-            break;
-            
-        case 'hierarchical':
-            network.setOptions({
-                layout: {
-                    hierarchical: {
-                        direction: 'UD',
-                        sortMethod: 'hubsize',
-                        nodeSpacing: 150
-                    }
-                },
-                physics: false
-            });
-            break;
-            
-        case 'force':
-        default:
-            network.setOptions({
-                layout: {
-                    randomSeed: undefined,
-                    improvedLayout: true,
-                    hierarchical: false
-                },
-                physics: {
-                    enabled: true,
-                    solver: 'barnesHut',
-                    barnesHut: {
-                        gravitationalConstant: -80000,
-                        springConstant: 0.001,
-                        springLength: 200
-                    }
-                }
-            });
-            break;
-    }
-}
-
-// Tooltip functions
-function showNodeTooltip(node, event) {
-    const tooltip = document.createElement('div');
-    tooltip.className = 'node-tooltip';
-    tooltip.innerHTML = node.title.replace(/\n/g, '<br>');
-    
-    // Position tooltip near the node
-    tooltip.style.left = event.pageX + 10 + 'px';
-    tooltip.style.top = event.pageY + 10 + 'px';
-    
-    // Remove any existing tooltips
-    hideNodeTooltip();
-    
-    // Add tooltip to body
-    document.body.appendChild(tooltip);
-}
-
-function hideNodeTooltip() {
-    const tooltips = document.getElementsByClassName('node-tooltip');
-    while (tooltips.length > 0) {
-        tooltips[0].parentNode.removeChild(tooltips[0]);
-    }
-}
-
-// Export functions for use in HTML
-window.changeLayout = function() {
-    const layout = document.getElementById('layout-select').value;
-    applyLayout(layout);
-};
-
-window.refreshTopology = refreshTopology;
-
-// Initialize topology when the page loads
-document.addEventListener('DOMContentLoaded', initializeTopology); 
+// Initialize when the page loads
+document.addEventListener('DOMContentLoaded', initNetwork); 
