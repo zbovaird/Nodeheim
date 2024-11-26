@@ -10,7 +10,10 @@ const options = {
         size: 30,
         font: {
             size: 14,
-            color: '#ffffff'
+            color: '#ffffff',
+            face: 'monospace',
+            strokeWidth: 2,
+            strokeColor: '#000000'
         },
         borderWidth: 2,
         shadow: true
@@ -22,19 +25,32 @@ const options = {
             highlight: '#848484',
             hover: '#848484'
         },
-        shadow: true
+        shadow: true,
+        smooth: {
+            type: 'continuous'
+        }
     },
     physics: {
-        stabilization: false,
-        barnesHut: {
-            gravitationalConstant: -80000,
-            springConstant: 0.001,
-            springLength: 200
+        enabled: true,
+        solver: 'forceAtlas2Based',
+        forceAtlas2Based: {
+            gravitationalConstant: -26,
+            centralGravity: 0.005,
+            springLength: 230,
+            springConstant: 0.18,
+            damping: 0.4
+        },
+        stabilization: {
+            enabled: true,
+            iterations: 1000,
+            updateInterval: 25
         }
     },
     interaction: {
         hover: true,
-        tooltipDelay: 200
+        tooltipDelay: 200,
+        hideEdgesOnDrag: true,
+        multiselect: true
     }
 };
 
@@ -58,36 +74,88 @@ export function initializeTopology() {
 export async function refreshTopology(scanId) {
     try {
         const response = await fetch(`/api/topology/scan/${scanId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
+        
+        if (!data.nodes || !data.links) {
+            console.error('Invalid topology data format:', data);
+            return;
+        }
         
         // Clear existing data
         nodes.clear();
         edges.clear();
         
-        // Add nodes
+        // Add nodes with enhanced visualization
         const nodeData = data.nodes.map(node => ({
             id: node.id,
-            label: node.ip_address,
+            label: `${node.id}\n${node.hostname || ''}`,
             title: getNodeTitle(node),
             color: getNodeColor(node.risk_level || 'low'),
+            shape: 'dot',
+            size: 30,
+            font: {
+                size: 14,
+                color: '#ffffff',
+                face: 'monospace',
+                strokeWidth: 2,
+                strokeColor: '#000000'
+            },
             device_type: node.device_type,
             os_info: node.os_info,
             services: node.services,
             risk_level: node.risk_level
         }));
-        nodes.add(nodeData);
         
-        // Add edges
-        const edgeData = data.edges.map(edge => ({
-            from: edge.from,
-            to: edge.to,
-            arrows: edge.directed ? 'to' : undefined
+        // Add edges with enhanced visualization
+        const edgeData = data.links.map(link => ({
+            from: link.source,
+            to: link.target,
+            arrows: 'to',
+            color: {
+                color: '#848484',
+                highlight: '#848484',
+                hover: '#848484'
+            },
+            width: 2,
+            smooth: {
+                type: 'continuous'
+            }
         }));
+        
+        // Add the data to the visualization
+        nodes.add(nodeData);
         edges.add(edgeData);
         
-        // Apply layout
-        const layout = document.getElementById('layout-select').value;
-        applyLayout(layout);
+        // Ensure the network is initialized
+        if (!network) {
+            initializeTopology();
+        }
+        
+        // Apply physics settings for better visualization
+        network.setOptions({
+            physics: {
+                enabled: true,
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    gravitationalConstant: -26,
+                    centralGravity: 0.005,
+                    springLength: 230,
+                    springConstant: 0.18,
+                    damping: 0.4
+                },
+                stabilization: {
+                    enabled: true,
+                    iterations: 1000,
+                    updateInterval: 25
+                }
+            }
+        });
+        
+        // Fit the network to view
+        network.fit();
         
     } catch (error) {
         console.error('Error refreshing topology:', error);
@@ -95,20 +163,19 @@ export async function refreshTopology(scanId) {
 }
 
 function getNodeTitle(node) {
-    let title = `IP: ${node.ip_address}\n`;
+    let title = `IP: ${node.id}\n`;
     if (node.hostname) title += `Hostname: ${node.hostname}\n`;
     if (node.device_type) title += `Type: ${node.device_type}\n`;
     if (node.os_info?.os_match) title += `OS: ${node.os_info.os_match}\n`;
     if (node.services?.length) {
         title += 'Services:\n';
         node.services.forEach(svc => {
-            title += `- ${svc.port}/${svc.protocol}: ${svc.name}`;
-            if (svc.product) title += ` (${svc.product}`;
-            if (svc.version) title += ` ${svc.version}`;
-            if (svc.extra_info) title += ` - ${svc.extra_info}`;
-            if (svc.product) title += ')';
-            title += '\n';
+            title += `- ${svc}\n`;
         });
+    }
+    if (node.ports?.length) {
+        title += 'Open Ports:\n';
+        title += node.ports.join(', ');
     }
     return title;
 }

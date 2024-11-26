@@ -1147,10 +1147,9 @@
 <script type="module" src="{{ url_for('static', filename='js/topology.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script type="module">
-    import { startAnalysis, showAnalysisHistory, generateReport } from '/static/js/app.js';
-    window.startAnalysis = startAnalysis;
-    window.showAnalysisHistory = showAnalysisHistory;
-    window.generateReport = generateReport;
+    import { startScan, stopScan } from '/static/js/app.js';
+    window.startScan = startScan;
+    window.stopScan = stopScan;
 </script>
 </body>
 </html>

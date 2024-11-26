@@ -1,5 +1,5 @@
 # src/app.py
-from flask import Flask, render_template, jsonify, request, send_file, make_response, Response
+from flask import Flask, render_template, jsonify, request, send_file, make_response, Response, send_from_directory
 import sys
 import os
 import json
@@ -27,6 +27,7 @@ from threading import Thread, Lock  # Add Lock to the import
 import subprocess
 import ctypes
 import socket
+import ipaddress
 
 # Add these imports at the top with the other imports
 import uuid
@@ -1596,10 +1597,23 @@ def get_scan_status(scan_id):
 def get_scan_results(scan_id):
     """Get the results of a completed scan"""
     try:
-        results_file = os.path.join(BASE_DIR, 'src', 'data', 'scans', f'{scan_id}.json')
-        if not os.path.exists(results_file):
-            return jsonify({'error': 'Results not found'}), 404
+        scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
+        
+        # Look for files containing the scan_id
+        matching_files = [f for f in os.listdir(scans_dir) 
+                         if scan_id in f and not f.endswith('_analysis.json')]
+        
+        if not matching_files:
+            logger.error(f"No scan results found for ID: {scan_id}")
+            return jsonify({'error': 'Scan results not found'}), 404
             
+        # Use the most recent file if multiple matches
+        results_file = os.path.join(scans_dir, matching_files[0])
+        if len(matching_files) > 1:
+            results_file = os.path.join(scans_dir, 
+                max(matching_files, key=lambda f: os.path.getctime(os.path.join(scans_dir, f))))
+            
+        logger.info(f"Loading scan results from: {results_file}")
         with open(results_file, 'r') as f:
             results = json.load(f)
             
@@ -2034,108 +2048,67 @@ def get_scan_file(file_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/topology/scan/<scan_id>')
-def get_scan_topology(scan_id):
-    """Get topology data for a specific scan"""
+def get_topology_by_scan_id(scan_id):
+    """Get network topology data for a specific scan"""
     try:
-        # First check if topology file exists
-        topology_dir = os.path.join(BASE_DIR, 'src', 'data', 'topology')
-        topology_file = os.path.join(topology_dir, f"{scan_id}_topology.json")
-        
-        if os.path.exists(topology_file):
-            with open(topology_file, 'r') as f:
-                return jsonify(json.load(f))
-                
-        # If not found, try to generate from scan data
         scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
-        scan_file = os.path.join(scans_dir, f"{scan_id}.json")
         
-        if not os.path.exists(scan_file):
-            # Try looking for files with the scan ID in the name
-            matching_files = [f for f in os.listdir(scans_dir) 
-                            if scan_id in f and f.endswith('.json')]
+        # Look for files containing the scan_id
+        matching_files = [f for f in os.listdir(scans_dir) 
+                         if scan_id in f and not f.endswith('_analysis.json')]
+        
+        if not matching_files:
+            logger.error(f"No scan results found for ID: {scan_id}")
+            return jsonify({'error': 'Scan results not found'}), 404
             
-            if matching_files:
-                scan_file = os.path.join(scans_dir, matching_files[0])
-            else:
-                logger.error(f"Scan file not found: {scan_file}")
-                return jsonify({'error': 'Scan data not found'}), 404
-                
+        # Use the most recent file if multiple matches
+        scan_file = os.path.join(scans_dir, matching_files[0])
+        if len(matching_files) > 1:
+            scan_file = os.path.join(scans_dir, 
+                max(matching_files, key=lambda f: os.path.getctime(os.path.join(scans_dir, f))))
+            
+        logger.info(f"Loading topology data from: {scan_file}")
         with open(scan_file, 'r') as f:
             scan_data = json.load(f)
             
-        # Generate topology data
-        topology_data = generate_topology_data(scan_data)
-        
-        # Save for future use
-        os.makedirs(topology_dir, exist_ok=True)
-        with open(topology_file, 'w') as f:
-            json.dump(topology_data, f, indent=2)
+            # Extract topology data from scan results
+            hosts = scan_data.get('hosts', [])
+            nodes = []
+            links = []
             
-        return jsonify(topology_data)
-        
+            # Create nodes for each host
+            for host in hosts:
+                if host.get('status') == 'up':
+                    node = {
+                        'id': host.get('ip_address'),
+                        'label': host.get('ip_address'),
+                        'services': [f"{p.get('service', 'unknown')}:{p.get('port')}" 
+                                   for p in host.get('ports', []) if p.get('state') == 'open']
+                    }
+                    nodes.append(node)
+            
+            # Create links between nodes based on network proximity
+            for i, node1 in enumerate(nodes):
+                ip1 = ipaddress.ip_address(node1['id'])
+                for node2 in nodes[i+1:]:
+                    ip2 = ipaddress.ip_address(node2['id'])
+                    # Link nodes in the same subnet
+                    if ip1.version == ip2.version and ip1.is_private == ip2.is_private:
+                        links.append({
+                            'source': node1['id'],
+                            'target': node2['id']
+                        })
+            
+            topology_data = {
+                'nodes': nodes,
+                'links': links
+            }
+            
+            return jsonify(topology_data)
+            
     except Exception as e:
-        logger.error(f"Error serving topology data: {str(e)}", exc_info=True)
+        logger.error(f"Error getting topology data: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
-def generate_topology_data(scan_data):
-    """Generate network topology data from scan results"""
-    nodes = []
-    links = []
-    processed_links = set()
-    
-    # Create nodes for hosts
-    for host in scan_data.get('hosts', []):
-        if not host.get('ip_address'):
-            continue
-            
-        # Create node with detailed information
-        node = {
-            'id': host['ip_address'],
-            'label': host['ip_address'],
-            'type': host.get('device_type', 'unknown'),
-            'status': host.get('status', 'unknown'),
-            'os': host.get('os_info', {}).get('os_match', 'unknown'),
-            'ports': [str(p.get('port')) for p in host.get('ports', []) if p.get('state') == 'open'],
-            'services': [s.get('name', 'unknown') for s in host.get('services', [])],
-            'group': host.get('device_type', 'unknown')
-        }
-        nodes.append(node)
-        
-    # Create links based on network relationships
-    for host in scan_data.get('hosts', []):
-        source = host.get('ip_address')
-        if not source:
-            continue
-            
-        # Add subnet-based connections
-        source_parts = source.split('.')
-        for other_host in scan_data.get('hosts', []):
-            target = other_host.get('ip_address')
-            if not target or source == target:
-                continue
-                
-            target_parts = target.split('.')
-            if source_parts[:3] == target_parts[:3]:  # Same /24 subnet
-                link_id = tuple(sorted([source, target]))
-                if link_id not in processed_links:
-                    links.append({
-                        'source': source,
-                        'target': target,
-                        'type': 'network',
-                        'value': 1
-                    })
-                    processed_links.add(link_id)
-                    
-    return {
-        'nodes': nodes,
-        'links': links,
-        'metadata': {
-            'timestamp': scan_data.get('timestamp'),
-            'total_nodes': len(nodes),
-            'total_links': len(links),
-            'subnet': scan_data.get('subnet', 'unknown')
-        }
-    }
 
 @app.route('/api/comparison/create', methods=['POST'])
 def create_comparison():

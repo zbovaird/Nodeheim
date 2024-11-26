@@ -1,0 +1,1038 @@
+{
+  "nodes": [
+    {
+      "id": "192.168.1.1",
+      "label": "192.168.1.1",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "80",
+        "443"
+      ],
+      "services": [
+        "http",
+        "http"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.104",
+      "label": "192.168.1.104",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.123",
+      "label": "192.168.1.123",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.124",
+      "label": "192.168.1.124",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.127",
+      "label": "192.168.1.127",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "139",
+        "445"
+      ],
+      "services": [
+        "netbios-ssn"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.130",
+      "label": "192.168.1.130",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.145",
+      "label": "192.168.1.145",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "23"
+      ],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.152",
+      "label": "192.168.1.152",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "80",
+        "443"
+      ],
+      "services": [
+        "http",
+        "http"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.154",
+      "label": "192.168.1.154",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "139",
+        "445"
+      ],
+      "services": [
+        "netbios-ssn"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.168",
+      "label": "192.168.1.168",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.197",
+      "label": "192.168.1.197",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "139",
+        "445"
+      ],
+      "services": [
+        "netbios-ssn"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.220",
+      "label": "192.168.1.220",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "139",
+        "445"
+      ],
+      "services": [
+        "netbios-ssn"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.64",
+      "label": "192.168.1.64",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.75",
+      "label": "192.168.1.75",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.82",
+      "label": "192.168.1.82",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.84",
+      "label": "192.168.1.84",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [
+        "139",
+        "445"
+      ],
+      "services": [
+        "netbios-ssn",
+        "microsoft-ds"
+      ],
+      "group": "unknown"
+    },
+    {
+      "id": "192.168.1.85",
+      "label": "192.168.1.85",
+      "type": "unknown",
+      "status": "up",
+      "os": "unknown",
+      "ports": [],
+      "services": [],
+      "group": "unknown"
+    }
+  ],
+  "links": [
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.104",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.123",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.124",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.127",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.130",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.145",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.1",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.123",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.124",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.127",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.130",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.145",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.124",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.127",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.130",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.145",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.123",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.127",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.130",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.145",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.124",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.130",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.145",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.127",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.145",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.130",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.152",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.145",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.154",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.152",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.168",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.154",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.197",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.168",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.220",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.197",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.64",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.220",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.64",
+      "target": "192.168.1.75",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.64",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.64",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.64",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.75",
+      "target": "192.168.1.82",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.75",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.75",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.82",
+      "target": "192.168.1.84",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.82",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    },
+    {
+      "source": "192.168.1.84",
+      "target": "192.168.1.85",
+      "type": "network",
+      "value": 1
+    }
+  ],
+  "metadata": {
+    "timestamp": "2024-11-26T13:53:59.006313",
+    "total_nodes": 17,
+    "total_links": 136,
+    "subnet": "192.168.1.0/24"
+  }
+}
