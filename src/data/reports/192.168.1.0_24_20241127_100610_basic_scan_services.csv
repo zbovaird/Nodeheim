@@ -1,0 +1,10 @@
+name,product,version,extra_info,tunnel,host,ip_address,port
+http,lighttpd,1.4.59,,,192.168.1.1,192.168.1.1,80
+http,lighttpd,1.4.59,,,192.168.1.1,192.168.1.1,443
+http,Debut embedded httpd,1.30,Brother/HP printer http admin,,192.168.1.152,192.168.1.152,80
+http,Debut embedded httpd,1.30,Brother/HP printer http admin,,192.168.1.152,192.168.1.152,443
+netbios-ssn,Microsoft Windows netbios-ssn,,,,192.168.1.154,192.168.1.154,139
+netbios-ssn,Microsoft Windows netbios-ssn,,,,192.168.1.197,192.168.1.197,139
+netbios-ssn,Microsoft Windows netbios-ssn,,,,192.168.1.220,192.168.1.220,139
+netbios-ssn,Microsoft Windows netbios-ssn,,,,192.168.1.84,192.168.1.84,139
+microsoft-ds,Microsoft Windows 7 - 10 microsoft-ds,,workgroup: WORKGROUP,,192.168.1.84,192.168.1.84,445

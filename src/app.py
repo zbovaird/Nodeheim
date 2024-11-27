@@ -1874,9 +1874,46 @@ from flask_cors import CORS
 # After creating the Flask app
 CORS(app)
 
+def analyze_network_structure(G):
+    """Analyze basic network structure"""
+    try:
+        # Calculate components
+        components = list(nx.connected_components(G))
+        
+        # Find cycles (only in undirected graph)
+        try:
+            cycles = list(nx.cycle_basis(G))
+        except:
+            cycles = []
+        
+        # Find endpoints (nodes with degree 1)
+        endpoints = [node for node, degree in dict(G.degree()).items() if degree == 1]
+        
+        # Calculate network density
+        density = nx.density(G)
+        
+        return {
+            'components': [list(comp) for comp in components],  # Convert sets to lists for JSON
+            'cycles': [list(cycle) for cycle in cycles],
+            'endpoints': endpoints,
+            'density': density,
+            'is_tree': str(nx.is_tree(G)),  # Convert boolean to string
+            'is_forest': str(nx.is_forest(G))  # Convert boolean to string
+        }
+    except Exception as e:
+        logger.error(f"Error in analyze_network_structure: {str(e)}")
+        return {
+            'components': [],
+            'cycles': [],
+            'endpoints': [],
+            'density': 0,
+            'is_tree': 'false',  # Use string
+            'is_forest': 'false'  # Use string
+        }
+
+# Modify the get_network_analysis function to include structure analysis
 @app.route('/api/analysis/<scan_id>')
 def get_network_analysis(scan_id):
-    """Get network analysis results for a scan"""
     try:
         logger.info(f"Starting network analysis for scan {scan_id}")
         
@@ -1891,34 +1928,49 @@ def get_network_analysis(scan_id):
                 
         # Load scan data
         scans_dir = os.path.join(BASE_DIR, 'src', 'data', 'scans')
-        scan_file = os.path.join(scans_dir, f"{scan_id}.json")
         
-        if not os.path.exists(scan_file):
-            logger.error(f"Scan file not found: {scan_file}")
+        # Look for files ending with scan_id.json (the UUID part)
+        matching_files = [f for f in os.listdir(scans_dir) 
+                         if f.endswith(f"{scan_id}.json") and not f.endswith('_analysis.json')]
+        
+        if not matching_files:
+            logger.error(f"No scan files found for ID: {scan_id}")
             return jsonify({'error': 'Scan data not found'}), 404
             
+        # Get the scan file (should only be one match since we're using the full UUID)
+        scan_file = os.path.join(scans_dir, matching_files[0])
+        logger.info(f"Loading scan data from: {scan_file}")
+        
         with open(scan_file, 'r') as f:
             scan_data = json.load(f)
         
         # Create network graph
         G = create_network_from_scan(scan_data)
         
-        # Calculate metrics
+        # Calculate all metrics
         metrics = calculate_network_metrics(G)
-        
-        # Additional analysis
-        critical_paths = identify_critical_paths(G)
-        bridge_nodes = identify_bridge_nodes(G)
-        segmentation = calculate_network_segmentation(G)
+        structure_analysis = analyze_network_structure(G)
+        centrality_measures = calculate_centrality_measures(G)
+        bottleneck_results = analyze_bottlenecks(G)
+        risk_scores = calculate_risk_scores(G, metrics)
         
         # Prepare analysis results
         analysis_results = {
             'scan_id': scan_id,
             'timestamp': datetime.now().isoformat(),
             'metrics': metrics,
-            'critical_paths': critical_paths,
-            'bridge_nodes': bridge_nodes,
-            'segmentation': segmentation
+            'structure_analysis': structure_analysis,
+            'centrality_measures': centrality_measures,
+            'bottleneck_analysis': bottleneck_results['bottleneck_analysis'],
+            'spectral_metrics': bottleneck_results['spectral_metrics'],
+            'risk_scores': risk_scores,
+            'network_analysis': {
+                'density': nx.density(G),
+                'average_degree': sum(dict(G.degree()).values()) / G.number_of_nodes() if G.number_of_nodes() > 0 else 0,
+                'critical_paths': len(identify_critical_paths(G)),
+                'bridge_nodes': len(identify_bridge_nodes(G)),
+                'centrality_measures': centrality_measures
+            }
         }
         
         # Save analysis results
@@ -2310,6 +2362,112 @@ def get_comparison_file(comparison_id, filename):
     except Exception as e:
         logger.error(f"Error getting comparison file: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def calculate_centrality_measures(G):
+    """Calculate various centrality metrics"""
+    try:
+        return {
+            'Degree_Centrality': nx.degree_centrality(G),
+            'Betweenness_Centrality': nx.betweenness_centrality(G),
+            'Closeness_Centrality': nx.closeness_centrality(G),
+            'Eigenvector_Centrality': nx.eigenvector_centrality(G, max_iter=1000)
+        }
+    except Exception as e:
+        logger.error(f"Error calculating centrality measures: {e}")
+        return {}
+
+def analyze_bottlenecks(G):
+    """Analyze network bottlenecks using spectral properties"""
+    try:
+        # Calculate Laplacian matrix and its eigenvalues
+        laplacian = nx.laplacian_matrix(G).todense()
+        eigenvalues, eigenvectors = np.linalg.eigh(laplacian)
+        
+        # Convert numpy types to Python native types
+        eigenvalues = eigenvalues.tolist()
+        eigenvectors = eigenvectors.tolist()
+        
+        # Calculate spectral radius and Fiedler vector
+        spectral_radius = float(max(abs(val) for val in eigenvalues))
+        
+        # Find first non-zero eigenvalue for Fiedler value
+        fiedler_idx = next((i for i, val in enumerate(eigenvalues) if abs(val) > 1e-10), 0)
+        fiedler_value = float(eigenvalues[fiedler_idx])
+        fiedler_vector = eigenvectors[fiedler_idx]
+        
+        # Calculate bottleneck scores
+        bottleneck_scores = {}
+        temp_scores = []  # Store scores temporarily for percentile calculation
+        
+        # First pass to calculate scores
+        for node in G.nodes():
+            idx = list(G.nodes()).index(node)
+            score = float(abs(fiedler_vector[idx]) * G.degree(node))
+            temp_scores.append(score)
+            
+        # Calculate threshold
+        threshold = float(np.percentile(temp_scores, 75)) if temp_scores else 0
+        
+        # Second pass to create final bottleneck scores
+        for node in G.nodes():
+            idx = list(G.nodes()).index(node)
+            score = float(abs(fiedler_vector[idx]) * G.degree(node))
+            
+            try:
+                flow_centrality = float(nx.current_flow_betweenness_centrality(G, normalized=True).get(node, 0))
+            except:
+                flow_centrality = 0.0
+            
+            bottleneck_scores[str(node)] = {
+                'spectral_score': float(score),
+                'flow_centrality': flow_centrality,
+                'is_critical': str(score > threshold)
+            }
+            
+        return {
+            'bottleneck_analysis': bottleneck_scores,
+            'spectral_metrics': {
+                'spectral_radius': spectral_radius,
+                'fiedler_value': fiedler_value,
+                'fiedler_vector': [float(x) for x in fiedler_vector]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error in bottleneck analysis: {e}", exc_info=True)
+        return {
+            'bottleneck_analysis': {},
+            'spectral_metrics': {
+                'spectral_radius': 0.0,
+                'fiedler_value': 0.0,
+                'fiedler_vector': []
+            }
+        }
+
+def calculate_risk_scores(G, security_metrics):
+    """Calculate risk scores for each node"""
+    try:
+        risk_scores = []
+        for node in G.nodes():
+            # Base risk from degree and centrality
+            degree_risk = G.degree(node) / G.number_of_nodes()
+            centrality_risk = nx.betweenness_centrality(G).get(node, 0)
+            
+            # Additional risk factors from security metrics
+            service_risk = len(G.nodes[node].get('services', [])) * 0.1
+            vulnerability_risk = len(G.nodes[node].get('vulnerabilities', [])) * 0.2
+            
+            # Calculate total risk score (0-100)
+            total_risk = (degree_risk * 30 + 
+                          centrality_risk * 30 + 
+                          service_risk * 20 + 
+                          vulnerability_risk * 20)
+            
+            risk_scores.append(min(100, total_risk * 100))
+            
+        return risk_scores
+    except Exception as e:
+        logger.error(f"Error calculating risk scores: {e}")
+        return []
 
 if __name__ == '__main__':
     try:

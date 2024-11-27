@@ -1,0 +1,47 @@
+{
+  "scan_id": "70f26c19-9ce9-4e94-9796-80e2aeed5459",
+  "timestamp": "2024-11-27T10:06:19.334907",
+  "metrics": {
+    "Average_Clustering": 0.8531468531468531,
+    "Network_Density": 0.7307692307692307,
+    "Average_Degree": 8.76923076923077,
+    "Components": 1,
+    "Average_Path_Length": 1.2692307692307692,
+    "Network_Diameter": 2,
+    "Fiedler_Eigenvalue": 5.999999999999994,
+    "Spectral_Radius": 9.446221994724901,
+    "Number_of_Communities": 1
+  },
+  "critical_paths": {},
+  "bridge_nodes": [],
+  "segmentation": {
+    "num_segments": 1,
+    "modularity": 0.0,
+    "segment_sizes": {
+      "0": 13
+    },
+    "cross_segment_edges": 0,
+    "isolation_score": 1.0,
+    "communities": {
+      "192.168.1.1": 0,
+      "192.168.1.103": 0,
+      "192.168.1.104": 0,
+      "192.168.1.123": 0,
+      "192.168.1.124": 0,
+      "192.168.1.130": 0,
+      "192.168.1.145": 0,
+      "192.168.1.152": 0,
+      "192.168.1.154": 0,
+      "192.168.1.197": 0,
+      "192.168.1.220": 0,
+      "192.168.1.82": 0,
+      "192.168.1.84": 0
+    }
+  },
+  "network_analysis": {
+    "density": 0.7307692307692307,
+    "average_degree": 8.76923076923077,
+    "critical_paths": 0,
+    "bridge_nodes": 0
+  }
+}

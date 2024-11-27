@@ -751,6 +751,45 @@
     font-weight: bold;
     color: var(--accent-color);
 }
+
+.network-analysis-panel {
+    background-color: var(--secondary-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.analysis-section {
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.metric-item {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.metric-value {
+    font-size: 1.2rem;
+    color: var(--accent-color);
+    font-weight: bold;
+}
     </style>
 </head>
 <body>
@@ -759,6 +798,15 @@
             <ul class="navbar-nav">
                 <li class="nav-item">
                     <a class="nav-link active" href="/">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="analyze-network">Analyze Network</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="generate-report">Generate Report</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="report-history">Report History</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/comparison">Comparison</a>
@@ -899,6 +947,68 @@
                             <!-- Host details will be populated here -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Add this after the host-details-panel div -->
+            <div class="network-analysis-panel mt-4">
+                <div class="card-header">Network Analysis Results</div>
+                <div class="row g-4">
+                    <!-- Basic Network Structure -->
+                    <div class="col-md-4">
+                        <div class="analysis-section">
+                            <h5>Network Structure</h5>
+                            <div id="structure-metrics" class="metrics-grid">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Metrics -->
+                    <div class="col-md-4">
+                        <div class="analysis-section">
+                            <h5>Security Analysis</h5>
+                            <div id="security-metrics" class="metrics-grid">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spectral Analysis -->
+                    <div class="col-md-4">
+                        <div class="analysis-section">
+                            <h5>Spectral Analysis</h5>
+                            <div id="spectral-metrics" class="metrics-grid">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Risk Visualization -->
+                    <div class="col-md-6">
+                        <div class="analysis-section">
+                            <h5>Risk Level Distribution</h5>
+                            <canvas id="riskDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Network Centrality -->
+                    <div class="col-md-6">
+                        <div class="analysis-section">
+                            <h5>Network Centrality Measures</h5>
+                            <canvas id="centralityChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottleneck Analysis -->
+                    <div class="col-md-12">
+                        <div class="analysis-section">
+                            <h5>Critical Points & Bottlenecks</h5>
+                            <div id="bottleneck-analysis" class="table-responsive">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

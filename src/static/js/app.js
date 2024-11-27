@@ -1,5 +1,8 @@
 import { refreshTopology } from './topology.js';
 
+// Add this at the top of your file
+let currentScanId = null;
+
 // Function to update host details table
 function updateHostDetails(scanData) {
     const tbody = document.getElementById('host-details-body');
@@ -314,6 +317,10 @@ async function updateScanStatus(scanId) {
         }
         
         if (data.status === 'completed') {
+            // Store the scan ID when scan completes successfully
+            currentScanId = scanId;
+            window.lastSuccessfulScanId = scanId;
+            
             const scanButton = document.getElementById('scan-button');
             if (scanButton) {
                 scanButton.disabled = false;
@@ -328,12 +335,19 @@ async function updateScanStatus(scanId) {
                 // Update network metrics
                 updateNetworkMetrics(scanData);
                 
+                // Update host details
+                updateHostDetails(scanData);
+                
                 // Update port analysis
                 await updatePortAnalysis(scanId);
                 
                 // Update topology
                 await refreshTopology(scanId);
             }
+            
+            // Enable only the Analyze Network button
+            updateUIState('scan_completed');
+            
         } else if (data.status === 'failed') {
             const scanButton = document.getElementById('scan-button');
             if (scanButton) {
@@ -356,10 +370,440 @@ async function updateScanStatus(scanId) {
 document.addEventListener('DOMContentLoaded', () => {
     loadNetworks();
     
+    // Initialize UI state
+    updateUIState('initial');
+    
     // Add event listener for scan button
     const scanButton = document.getElementById('scan-button');
     if (scanButton) {
         scanButton.addEventListener('click', startScan);
     }
 });
+
+// Network Analysis Handler
+document.getElementById('analyze-network').addEventListener('click', async () => {
+    if (!currentScanId) {
+        alert('Please perform a network scan first');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/analysis/${currentScanId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Update basic metrics
+            updateBasicMetrics(data.metrics);
+            
+            // Update network structure metrics
+            updateStructureMetrics(data.structure_analysis);
+            
+            // Update security metrics
+            updateSecurityMetrics(data.security_metrics);
+            
+            // Update spectral metrics
+            updateSpectralMetrics(data.spectral_metrics);
+            
+            // Update bottleneck analysis
+            updateBottleneckAnalysis(data.bottleneck_analysis);
+            
+            // Update risk visualization
+            updateRiskVisualization(data.risk_scores);
+            
+            // Update centrality measures
+            updateCentralityVisualization(data.network_analysis);
+            
+            // Update topology visualization
+            await refreshTopology(currentScanId);
+            
+            // Show the analysis panel
+            document.querySelector('.network-analysis-panel').style.display = 'block';
+            
+            // Enable generate report button
+            updateUIState('analysis_completed');
+            window.analysisCompleted = true;
+            
+        } else {
+            throw new Error(data.error || 'Failed to analyze network');
+        }
+    } catch (error) {
+        console.error('Error analyzing network:', error);
+        alert('Error analyzing network: ' + error.message);
+    }
+});
+
+// Report Generation Handler
+document.getElementById('generate-report').addEventListener('click', async () => {
+    if (!window.analysisCompleted) {
+        alert('Please analyze the network first');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/comparison/${currentScanId}/report`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `network_analysis_report_${currentScanId}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } else {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to generate report');
+        }
+    } catch (error) {
+        console.error('Error generating report:', error);
+        alert('Error generating report: ' + error.message);
+    }
+});
+
+// Report History Handler
+document.getElementById('report-history').addEventListener('click', async () => {
+    try {
+        const response = await fetch('/api/analysis/history');
+        const data = await response.json();
+        
+        if (response.ok) {
+            const modalHtml = `
+                <div class="modal fade" id="reportHistoryModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content bg-dark text-light">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Network Analysis History</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="table-responsive">
+                                    <table class="table table-dark">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Network</th>
+                                                <th>Summary</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${data.map(report => `
+                                                <tr>
+                                                    <td>${new Date(report.timestamp).toLocaleString()}</td>
+                                                    <td>${report.scan_id}</td>
+                                                    <td>
+                                                        Hosts: ${report.metrics?.total_hosts || 0}<br>
+                                                        Active: ${report.metrics?.active_hosts || 0}<br>
+                                                        Services: ${report.metrics?.total_services || 0}
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-primary" 
+                                                                onclick="window.location.href='/api/comparison/${report.scan_id}/report'">
+                                                            Download Report
+                                                        </button>
+                                                        <button class="btn btn-sm btn-info" 
+                                                                onclick="viewAnalysis('${report.scan_id}')">
+                                                            View Analysis
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = modalHtml;
+            document.body.appendChild(modalContainer);
+            
+            const modal = new bootstrap.Modal(document.getElementById('reportHistoryModal'));
+            modal.show();
+            
+            document.getElementById('reportHistoryModal').addEventListener('hidden.bs.modal', function () {
+                document.body.removeChild(modalContainer);
+            });
+        } else {
+            throw new Error(data.error || 'Failed to fetch report history');
+        }
+    } catch (error) {
+        console.error('Error fetching report history:', error);
+        alert('Error fetching report history: ' + error.message);
+    }
+});
+
+// Update the UI state function to handle different states
+function updateUIState(state) {
+    const analyzeBtn = document.getElementById('analyze-network');
+    const generateReportBtn = document.getElementById('generate-report');
+    
+    switch (state) {
+        case 'initial':
+            // Initial state - only scan button enabled
+            analyzeBtn.classList.add('disabled');
+            generateReportBtn.classList.add('disabled');
+            break;
+            
+        case 'scan_completed':
+            // After scan completes - enable analyze button
+            analyzeBtn.classList.remove('disabled');
+            generateReportBtn.classList.add('disabled');
+            break;
+            
+        case 'analysis_completed':
+            // After analysis completes - enable generate report button
+            analyzeBtn.classList.remove('disabled');
+            generateReportBtn.classList.remove('disabled');
+            break;
+    }
+}
+
+// Add helper functions to update each section
+function updateStructureMetrics(analysis) {
+    const container = document.getElementById('structure-metrics');
+    if (!analysis) {
+        console.warn('No structure analysis data provided');
+        analysis = {
+            density: 0,
+            components: [],
+            cycles: [],
+            endpoints: []
+        };
+    }
+
+    container.innerHTML = `
+        <div class="metric-item">
+            <div class="metric-label">Network Density</div>
+            <div class="metric-value">${(analysis.density || 0).toFixed(3)}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Components</div>
+            <div class="metric-value">${(analysis.components || []).length}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Cycles</div>
+            <div class="metric-value">${(analysis.cycles || []).length}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Endpoints</div>
+            <div class="metric-value">${(analysis.endpoints || []).length}</div>
+        </div>
+    `;
+}
+
+function updateBasicMetrics(metrics) {
+    document.getElementById('total-hosts').textContent = metrics?.total_hosts || '-';
+    document.getElementById('active-hosts').textContent = metrics?.active_hosts || '-';
+    document.getElementById('total-ports').textContent = metrics?.total_ports || '-';
+    document.getElementById('total-services').textContent = metrics?.total_services || '-';
+    document.getElementById('total-vulnerabilities').textContent = metrics?.total_vulnerabilities || '-';
+}
+
+function updateSecurityMetrics(metrics) {
+    const container = document.getElementById('security-metrics');
+    if (!metrics) return;
+
+    container.innerHTML = `
+        <div class="metric-item">
+            <div class="metric-label">High Risk Hosts</div>
+            <div class="metric-value">${metrics.high_risk_hosts || 0}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Critical Services</div>
+            <div class="metric-value">${metrics.critical_services || 0}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Exposed Ports</div>
+            <div class="metric-value">${metrics.exposed_ports || 0}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Security Score</div>
+            <div class="metric-value">${metrics.security_score?.toFixed(1) || 0}/10</div>
+        </div>
+    `;
+}
+
+function updateBottleneckAnalysis(analysis) {
+    const container = document.getElementById('bottleneck-analysis');
+    if (!analysis) return;
+
+    container.innerHTML = `
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th>Node</th>
+                    <th>Impact Score</th>
+                    <th>Traffic Load</th>
+                    <th>Risk Level</th>
+                    <th>Recommended Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${Object.entries(analysis)
+                    .sort((a, b) => b[1].spectral_score - a[1].spectral_score)
+                    .slice(0, 5)
+                    .map(([node, data]) => `
+                        <tr>
+                            <td>${node}</td>
+                            <td>${data.spectral_score.toFixed(3)}</td>
+                            <td>${data.flow_centrality.toFixed(3)}</td>
+                            <td>
+                                <span class="badge ${data.is_critical === 'true' ? 'bg-danger' : 'bg-warning'}">
+                                    ${data.is_critical === 'true' ? 'Critical' : 'Moderate'}
+                                </span>
+                            </td>
+                            <td>${data.is_critical === 'true' ? 'Immediate Review' : 'Monitor'}</td>
+                        </tr>
+                    `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function updateRiskVisualization(riskScores) {
+    const ctx = document.getElementById('riskDistributionChart').getContext('2d');
+    if (!riskScores || !riskScores.length) return;
+
+    // Calculate risk distribution
+    const riskLevels = {
+        'Critical (75-100)': 0,
+        'High (50-74)': 0,
+        'Medium (25-49)': 0,
+        'Low (0-24)': 0
+    };
+
+    riskScores.forEach(score => {
+        if (score >= 75) riskLevels['Critical (75-100)']++;
+        else if (score >= 50) riskLevels['High (50-74)']++;
+        else if (score >= 25) riskLevels['Medium (25-49)']++;
+        else riskLevels['Low (0-24)']++;
+    });
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(riskLevels),
+            datasets: [{
+                data: Object.values(riskLevels),
+                backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#28a745']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#ffffff' }
+                },
+                title: {
+                    display: true,
+                    text: 'Risk Level Distribution',
+                    color: '#ffffff'
+                }
+            }
+        }
+    });
+}
+
+function updateSpectralMetrics(spectralMetrics) {
+    const container = document.getElementById('spectral-metrics');
+    if (!spectralMetrics) {
+        console.warn('No spectral metrics data provided');
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="metric-item">
+            <div class="metric-label">Spectral Radius</div>
+            <div class="metric-value">${spectralMetrics.spectral_radius?.toFixed(3) || 0}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Fiedler Value</div>
+            <div class="metric-value">${spectralMetrics.fiedler_value?.toFixed(3) || 0}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Network Connectivity</div>
+            <div class="metric-value">${(1/spectralMetrics.fiedler_value)?.toFixed(3) || 0}</div>
+        </div>
+        <div class="metric-item">
+            <div class="metric-label">Algebraic Connectivity</div>
+            <div class="metric-value">${Math.abs(spectralMetrics.fiedler_value)?.toFixed(3) || 0}</div>
+        </div>
+    `;
+}
+
+// Update the centrality visualization function
+function updateCentralityVisualization(networkAnalysis) {
+    const ctx = document.getElementById('centralityChart').getContext('2d');
+    if (!networkAnalysis?.centrality_measures) return;
+
+    const measures = networkAnalysis.centrality_measures;
+    const nodes = Object.keys(measures.Degree_Centrality || {});
+    
+    // Calculate statistics for each centrality measure
+    const datasets = Object.entries(measures).map(([measure, values]) => {
+        const data = nodes.map(node => values[node] || 0);
+        return {
+            label: measure.replace('_', ' '),
+            data: data,
+            backgroundColor: measure === 'Degree_Centrality' ? 'rgba(54, 162, 235, 0.5)' :
+                           measure === 'Betweenness_Centrality' ? 'rgba(255, 99, 132, 0.5)' :
+                           measure === 'Closeness_Centrality' ? 'rgba(75, 192, 192, 0.5)' :
+                           'rgba(153, 102, 255, 0.5)',
+            borderColor: measure === 'Degree_Centrality' ? 'rgba(54, 162, 235, 1)' :
+                        measure === 'Betweenness_Centrality' ? 'rgba(255, 99, 132, 1)' :
+                        measure === 'Closeness_Centrality' ? 'rgba(75, 192, 192, 1)' :
+                        'rgba(153, 102, 255, 1)',
+            borderWidth: 1
+        };
+    });
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: nodes,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#ffffff' }
+                },
+                x: {
+                    ticks: { 
+                        color: '#ffffff',
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: { color: '#ffffff' }
+                },
+                title: {
+                    display: true,
+                    text: 'Node Centrality Measures',
+                    color: '#ffffff'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw.toFixed(3)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
   
