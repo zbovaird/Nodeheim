@@ -2447,6 +2447,17 @@ def calculate_risk_scores(G, security_metrics, hosts):
     """Calculate risk scores for each node"""
     try:
         risk_scores = []
+        # Create a mapping of IP to hostname
+        ip_to_hostname = {
+            host.get('ip_address'): (
+                # Try to get hostname from different possible formats
+                host.get('hostname') or 
+                (host.get('hostnames', [{}])[0].get('name') if host.get('hostnames') else None) or
+                'N/A'
+            )
+            for host in hosts
+        }
+
         for i, node in enumerate(G.nodes()):
             # Base risk from degree and centrality
             degree_risk = G.degree(node) / G.number_of_nodes()
@@ -2458,14 +2469,18 @@ def calculate_risk_scores(G, security_metrics, hosts):
             
             # Calculate total risk score (0-100)
             total_risk = (degree_risk * 30 + 
-                         centrality_risk * 30 + 
-                         service_risk * 20 + 
-                         vulnerability_risk * 20)
+                          centrality_risk * 30 + 
+                          service_risk * 20 + 
+                          vulnerability_risk * 20)
+
+            # Get IP address and hostname
+            ip = str(node)  # Use node as IP address
+            hostname = ip_to_hostname.get(ip, 'N/A')
             
             risk_scores.append({
                 'score': min(100, total_risk * 100),
-                'ip': hosts[i].get('ip_address', str(node)),
-                'hostname': hosts[i].get('hostname', 'N/A')
+                'ip': ip,
+                'hostname': hostname
             })
             
         return risk_scores
