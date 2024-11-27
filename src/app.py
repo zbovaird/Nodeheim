@@ -1952,7 +1952,7 @@ def get_network_analysis(scan_id):
         structure_analysis = analyze_network_structure(G)
         centrality_measures = calculate_centrality_measures(G)
         bottleneck_results = analyze_bottlenecks(G)
-        risk_scores = calculate_risk_scores(G, metrics)
+        risk_scores = calculate_risk_scores(G, metrics, scan_data['hosts'])  # Pass hosts data
         
         # Prepare analysis results
         analysis_results = {
@@ -2443,11 +2443,11 @@ def analyze_bottlenecks(G):
             }
         }
 
-def calculate_risk_scores(G, security_metrics):
+def calculate_risk_scores(G, security_metrics, hosts):
     """Calculate risk scores for each node"""
     try:
         risk_scores = []
-        for node in G.nodes():
+        for i, node in enumerate(G.nodes()):
             # Base risk from degree and centrality
             degree_risk = G.degree(node) / G.number_of_nodes()
             centrality_risk = nx.betweenness_centrality(G).get(node, 0)
@@ -2458,11 +2458,15 @@ def calculate_risk_scores(G, security_metrics):
             
             # Calculate total risk score (0-100)
             total_risk = (degree_risk * 30 + 
-                          centrality_risk * 30 + 
-                          service_risk * 20 + 
-                          vulnerability_risk * 20)
+                         centrality_risk * 30 + 
+                         service_risk * 20 + 
+                         vulnerability_risk * 20)
             
-            risk_scores.append(min(100, total_risk * 100))
+            risk_scores.append({
+                'score': min(100, total_risk * 100),
+                'ip': hosts[i].get('ip_address', str(node)),
+                'hostname': hosts[i].get('hostname', 'N/A')
+            })
             
         return risk_scores
     except Exception as e:

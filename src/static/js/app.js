@@ -668,8 +668,28 @@ function updateBottleneckAnalysis(analysis) {
 }
 
 function updateRiskVisualization(riskScores) {
-    const ctx = document.getElementById('riskDistributionChart').getContext('2d');
+    const container = document.getElementById('riskDistributionChart').parentElement;
     if (!riskScores || !riskScores.length) return;
+
+    // Get existing chart instance
+    const existingChart = Chart.getChart('riskDistributionChart');
+    if (existingChart) {
+        existingChart.destroy();
+    }
+
+    // Get or create canvas
+    let canvas = document.getElementById('riskDistributionChart');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'riskDistributionChart';
+        container.appendChild(canvas);
+    }
+
+    // Remove any existing risk details table
+    const existingTable = container.querySelector('.risk-details');
+    if (existingTable) {
+        existingTable.remove();
+    }
 
     // Calculate risk distribution
     const riskLevels = {
@@ -679,14 +699,39 @@ function updateRiskVisualization(riskScores) {
         'Low (0-24)': 0
     };
 
-    riskScores.forEach(score => {
-        if (score >= 75) riskLevels['Critical (75-100)']++;
-        else if (score >= 50) riskLevels['High (50-74)']++;
-        else if (score >= 25) riskLevels['Medium (25-49)']++;
-        else riskLevels['Low (0-24)']++;
+    // Create detailed risk data
+    const detailedRisks = {
+        'Critical (75-100)': [],
+        'High (50-74)': [],
+        'Medium (25-49)': [],
+        'Low (0-24)': []
+    };
+
+    riskScores.forEach((nodeData) => {
+        const score = nodeData.score;
+        const nodeInfo = {
+            ip: nodeData.ip || 'Unknown',
+            hostname: nodeData.hostname || 'N/A',
+            score: score
+        };
+
+        if (score >= 75) {
+            riskLevels['Critical (75-100)']++;
+            detailedRisks['Critical (75-100)'].push(nodeInfo);
+        } else if (score >= 50) {
+            riskLevels['High (50-74)']++;
+            detailedRisks['High (50-74)'].push(nodeInfo);
+        } else if (score >= 25) {
+            riskLevels['Medium (25-49)']++;
+            detailedRisks['Medium (25-49)'].push(nodeInfo);
+        } else {
+            riskLevels['Low (0-24)']++;
+            detailedRisks['Low (0-24)'].push(nodeInfo);
+        }
     });
 
-    new Chart(ctx, {
+    // Create new chart
+    new Chart(canvas.getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: Object.keys(riskLevels),
@@ -710,6 +755,51 @@ function updateRiskVisualization(riskScores) {
             }
         }
     });
+
+    // Create and add the detailed risk table
+    const tableHtml = `
+        <div class="risk-details mt-3">
+            <h6>Detailed Risk Analysis</h6>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm">
+                    <thead>
+                        <tr>
+                            <th>Risk Level</th>
+                            <th>IP Address</th>
+                            <th>Hostname</th>
+                            <th>Risk Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(detailedRisks).map(([level, nodes]) => 
+                            nodes.map(node => `
+                                <tr>
+                                    <td>
+                                        <span class="badge ${
+                                            level.startsWith('Critical') ? 'bg-danger' :
+                                            level.startsWith('High') ? 'bg-warning text-dark' :
+                                            level.startsWith('Medium') ? 'bg-info text-dark' :
+                                            'bg-success'
+                                        }">
+                                            ${level.split(' ')[0]}
+                                        </span>
+                                    </td>
+                                    <td>${node.ip}</td>
+                                    <td>${node.hostname}</td>
+                                    <td>${node.score.toFixed(1)}</td>
+                                </tr>
+                            `).join('')
+                        ).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Add the table to the container
+    const tableContainer = document.createElement('div');
+    tableContainer.innerHTML = tableHtml;
+    container.appendChild(tableContainer);
 }
 
 function updateSpectralMetrics(spectralMetrics) {
