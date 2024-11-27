@@ -1,0 +1,6 @@
+﻿<nav search_view="search">
+  <view name="network_analysis" default="true"/>
+  <collection label="Network Analysis">
+    <view name="network_analysis" label="Network Discovery"/>
+  </collection>
+</nav>

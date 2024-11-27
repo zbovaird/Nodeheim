@@ -1,0 +1,109 @@
+<dashboard>
+  <label>Network Analysis</label>
+  <row>
+    <panel>
+      <title>Network Scan</title>
+      <input type="dropdown" token="subnet">
+        <label>Subnet</label>
+        <choice value="192.168.1.0/24">192.168.1.0/24</choice>
+        <choice value="10.0.0.0/24">10.0.0.0/24</choice>
+      </input>
+      <input type="dropdown" token="scan_type">
+        <label>Scan Type</label>
+        <choice value="basic_scan">Basic Scan</choice>
+        <choice value="full_scan">Full Scan</choice>
+      </input>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Network Metrics</title>
+      <single>
+        <search>
+          <query>| nodeheim_scan $subnet$ $scan_type$ | stats count as hosts</query>
+        </search>
+      </single>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+        <title>Network Changes Over Time</title>
+        <chart>
+            <search>
+                <query>
+                    | nodeheim_scan $subnet$ $scan_type$ 
+                    | nodeheim_compare 24h
+                    | timechart span=1h 
+                        avg(metrics_changes.hosts) as "Host Changes",
+                        avg(metrics_changes.services) as "Service Changes",
+                        avg(metrics_changes.ports) as "Port Changes"
+                </query>
+                <earliest>-24h@h</earliest>
+                <latest>now</latest>
+            </search>
+            <option name="charting.chart">line</option>
+            <option name="charting.legend.placement">bottom</option>
+        </chart>
+    </panel>
+</row>
+
+<row>
+    <panel>
+        <title>Topology Changes</title>
+        <table>
+            <search>
+                <query>
+                    | nodeheim_scan $subnet$ $scan_type$ 
+                    | nodeheim_compare 24h
+                    | table _time, topology_changes.added_nodes, topology_changes.removed_nodes
+                    | rename topology_changes.* as *
+                </query>
+                <earliest>-24h@h</earliest>
+                <latest>now</latest>
+            </search>
+        </table>
+    </panel>
+</row>
+
+<row>
+    <panel>
+        <title>Network Change Summary</title>
+        <single>
+            <search>
+                <query>
+                    | nodeheim_scan $subnet$ $scan_type$ 
+                    | nodeheim_compare 24h
+                    | stats 
+                        sum(topology_changes.added_count) as "Added Hosts",
+                        sum(topology_changes.removed_count) as "Removed Hosts",
+                        sum(eval(if(metrics_changes.services > 0, metrics_changes.services, 0))) as "New Services",
+                        sum(eval(if(metrics_changes.ports > 0, metrics_changes.ports, 0))) as "New Ports"
+                </query>
+                <earliest>-24h@h</earliest>
+                <latest>now</latest>
+            </search>
+        </single>
+    </panel>
+</row>
+
+<row>
+    <panel>
+        <title>Historical Network Size</title>
+        <chart>
+            <search>
+                <query>
+                    | nodeheim_scan $subnet$ $scan_type$ 
+                    | timechart span=1h count as "Total Hosts"
+                </query>
+                <earliest>-7d@h</earliest>
+                <latest>now</latest>
+            </search>
+            <option name="charting.chart">area</option>
+        </chart>
+    </panel>
+</row>
+  
+  <!-- Add more visualization panels -->
+</dashboard> 
