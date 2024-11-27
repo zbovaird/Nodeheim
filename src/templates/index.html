@@ -790,6 +790,51 @@
     color: var(--accent-color);
     font-weight: bold;
 }
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.metric-item {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    opacity: 0.8;
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    font-size: 1.2rem;
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.analysis-section {
+    background-color: var(--primary-color);
+    border-radius: 8px;
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.analysis-section h5 {
+    color: var(--accent-color);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
     </style>
 </head>
 <body>
@@ -954,10 +999,10 @@
             <div class="network-analysis-panel mt-4">
                 <div class="card-header">Network Analysis Results</div>
                 <div class="row g-4">
-                    <!-- Basic Network Structure -->
+                    <!-- Network Structure Analysis -->
                     <div class="col-md-4">
-                        <div class="analysis-section">
-                            <h5>Network Structure</h5>
+                        <div class="analysis-section h-100">
+                            <h5 class="mb-3">Network Structure</h5>
                             <div id="structure-metrics" class="metrics-grid">
                                 <!-- Will be populated by JS -->
                             </div>
@@ -966,8 +1011,8 @@
                     
                     <!-- Security Metrics -->
                     <div class="col-md-4">
-                        <div class="analysis-section">
-                            <h5>Security Analysis</h5>
+                        <div class="analysis-section h-100">
+                            <h5 class="mb-3">Security Analysis</h5>
                             <div id="security-metrics" class="metrics-grid">
                                 <!-- Will be populated by JS -->
                             </div>
@@ -976,8 +1021,8 @@
 
                     <!-- Spectral Analysis -->
                     <div class="col-md-4">
-                        <div class="analysis-section">
-                            <h5>Spectral Analysis</h5>
+                        <div class="analysis-section h-100">
+                            <h5 class="mb-3">Spectral Analysis</h5>
                             <div id="spectral-metrics" class="metrics-grid">
                                 <!-- Will be populated by JS -->
                             </div>

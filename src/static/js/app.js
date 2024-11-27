@@ -392,25 +392,15 @@ document.getElementById('analyze-network').addEventListener('click', async () =>
         const data = await response.json();
         
         if (response.ok) {
-            // Update basic metrics
-            updateBasicMetrics(data.metrics);
+            // Use stored metrics if new metrics are not provided
+            updateMetricsDisplay(data.metrics || window.currentMetrics);
             
-            // Update network structure metrics
+            // Update all analysis sections
             updateStructureMetrics(data.structure_analysis);
-            
-            // Update security metrics
             updateSecurityMetrics(data.security_metrics);
-            
-            // Update spectral metrics
             updateSpectralMetrics(data.spectral_metrics);
-            
-            // Update bottleneck analysis
             updateBottleneckAnalysis(data.bottleneck_analysis);
-            
-            // Update risk visualization
             updateRiskVisualization(data.risk_scores);
-            
-            // Update centrality measures
             updateCentralityVisualization(data.network_analysis);
             
             // Update topology visualization
@@ -598,12 +588,23 @@ function updateStructureMetrics(analysis) {
     `;
 }
 
+// Modify updateBasicMetrics to store metrics globally
 function updateBasicMetrics(metrics) {
-    document.getElementById('total-hosts').textContent = metrics?.total_hosts || '-';
-    document.getElementById('active-hosts').textContent = metrics?.active_hosts || '-';
-    document.getElementById('total-ports').textContent = metrics?.total_ports || '-';
-    document.getElementById('total-services').textContent = metrics?.total_services || '-';
-    document.getElementById('total-vulnerabilities').textContent = metrics?.total_vulnerabilities || '-';
+    // Store metrics globally so we can reuse them
+    window.currentMetrics = metrics;
+    updateMetricsDisplay(metrics);
+}
+
+// New function to update metrics display
+function updateMetricsDisplay(metrics) {
+    // Use stored metrics if no new metrics provided
+    metrics = metrics || window.currentMetrics || {};
+    
+    document.getElementById('total-hosts').textContent = metrics.total_hosts || '-';
+    document.getElementById('active-hosts').textContent = metrics.active_hosts || '-';
+    document.getElementById('total-ports').textContent = metrics.total_ports || '-';
+    document.getElementById('total-services').textContent = metrics.total_services || '-';
+    document.getElementById('total-vulnerabilities').textContent = metrics.total_vulnerabilities || '-';
 }
 
 function updateSecurityMetrics(metrics) {
