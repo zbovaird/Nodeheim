@@ -9,36 +9,38 @@ if bin_path not in sys.path:
     sys.path.insert(0, bin_path)
 
 import splunk.Intersplunk  # type: ignore
-import networkx as nx
 import json
-from analyzer.topology import create_network_topology, analyze_topology
-from analyzer.network_analysis import analyze_network as analyze_net
+from datetime import datetime
+from analyzer.topology import create_network_topology
+from analyzer.network_analysis import analyze_network
 
-def analyze_network(results):
+def analyze_scan_results(results):
     try:
-        # Create network graph from results
-        hosts = []
+        # Process the most recent scan
+        if not results:
+            return [{'error': 'No scan results to analyze'}]
+
+        # Parse the raw scan data
+        scan_data = []
         for result in results:
-            host_data = json.loads(result.get('_raw', '{}'))
-            hosts.append(host_data)
-            
-        scan_data = {'hosts': hosts}
-        G = create_network_topology(scan_data)
+            scan_data.append(json.loads(result.get('_raw', '{}')))
+
+        # Create network topology
+        topology = create_network_topology({'nodes': scan_data})
         
-        # Run analysis
-        metrics = analyze_topology(G)
-        network_metrics = analyze_net(G)
+        # Analyze the network
+        metrics = analyze_network(topology)
         
         # Create analysis event
         analysis_event = {
             'source': 'nodeheim:analysis',
             'sourcetype': 'nodeheim:analysis',
-            'metrics': metrics,
-            'network_metrics': network_metrics
+            '_time': datetime.now().timestamp(),
+            'metrics': metrics
         }
-        
+
         return [analysis_event]
-        
+
     except Exception as e:
         splunk.Intersplunk.generateErrorResults(str(e))
         return None
@@ -46,7 +48,7 @@ def analyze_network(results):
 if __name__ == '__main__':
     try:
         results, dummyresults, settings = splunk.Intersplunk.getOrganizedResults()
-        events = analyze_network(results)
+        events = analyze_scan_results(results)
         if events:
             splunk.Intersplunk.outputResults(events)
     except Exception as e:
