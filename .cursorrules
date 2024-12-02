@@ -1,29 +1,171 @@
-# Cursor Rules for Nodeheim Project
+# Cursor Rules for Splunk App Development
 
-You are an expert in Javascript and Python, specializing in data analysis and visuazlation in dashboards. 
+[splunk_app_standards]
+description = "Rules to ensure Splunk app compatibility across instances"
+severity = "error"
 
-# Rule 1: No Code Placeholders
-[no_placeholders]
-description = "Do not use code placeholders like '// ... existing code ...'"
+# Rule 1: No Hardcoded Paths
+[no_hardcoded_paths]
+description = "Avoid hardcoded paths that may differ across Splunk instances"
 severity = "error"
 patterns = [
-    "// ... existing code ...",
-    "# ... existing code ...",
-    "// ...",
-    "# ...",
-    "// existing code",
-    "# existing code",
-    "// placeholder",
-    "# placeholder"
+    "/opt/splunk",
+    "C:\\Program Files\\Splunk",
+    "\\\\splunk\\",
+    "/usr/local/splunk"
 ]
 
-# Rule 2: No Duplicate Code
-[no_duplicates]
-description = "Avoid duplicate code blocks and route definitions"
+# Rule 2: No Local Environment Dependencies
+[no_local_dependencies]
+description = "Avoid dependencies on local environment settings"
 severity = "error"
 patterns = [
-    "@app.route\\(['\"]([^'\"]+)['\"]\\)",  # Check for duplicate route definitions
-    "def\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("  # Check for duplicate function definitions
+    "os.environ\\['HOME'\\]",
+    "os.environ\\['USERPROFILE'\\]",
+    "os.environ\\['PWD'\\]",
+    "os.environ\\['PATH'\\]"
 ]
-check_duplicates = true
-min_duplicate_lines = 3  # Consider blocks of 3 or more lines as potential duplicates 
+
+# Rule 3: Proper Python Path Management
+[proper_python_path]
+description = "Use proper Python path management for Splunk apps"
+severity = "error"
+required_patterns = [
+    "os.path.dirname\\(os.path.abspath\\(__file__\\)\\)",
+    "sys.path.append\\("
+]
+
+# Rule 4: Splunk SDK Import Standards
+[splunk_sdk_imports]
+description = "Use proper Splunk SDK import statements"
+severity = "error"
+required_patterns = [
+    "import splunk.Intersplunk",
+    "# type: ignore  # After Splunk imports"
+]
+
+# Rule 5: No Direct File System Access
+[no_direct_fs_access]
+description = "Avoid direct file system access outside app directory"
+severity = "error"
+patterns = [
+    "open\\('/'",
+    "open\\('[A-Z]:\\\\'",
+    "os.path.join\\('/', ",
+    "os.path.join\\('[A-Z]:\\\\', "
+]
+
+# Rule 6: Proper Exception Handling
+[proper_exception_handling]
+description = "Use Splunk's error handling mechanisms"
+severity = "error"
+required_patterns = [
+    "splunk.Intersplunk.generateErrorResults\\(",
+    "try:",
+    "except Exception as e:"
+]
+
+# Rule 7: No Local Configuration
+[no_local_config]
+description = "Avoid local configuration files"
+severity = "error"
+patterns = [
+    "\\.env",
+    "config\\.ini",
+    "settings\\.json"
+]
+
+# Rule 8: Proper Command Registration
+[proper_command_registration]
+description = "Ensure commands are properly registered"
+severity = "error"
+required_files = [
+    "default/commands.conf",
+    "default/app.conf"
+]
+required_patterns_in_commands = [
+    "filename = ",
+    "type = python",
+    "local = true"
+]
+
+# Rule 9: No External Network Access
+[no_external_network]
+description = "Avoid direct external network access"
+severity = "error"
+patterns = [
+    "requests\\.",
+    "urllib\\.",
+    "http\\.",
+    "socket\\."
+]
+
+# Rule 10: Proper Module Structure
+[proper_module_structure]
+description = "Maintain proper module structure"
+severity = "error"
+required_files = [
+    "bin/__init__.py",
+    "default/app.conf",
+    "default/commands.conf"
+]
+
+# Rule 11: Log Checking for Errors
+[log_checking_procedure]
+description = "Check relevant logs when encountering issues"
+severity = "info"
+required_checks = [
+    # Search command issues - PowerShell commands
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\search_messages.log | Select-String",
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\python.log | Select-String",
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\splunkd.log | Select-String",
+    
+    # Dashboard issues
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\web_service.log | Select-String",
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\web_access.log | Select-String",
+    
+    # Configuration issues
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\conf.log | Select-String",
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\splunkd_stderr.log | Select-String",
+    
+    # App loading issues
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\splunkd.log | Select-String",
+    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\metrics.log | Select-String"
+]
+
+# Rule 12: Error Response Actions
+[error_response_actions]
+description = "Standard procedures for common errors"
+severity = "info"
+error_checks = [
+    {
+        "error": "No results found",
+        "checks": [
+            "Check search time range",
+            "Verify data ingestion in _internal index",
+            "Check inputs.conf configuration",
+            "Verify Python script execution permissions",
+            "Check script output in splunkd.log"
+        ]
+    },
+    {
+        "error": "Unknown search command",
+        "checks": [
+            "Verify commands.conf in both default/ and local/",
+            "Check Python script permissions",
+            "Verify script path in commands.conf",
+            "Check Python interpreter version",
+            "Review splunkd.log for command registration"
+        ]
+    },
+    {
+        "error": "Dashboard warning",
+        "checks": [
+            "Check web_service.log for errors",
+            "Verify XML syntax",
+            "Check JavaScript console",
+            "Verify all referenced search commands exist",
+            "Check dashboard permissions"
+        ]
+    }
+]

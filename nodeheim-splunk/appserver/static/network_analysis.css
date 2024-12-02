@@ -1,0 +1,52 @@
+/* Custom styles for Network Analysis Dashboard */
+.dashboard-row .dashboard-panel {
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+}
+
+.dashboard-panel .panel-title {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px;
+}
+
+.single-value .single-result {
+    font-size: 24px;
+    font-weight: bold;
+    color: #5cc05c;
+}
+
+.table-wrapper {
+    background-color: #2a2a2a;
+    border-radius: 4px;
+}
+
+.table-wrapper th {
+    background-color: #333;
+    color: #fff;
+    font-weight: bold;
+}
+
+.table-wrapper td {
+    color: #ddd;
+}
+
+/* Chart styling */
+.chart-wrapper {
+    padding: 10px;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+}
+
+/* Form inputs */
+.input-dropdown {
+    background-color: #333;
+    border: 1px solid #444;
+    color: #fff;
+}
+
+.input-dropdown:hover {
+    border-color: #666;
+} 

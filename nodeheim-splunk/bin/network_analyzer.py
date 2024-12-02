@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+import sys
+import os
+
+# Add the app's bin directory to the Python path
+app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+bin_path = os.path.join(app_root, 'bin')
+if bin_path not in sys.path:
+    sys.path.insert(0, bin_path)
+
 import splunk.Intersplunk  # type: ignore
 import networkx as nx
 import json

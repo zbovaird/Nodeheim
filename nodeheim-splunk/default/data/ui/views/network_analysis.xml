@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<form theme="dark">
+<form version="1.1" theme="dark" script="network_analysis.js" stylesheet="network_analysis.css">
   <label>Network Analysis</label>
+  <description>Network scanning and analysis dashboard for Splunk</description>
+  
+  <search id="base_search">
+    <query>| nodeheim_scan subnet=$subnet$ scan_type=$scan_type$</query>
+    <earliest>$timespan.earliest$</earliest>
+    <latest>$timespan.latest$</latest>
+    <refresh>30s</refresh>
+  </search>
+
   <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="timespan" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-15m</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
     <input type="dropdown" token="subnet">
       <label>Subnet</label>
       <choice value="192.168.1.0/24">192.168.1.0/24</choice>
@@ -20,26 +36,19 @@
     <panel>
       <title>Current Network Status</title>
       <single>
-        <search>
-          <query>| nodeheim_scan subnet=$subnet$ scan_type=$scan_type$ | stats count as "Active Hosts"</query>
-          <earliest>-15m</earliest>
-          <latest>now</latest>
-          <refresh>30</refresh>
+        <search base="base_search">
+          <query>| stats count as "Active Hosts"</query>
         </search>
       </single>
     </panel>
     <panel>
       <title>Host Details</title>
       <table>
-        <search>
+        <search base="base_search">
           <query>
-            | nodeheim_scan subnet=$subnet$ scan_type=$scan_type$
             | table host, type, status
             | rename host as "Host IP", type as "Type", status as "Status"
           </query>
-          <earliest>-15m</earliest>
-          <latest>now</latest>
-          <refresh>30</refresh>
         </search>
       </table>
     </panel>
@@ -60,7 +69,6 @@
           </query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
-          <refresh>30</refresh>
         </search>
         <option name="charting.chart">line</option>
         <option name="charting.legend.placement">bottom</option>
@@ -83,7 +91,6 @@
           </query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
-          <refresh>30</refresh>
         </search>
       </table>
     </panel>
@@ -105,7 +112,6 @@
           </query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
-          <refresh>30</refresh>
         </search>
       </single>
     </panel>

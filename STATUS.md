@@ -1,100 +1,63 @@
-# Nodeheim Splunk App Development Status
+# Project Status
 
-## Current State
-- Created Splunk app structure in `nodeheim-splunk/`
-- Implemented custom commands:
-  - `nodeheim_scan`
-  - `nodeheim_analyze`
-  - `nodeheim_compare`
-- Created dashboard UI in `network_analysis.xml`
-- Set up Python dependencies in `requirements.txt`
-- Configured app settings in `app.conf`
+## Status Update - [Current Date]
 
-## File Structure
-```
-nodeheim-splunk/
-├── appserver/
-│   └── templates/
-│       └── network_analysis.xml
-├── bin/
-│   ├── analyzer/
-│   │   ├── __init__.py
-│   │   ├── topology.py
-│   │   └── network_analysis.py
-│   ├── scanner/
-│   │   ├── __init__.py
-│   │   └── scanner.py
-│   ├── network_scanner.py
-│   ├── network_analyzer.py
-│   └── network_comparison.py
-├── default/
-│   ├── app.conf
-│   ├── commands.conf
-│   ├── props.conf
-│   └── data/
-│       └── ui/
-│           ├── nav/
-│           │   └── default.xml
-│           └── views/
-│               └── network_analysis.xml
-├── requirements.txt
-└── setup.py
-```
+### Current Status
+- Splunk container needs restart after configuration changes
+- Fixed command names to use underscores (nodeheim_scan) instead of hyphens
+- Updated local/commands.conf with proper paths
+- Added searchbnf.conf for command suggestions
 
-## Current Issues
-- Custom commands (`nodeheim_scan`, `nodeheim_analyze`, `nodeheim_compare`) showing as "unknown search command" in Splunk
-- Need to properly install Python dependencies in Splunk environment
+### Recent Progress
+- ✅ Fixed command name consistency (using underscores)
+- ✅ Added local/commands.conf with proper paths
+- ✅ Added searchbnf.conf for command definitions
+- ✅ Updated app permissions in container
 
-## Next Steps
-1. Install app in new Splunk environment:
-   ```bash
-   # Copy app to Splunk apps directory
-   cp -r nodeheim-splunk /opt/splunk/etc/apps/
+### Current Issues
+1. Splunk Restart Required
+   - Container needs restart after configuration changes
+   - Web interface may need time to become available
 
-   # Install Python dependencies
-   pip3 install -r /opt/splunk/etc/apps/nodeheim-splunk/requirements.txt
+2. Command Registration
+   - Commands need verification after restart
+   - **IMPORTANT**: Use underscore not hyphen when testing commands
+     - Correct: `| nodeheim_scan`
+     - Incorrect: `| nodeheim-scan`
 
+### Next Steps
+1. After system restart:
+   ```powershell
+   # Start Splunk container
+   docker run -d -p 8000:8000 -p 8089:8089 -p 9997:9997 --name splunk -e "SPLUNK_START_ARGS=--accept-license" -e "SPLUNK_PASSWORD=Password123" splunk/splunk:latest
+   
+   # Copy app to container
+   docker cp nodeheim-splunk splunk:/opt/splunk/etc/apps/
+   
    # Set permissions
-   chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim-splunk
-   chmod -R 755 /opt/splunk/etc/apps/nodeheim-splunk/bin/*.py
-
-   # Restart Splunk
-   /opt/splunk/bin/splunk restart
+   docker exec -u root -it splunk chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim-splunk
+   docker exec -u root -it splunk chmod -R 755 /opt/splunk/etc/apps/nodeheim-splunk/bin
+   
+   # Create log directory
+   docker exec -u root -it splunk mkdir -p /opt/splunk/etc/apps/nodeheim-splunk/var/log
+   docker exec -u root -it splunk chown splunk:splunk /opt/splunk/etc/apps/nodeheim-splunk/var/log
    ```
 
-2. Verify custom commands are working
-3. Test network scanning functionality
-4. Implement network analysis features
+2. Verify functionality:
+   - Access Splunk at http://localhost:8000
+   - Login with admin/Password123
+   - Navigate to search
+   - Type `|` then start typing `nodeheim_` (with underscore)
+   - Command should appear in suggestions
 
-## Environment Details
-- Splunk Enterprise running in Docker
-- Python dependencies:
-  - splunk-sdk>=1.7.3
-  - networkx>=2.8.4
-  - matplotlib>=3.5.2
-  - numpy>=1.21.0
+### Previous Issues Resolved
+- ✅ Updated app.conf with better configuration
+- ✅ Implemented pure Python network scanning
+- ✅ Fixed command name consistency (underscore vs hyphen)
+- ✅ Added proper logging to scanner code
+- ✅ Added searchbnf.conf for command definitions
 
-## Docker Commands
-```bash
-# Start Splunk container
-docker run -d --name splunk \
-  -p 8000:8000 \
-  -e "SPLUNK_START_ARGS=--accept-license" \
-  -e "SPLUNK_PASSWORD=password123" \
-  -v "$(pwd):/tmp/nodeheim-splunk" \
-  splunk/splunk:latest
-
-# Install app in container
-docker exec -it splunk bash -c "
-  cd /tmp/nodeheim-splunk && \
-  pip3 install --user -r requirements.txt && \
-  mkdir -p /opt/splunk/etc/apps/nodeheim-splunk && \
-  cp -r bin default appserver /opt/splunk/etc/apps/nodeheim-splunk/ && \
-  chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim-splunk
-"
-```
-
-## Splunk Web Access
-- URL: http://localhost:8000
-- Username: admin
-- Password: password123 
+### Notes
+- Remember to use underscore (_) not hyphen (-) in commands:
+  - `| nodeheim_scan` ✅
+  - `| nodeheim-scan` ❌
