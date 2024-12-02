@@ -1,0 +1,21 @@
+[]
+access = read : [ * ], write : [ admin ]
+export = system
+
+[views]
+access = read : [ * ], write : [ admin ]
+export = none
+
+[props]
+export = system
+
+[transforms]
+export = system
+
+[commands]
+access = read : [ * ], write : [ admin ]
+export = system
+
+[nodeheim-splunk]
+access = read : [ * ], write : [ admin ]
+export = system 
