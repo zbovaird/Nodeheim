@@ -14,42 +14,38 @@ if (-not $container) {
 
 Write-Host "Found Splunk container: $container"
 
-# Copy app files to container
-Write-Host "Copying app files to container..."
-docker cp $APP_SOURCE $container":/opt/splunk/etc/apps/"
+# Copy files to container
+docker cp ./nodeheim-splunk/. splunk:/opt/splunk/etc/apps/nodeheim-splunk/
 
-# Set comprehensive permissions
-Write-Host "Setting permissions..."
-docker exec -u root $container bash -c @'
-    # Set app permissions
-    chown -R splunk:splunk /opt/splunk/etc/apps/$APP_NAME
-    chmod -R 755 /opt/splunk/etc/apps/$APP_NAME/bin
-    find /opt/splunk/etc/apps/$APP_NAME/bin -name "*.py" -exec chmod 755 {} \;
-    
-    # Set configuration file permissions
-    find /opt/splunk/etc/apps/$APP_NAME/default -name "*.conf" -exec chmod 644 {} \;
-    find /opt/splunk/etc/apps/$APP_NAME/local -name "*.conf" -exec chmod 644 {} \;
-    
-    # Create and set log directory permissions
-    mkdir -p /opt/splunk/etc/apps/$APP_NAME/var/log
-    mkdir -p /opt/splunk/var/log/splunk
-    touch /opt/splunk/var/log/splunk/nodeheim_debug.log
-    chown splunk:splunk /opt/splunk/var/log/splunk/nodeheim_debug.log
-    chmod 644 /opt/splunk/var/log/splunk/nodeheim_debug.log
-    chown -R splunk:splunk /opt/splunk/etc/apps/$APP_NAME/var/log
-    chmod -R 755 /opt/splunk/etc/apps/$APP_NAME/var/log
-    
-    # Set specific Python file permissions
-    chmod 755 /opt/splunk/etc/apps/$APP_NAME/bin/network_scanner.py
-    chmod 755 /opt/splunk/etc/apps/$APP_NAME/bin/network_analyzer.py
-    chmod 755 /opt/splunk/etc/apps/$APP_NAME/bin/network_comparison.py
-    
-    # Clear command cache
-    rm -rf /opt/splunk/var/run/splunk/search_command_cache/*
-'@
+# Fix permissions inside container
+docker exec -u root splunk bash -c '
+    # Set base permissions for app directory
+    chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim-splunk
+    chmod -R 755 /opt/splunk/etc/apps/nodeheim-splunk
+
+    # Set specific permissions for different file types
+    find /opt/splunk/etc/apps/nodeheim-splunk/bin -type f -name "*.py" -exec chmod 755 {} \;
+    find /opt/splunk/etc/apps/nodeheim-splunk -type f -name "*.conf" -exec chmod 644 {} \;
+    find /opt/splunk/etc/apps/nodeheim-splunk/metadata -type f -exec chmod 644 {} \;
+    find /opt/splunk/etc/apps/nodeheim-splunk/static -type f -exec chmod 644 {} \;
+
+    # Ensure directories are executable
+    find /opt/splunk/etc/apps/nodeheim-splunk -type d -exec chmod 755 {} \;
+
+    # Set specific directory permissions
+    chmod 755 /opt/splunk/etc/apps/nodeheim-splunk/bin
+    chmod 755 /opt/splunk/etc/apps/nodeheim-splunk/default
+    chmod 755 /opt/splunk/etc/apps/nodeheim-splunk/local
+    chmod 755 /opt/splunk/etc/apps/nodeheim-splunk/metadata
+
+    # Fix permissions for key Splunk directories
+    chown -R splunk:splunk /opt/splunk/var/run/splunk
+    chmod -R 755 /opt/splunk/var/run/splunk
+    chown -R splunk:splunk /opt/splunk/var/log/splunk
+    chmod -R 755 /opt/splunk/var/log/splunk
+'
 
 # Restart Splunk
-Write-Host "Restarting Splunk..."
-docker exec -u root $container bash -c "/opt/splunk/bin/splunk restart"
+docker exec -u root splunk /opt/splunk/bin/splunk restart
 
 Write-Host "Update complete. Please verify the app is working correctly."
