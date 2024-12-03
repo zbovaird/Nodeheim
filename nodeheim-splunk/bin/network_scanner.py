@@ -1,64 +1,60 @@
+docker exec -u root -it splunk bash -c 'cat > /opt/splunk/etc/apps/nodeheim-splunk/bin/network_scanner.py' << 'EOL'
 #!/usr/bin/env python3
 import sys
 import os
+import logging
+import signal
+from datetime import datetime
 
-# Add the app's bin directory to the Python path
-app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-bin_path = os.path.join(app_root, 'bin')
-if bin_path not in sys.path:
-    sys.path.insert(0, bin_path)
+# Configure logging
+logging.basicConfig(
+    filename='/opt/splunk/var/log/splunk/nodeheim_debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
 
-# Add Splunk's Python paths
-splunk_home = os.environ.get('SPLUNK_HOME', '/opt/splunk')
-python_paths = [
-    os.path.join(splunk_home, 'lib', 'python3.7', 'site-packages'),
-    os.path.join(splunk_home, 'lib', 'python3.9', 'site-packages'),
-    os.path.join(splunk_home, 'lib', 'python3', 'site-packages'),
-    os.path.join(splunk_home, 'lib', 'python'),
-]
+def timeout_handler(signum, frame):
+    logging.error("Script execution timed out after 10 seconds")
+    sys.exit(1)
 
-for path in python_paths:
-    if os.path.exists(path) and path not in sys.path:
-        sys.path.append(path)
+# Set timeout for 10 seconds
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(10)
 
 try:
-    import splunk.Intersplunk  # type: ignore
-    from scanner.scanner import scan_network, format_splunk_event
-except ImportError as e:
-    import logging
-    logging.error(f"Import error: {str(e)}")
-    logging.error(f"sys.path: {sys.path}")
-    raise
+    logging.debug("Script starting at: %s", datetime.now())
+    
+    # Add the app's bin directory to the Python path
+    app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bin_path = os.path.join(app_root, 'bin')
+    if bin_path not in sys.path:
+        sys.path.insert(0, bin_path)
+    logging.debug("Added to sys.path: %s", bin_path)
 
-def run_scan(args):
+    # Test event generation
+    test_event = {
+        'source': 'nodeheim:scan',
+        'sourcetype': 'nodeheim:scan',
+        '_time': datetime.now().timestamp(),
+        'host': 'test_host',
+        'status': 'test_successful'
+    }
+    
+    # Import Splunk libraries
     try:
-        # Parse arguments
-        subnet = args[0] if args else "192.168.1.0/24"
-        scan_type = args[1] if len(args) > 1 else "basic_scan"
-        
-        # Run network scan
-        scan_results = scan_network(subnet, scan_type == "full_scan")
-        
-        # Format results as Splunk events
-        events = format_splunk_event(scan_results)
-        return events
-        
+        import splunk.Intersplunk
+        logging.debug("Successfully imported splunk.Intersplunk")
+        splunk.Intersplunk.outputResults([test_event])
+        logging.debug("Successfully output test event")
     except Exception as e:
-        splunk.Intersplunk.generateErrorResults(str(e))
-        return None
+        logging.error("Error with Splunk imports or output: %s", str(e))
+        raise
 
-if __name__ == '__main__':
-    try:
-        # Get arguments from Splunk
-        results, dummyresults, settings = splunk.Intersplunk.getOrganizedResults()
-        args = sys.argv[1:]
-        
-        # Run scan
-        events = run_scan(args)
-        
-        # Output results
-        if events:
-            splunk.Intersplunk.outputResults(events)
-            
-    except Exception as e:
-        splunk.Intersplunk.generateErrorResults(str(e))
+except Exception as e:
+    logging.error("Fatal error: %s", str(e))
+    sys.exit(1)
+finally:
+    # Disable the alarm
+    signal.alarm(0)
+    logging.debug("Script completed at: %s", datetime.now())
+EOL'

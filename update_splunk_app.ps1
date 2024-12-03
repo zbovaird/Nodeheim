@@ -18,17 +18,38 @@ Write-Host "Found Splunk container: $container"
 Write-Host "Copying app files to container..."
 docker cp $APP_SOURCE $container":/opt/splunk/etc/apps/"
 
-# Set permissions in container
+# Set comprehensive permissions
 Write-Host "Setting permissions..."
-docker exec -u root $container bash -c "chown -R splunk:splunk /opt/splunk/etc/apps/$APP_NAME && chmod -R 755 /opt/splunk/etc/apps/$APP_NAME/bin/*.py"
+docker exec -u root $container bash -c @'
+    # Set app permissions
+    chown -R splunk:splunk /opt/splunk/etc/apps/$APP_NAME
+    chmod -R 755 /opt/splunk/etc/apps/$APP_NAME/bin
+    find /opt/splunk/etc/apps/$APP_NAME/bin -name "*.py" -exec chmod 755 {} \;
+    
+    # Set configuration file permissions
+    find /opt/splunk/etc/apps/$APP_NAME/default -name "*.conf" -exec chmod 644 {} \;
+    find /opt/splunk/etc/apps/$APP_NAME/local -name "*.conf" -exec chmod 644 {} \;
+    
+    # Create and set log directory permissions
+    mkdir -p /opt/splunk/etc/apps/$APP_NAME/var/log
+    mkdir -p /opt/splunk/var/log/splunk
+    touch /opt/splunk/var/log/splunk/nodeheim_debug.log
+    chown splunk:splunk /opt/splunk/var/log/splunk/nodeheim_debug.log
+    chmod 644 /opt/splunk/var/log/splunk/nodeheim_debug.log
+    chown -R splunk:splunk /opt/splunk/etc/apps/$APP_NAME/var/log
+    chmod -R 755 /opt/splunk/etc/apps/$APP_NAME/var/log
+    
+    # Set specific Python file permissions
+    chmod 755 /opt/splunk/etc/apps/$APP_NAME/bin/network_scanner.py
+    chmod 755 /opt/splunk/etc/apps/$APP_NAME/bin/network_analyzer.py
+    chmod 755 /opt/splunk/etc/apps/$APP_NAME/bin/network_comparison.py
+    
+    # Clear command cache
+    rm -rf /opt/splunk/var/run/splunk/search_command_cache/*
+'@
 
-# Create log directory
-Write-Host "Creating log directory..."
-docker exec -u root $container bash -c "mkdir -p /opt/splunk/etc/apps/$APP_NAME/var/log && chown splunk:splunk /opt/splunk/etc/apps/$APP_NAME/var/log"
-
-# Restart Splunk in container
+# Restart Splunk
 Write-Host "Restarting Splunk..."
 docker exec -u root $container bash -c "/opt/splunk/bin/splunk restart"
 
-Write-Host "App update complete. Please check Splunk logs for any errors."
-Write-Host "To view logs, use: docker exec $container cat /opt/splunk/var/log/splunk/splunkd.log"
+Write-Host "Update complete. Please verify the app is working correctly."

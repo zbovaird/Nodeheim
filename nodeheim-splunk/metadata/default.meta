@@ -2,20 +2,14 @@
 access = read : [ * ], write : [ admin ]
 export = system
 
-[views]
-access = read : [ * ], write : [ admin ]
-export = none
-
-[props]
-export = system
-
-[transforms]
-export = system
-
 [commands]
 access = read : [ * ], write : [ admin ]
 export = system
 
-[nodeheim-splunk]
+[searchbnf]
+access = read : [ * ], write : [ admin ]
+export = system
+
+[searchscripts]
 access = read : [ * ], write : [ admin ]
 export = system 
