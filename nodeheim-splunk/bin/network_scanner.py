@@ -1,4 +1,5 @@
-﻿#!/usr/bin/env python3
+﻿cat > /opt/splunk/etc/apps/nodeheim-splunk/bin/network_scanner.py << 'EOL'
+#!/opt/splunk/bin/python3.9
 import sys
 import os
 import logging
@@ -34,13 +35,14 @@ def main():
 
         # Test event generation
         test_event = {
+            "_raw": "Nodeheim Scanner Test Event",
+            "_time": datetime.now().timestamp(),
+            "host": "nodeheim_scanner",
             "source": "nodeheim:scan",
             "sourcetype": "nodeheim:scan",
-            "_time": datetime.now().timestamp(),
-            "host": "test_host",
-            "status": "test_successful",
-            "keywords": str(keywords),
-            "options": str(options)
+            "event_type": "test",
+            "status": "success",
+            "message": "Scanner test event generated successfully"
         }
 
         # Output the results
@@ -62,4 +64,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
+EOL
