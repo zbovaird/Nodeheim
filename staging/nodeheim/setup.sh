@@ -1,22 +1,49 @@
 #!/bin/bash
 
-# Install required Python packages
-pip3 install splunk-sdk networkx matplotlib numpy
+# Set up error handling
+set -e
+echo "Starting Nodeheim setup..."
+
+# Get Splunk Python path
+SPLUNK_PYTHON="/opt/splunk/bin/python3.9"
+if [ ! -f "$SPLUNK_PYTHON" ]; then
+    echo "Error: Splunk Python not found at $SPLUNK_PYTHON"
+    exit 1
+fi
+
+# Install required Python packages from lib directory
+echo "Installing required Python packages..."
+APP_DIR="/opt/splunk/etc/apps/nodeheim"
+cd "$APP_DIR/lib"
+for package in *.whl *.tar.gz; do
+    if [ -f "$package" ]; then
+        echo "Installing $package..."
+        "$SPLUNK_PYTHON" -m pip install --no-deps "$package"
+    fi
+done
 
 # Create app directory structure
-mkdir -p /opt/splunk/etc/apps/nodeheim/bin
-mkdir -p /opt/splunk/etc/apps/nodeheim/default/data/ui/views
-mkdir -p /opt/splunk/etc/apps/nodeheim/default/data/ui/nav
-mkdir -p /opt/splunk/etc/apps/nodeheim/appserver/templates
+echo "Creating app directory structure..."
+mkdir -p "$APP_DIR/bin"
+mkdir -p "$APP_DIR/default/data/ui/views"
+mkdir -p "$APP_DIR/default/data/ui/nav"
+mkdir -p "$APP_DIR/appserver/templates"
+mkdir -p "$APP_DIR/var/log"
 
 # Copy files
-cp -r bin/* /opt/splunk/etc/apps/nodeheim/bin/
-cp -r default/* /opt/splunk/etc/apps/nodeheim/default/
-cp -r appserver/* /opt/splunk/etc/apps/nodeheim/appserver/
+echo "Copying app files..."
+cp -r bin/* "$APP_DIR/bin/"
+cp -r default/* "$APP_DIR/default/"
+cp -r appserver/* "$APP_DIR/appserver/"
 
 # Set permissions
-chmod -R 755 /opt/splunk/etc/apps/nodeheim/bin/*.py
-chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim
+echo "Setting permissions..."
+chmod -R 755 "$APP_DIR/bin/*.py"
+chown -R splunk:splunk "$APP_DIR"
+chmod 755 "$APP_DIR/var/log"
 
+echo "Setup complete. Restarting Splunk..."
 # Restart Splunk
-/opt/splunk/bin/splunk restart 
+/opt/splunk/bin/splunk restart
+
+echo "Nodeheim setup finished successfully." 

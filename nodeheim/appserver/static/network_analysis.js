@@ -7,10 +7,16 @@ require([
 ], function($, _, mvc, SearchManager) {
     'use strict';
     
+    console.log('Dashboard script loaded');
+    
     // Initialize form inputs
-    var subnetInput = mvc.Components.get('subnet');
-    var scanType = mvc.Components.get('scan_type');
-    var startScan = mvc.Components.get('start_scan');
+    var subnetInput = mvc.Components.get('form.subnet');
+    var scanType = mvc.Components.get('form.scan_type');
+    
+    console.log('Form inputs:', {
+        subnet: subnetInput ? 'found' : 'not found',
+        scanType: scanType ? 'found' : 'not found'
+    });
 
     // Validate CIDR input
     function validateCIDR(cidr) {
@@ -29,8 +35,13 @@ require([
     }
 
     // Handle form submission
-    startScan.on('change', function() {
+    console.log('Setting up form submission handler');
+    $('form').on('submit', function(e) {
+        console.log('Form submitted');
+        e.preventDefault();
+        
         var subnet = subnetInput.val();
+        console.log('Subnet value:', subnet);
         
         // Validate subnet
         if (!validateCIDR(subnet)) {
@@ -38,36 +49,38 @@ require([
             return;
         }
 
-        // Update display values
-        $('.network-value').text(subnet);
-        $('.scan-type-value').text(scanType.val() === 'basic' ? 'Basic Scan (Fast)' : 'Full Scan (Detailed)');
-
         // Show progress indicator
         $('.scan-progress').show();
         
         // Create search manager for scan
+        var searchStr = '| nodeheim_scan subnet="' + subnet + '" scan_type="' + scanType.val() + '"';
+        console.log('Search string:', searchStr);
+        
         var scanSearch = new SearchManager({
             id: 'network_scan_search',
             preview: true,
             cache: false,
-            search: '| nodeheim_scan subnet="' + subnet + '" scan_type="' + scanType.val() + '"',
+            search: searchStr,
             earliest_time: '-24h',
             latest_time: 'now'
         });
 
         // Handle search progress
         scanSearch.on('search:progress', function(properties) {
+            console.log('Search progress:', properties);
             updateProgress(properties);
         });
 
         // Handle search error
         scanSearch.on('search:error', function(properties) {
+            console.error('Search error:', properties);
             showError('Error during scan: ' + properties.message);
             $('.scan-progress').hide();
         });
 
         // Handle search completion
         scanSearch.on('search:done', function(properties) {
+            console.log('Search completed:', properties);
             if (properties.content.resultCount === 0) {
                 showError('No results found. Please check the network and try again.');
             }
@@ -84,6 +97,7 @@ require([
 
     // Show error message
     function showError(message) {
+        console.error('Error:', message);
         var errorDiv = $('<div class="error-message"></div>')
             .text(message)
             .insertAfter('.fieldset');
@@ -99,10 +113,14 @@ require([
     function updateResults() {
         // Refresh all search panels
         mvc.Components.revokeInstance('network_scan_search');
-        mvc.Components.get('network_overview').startSearch();
-        mvc.Components.get('network_connections').startSearch();
-        mvc.Components.get('risk_level').startSearch();
-        // ... other panel updates
+        
+        // Trigger a new search in all panels
+        $('panel search').each(function() {
+            var search = mvc.Components.get($(this).attr('id'));
+            if (search) {
+                search.startSearch();
+            }
+        });
     }
 
     // Initialize tooltips

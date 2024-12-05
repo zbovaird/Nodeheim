@@ -1,15 +1,28 @@
 import networkx as nx
-import matplotlib.pyplot as plt
 import json
 
-def create_network_topology(data):
+def create_network_topology(scan_results):
+    """Create a network topology from scan results."""
     G = nx.Graph()
-    # Add nodes and edges based on data
-    for node in data.get('nodes', []):
-        G.add_node(node['id'], **node.get('attributes', {}))
-    for edge in data.get('edges', []):
-        G.add_edge(edge['source'], edge['target'], **edge.get('attributes', {}))
-    return G
+    
+    for result in scan_results:
+        ip = result.get('ip_address')
+        if ip:
+            G.add_node(ip, **result)
+    
+    # Add edges between nodes that can communicate
+    nodes = list(G.nodes())
+    for i in range(len(nodes)):
+        for j in range(i + 1, len(nodes)):
+            G.add_edge(nodes[i], nodes[j])
+    
+    # Convert to JSON-serializable format
+    topology = {
+        'nodes': [{'id': n, 'data': G.nodes[n]} for n in G.nodes()],
+        'edges': [{'source': u, 'target': v} for (u, v) in G.edges()]
+    }
+    
+    return topology
 
 def analyze_topology(G):
     metrics = {
