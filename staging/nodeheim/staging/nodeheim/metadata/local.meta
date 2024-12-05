@@ -1,0 +1,11 @@
+[]
+access = read : [ * ], write : [ admin ]
+export = system
+
+[commands]
+export = system
+access = read : [ * ], write : [ admin ]
+
+[commands/nodeheim_scan]
+export = system
+access = read : [ * ], write : [ admin ] 

@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<nav>
+    <view name="network_analysis" default="true"/>
+    <view name="search"/>
+    <view name="reports"/>
+</nav> 

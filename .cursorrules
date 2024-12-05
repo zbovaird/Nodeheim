@@ -110,62 +110,53 @@ required_files = [
     "default/commands.conf"
 ]
 
-# Rule 11: Log Checking for Errors
-[log_checking_procedure]
-description = "Check relevant logs when encountering issues"
+# Rule 11: App Packaging and Installation Process
+[app_packaging_process]
+description = "Standard process for packaging and installing Splunk app updates"
 severity = "info"
-required_checks = [
-    # Search command issues - PowerShell commands
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\search_messages.log | Select-String",
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\python.log | Select-String",
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\splunkd.log | Select-String",
-    
-    # Dashboard issues
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\web_service.log | Select-String",
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\web_access.log | Select-String",
-    
-    # Configuration issues
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\conf.log | Select-String",
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\splunkd_stderr.log | Select-String",
-    
-    # App loading issues
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\splunkd.log | Select-String",
-    "Get-Content $SPLUNK_HOME\\var\\log\\splunk\\metrics.log | Select-String"
-]
-
-# Rule 12: Error Response Actions
-[error_response_actions]
-description = "Standard procedures for common errors"
-severity = "info"
-error_checks = [
+required_steps = [
+    # Version Update
     {
-        "error": "No results found",
-        "checks": [
-            "Check search time range",
-            "Verify data ingestion in _internal index",
-            "Check inputs.conf configuration",
-            "Verify Python script execution permissions",
-            "Check script output in splunkd.log"
+        "step": "Update version numbers",
+        "files": [
+            "app.manifest: info.id.version",
+            "default/app.conf: launcher.version and id.version"
         ]
     },
+    # Package Creation
     {
-        "error": "Unknown search command",
-        "checks": [
-            "Verify commands.conf in both default/ and local/",
-            "Check Python script permissions",
-            "Verify script path in commands.conf",
-            "Check Python interpreter version",
-            "Review splunkd.log for command registration"
+        "step": "Create package",
+        "powershell_commands": [
+            "Remove-Item -Force nodeheim-VERSION.* -ErrorAction SilentlyContinue",
+            "Remove-Item -Force -Recurse staging -ErrorAction SilentlyContinue",
+            "New-Item -ItemType Directory -Path staging/nodeheim",
+            "Copy-Item -Recurse nodeheim/* staging/nodeheim/",
+            "Compress-Archive -Path staging/nodeheim -DestinationPath nodeheim-VERSION.zip -Force",
+            "Rename-Item -Force nodeheim-VERSION.zip nodeheim-VERSION.spl"
         ]
     },
+    # Installation
     {
-        "error": "Dashboard warning",
-        "checks": [
-            "Check web_service.log for errors",
-            "Verify XML syntax",
-            "Check JavaScript console",
-            "Verify all referenced search commands exist",
-            "Check dashboard permissions"
+        "step": "Install in Splunk",
+        "docker_commands": [
+            "docker cp nodeheim-VERSION.spl splunk:/tmp/",
+            "docker exec -u root -it splunk /opt/splunk/bin/splunk install app /tmp/nodeheim-VERSION.spl -update 1 -auth admin:Password123",
+            "docker exec -u root -it splunk /opt/splunk/bin/splunk restart"
         ]
     }
+]
+
+# Rule 12: Version Management
+[version_management]
+description = "Version numbering and update rules"
+severity = "info"
+version_format = "MAJOR.MINOR.PATCH"
+version_rules = [
+    "Major: Breaking changes (e.g., 1.0.0 to 2.0.0)",
+    "Minor: New features, backward compatible (e.g., 1.0.0 to 1.1.0)",
+    "Patch: Bug fixes, backward compatible (e.g., 1.0.0 to 1.0.1)"
+]
+required_version_files = [
+    "app.manifest",
+    "default/app.conf"
 ]

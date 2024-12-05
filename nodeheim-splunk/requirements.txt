@@ -1,4 +1,0 @@
-splunk-sdk>=1.7.3
-networkx>=2.8.4
-matplotlib>=3.5.2
-numpy>=1.21.0 

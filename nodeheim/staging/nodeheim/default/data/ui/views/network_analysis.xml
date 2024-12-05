@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form theme="dark" stylesheet="network_analysis.css" script="network_analysis.js">
+  <label>Network Analysis</label>
+  <description>Comprehensive network analysis and security metrics</description>
+
+  <!-- Network Selection and Scan Controls -->
+  <fieldset submitButton="true" autoRun="false">
+    <input type="dropdown" token="network_select" searchWhenChanged="false">
+      <label>Network</label>
+      <search>
+        <query>| nodeheim_scan list_networks=true | table network name description | sort name</query>
+        <earliest>-24h</earliest>
+        <latest>now</latest>
+      </search>
+      <fieldForLabel>name</fieldForLabel>
+      <fieldForValue>network</fieldForValue>
+      <choice value="custom">Custom Network</choice>
+      <default>192.168.1.0/24</default>
+      <initialValue>192.168.1.0/24</initialValue>
+    </input>
+
+    <input type="text" token="custom_network" depends="$network_select$">
+      <label>Custom Network (CIDR)</label>
+      <default>192.168.1.0/24</default>
+      <initialValue>192.168.1.0/24</initialValue>
+      <condition value="custom">
+        <set token="show_custom">true</set>
+      </condition>
+    </input>
+
+    <input type="dropdown" token="scan_type">
+      <label>Scan Type</label>
+      <choice value="basic">Basic Scan</choice>
+      <choice value="full">Full Scan</choice>
+      <default>basic</default>
+      <initialValue>basic</initialValue>
+    </input>
+
+    <input type="submit" token="start_scan">
+      <label>Start Network Scan</label>
+      <done>
+        <condition match="$network_select$=custom">
+          <set token="subnet">$custom_network$</set>
+        </condition>
+        <condition>
+          <set token="subnet">$network_select$</set>
+        </condition>
+        <set token="show_results">true</set>
+      </done>
+    </input>
+  </fieldset>
+
+  <!-- Progress Indicator -->
+  <row depends="$start_scan$">
+    <panel>
+      <html>
+        <div class="scan-progress">
+          <h3>Scanning network: $subnet$</h3>
+          <div class="progress-bar"></div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+  <!-- Summary Row -->
+  <row depends="$show_results$">
+    <panel>
+      <title>Network Overview</title>
+      <single>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.summary.total_nodes | eval label="Total Nodes" | table label value</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Network Connections</title>
+      <single>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.summary.total_edges | eval label="Total Connections" | table label value</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Risk Level</title>
+      <single>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.summary.risk_level | eval label="Risk Level" | table label value</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeValues">["LOW","MEDIUM","HIGH"]</option>
+        <option name="rangeColors">["0x53a051","0xf8be34","0xdc4e41"]</option>
+      </single>
+    </panel>
+  </row>
+
+  <!-- Network Metrics Row -->
+  <row depends="$show_results$">
+    <panel>
+      <title>Critical Nodes</title>
+      <table>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.critical_nodes.* | mvexpand "metrics.critical_nodes.articulation_points" | rename "metrics.critical_nodes.articulation_points" as "Critical Node" | table "Critical Node"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+      </table>
+    </panel>
+    <panel>
+      <title>Network Segments</title>
+      <chart>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.security_metrics.segmentation_metrics.segment_sizes | mvexpand "metrics.security_metrics.segmentation_metrics.segment_sizes" | rename "metrics.security_metrics.segmentation_metrics.segment_sizes" as "Segment Size" | chart count by "Segment Size"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+      </chart>
+    </panel>
+  </row>
+
+  <!-- Security Metrics Row -->
+  <row depends="$show_results$">
+    <panel>
+      <title>Security Overview</title>
+      <table>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 
+| spath metrics.security_metrics.exposure_metrics.* 
+| rename 
+  "metrics.security_metrics.exposure_metrics.external_facing_nodes" as "External Facing Nodes"
+  "metrics.security_metrics.exposure_metrics.average_path_length" as "Average Path Length"
+  "metrics.security_metrics.exposure_metrics.network_diameter" as "Network Diameter"
+| table "External Facing Nodes" "Average Path Length" "Network Diameter"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+      </table>
+    </panel>
+    <panel>
+      <title>Network Bottlenecks</title>
+      <table>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.vulnerability_metrics.bottlenecks.high_load_nodes | mvexpand "metrics.vulnerability_metrics.bottlenecks.high_load_nodes" | rename "metrics.vulnerability_metrics.bottlenecks.high_load_nodes" as "Bottleneck Node" | table "Bottleneck Node"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+
+  <!-- Vulnerability Metrics Row -->
+  <row depends="$show_results$">
+    <panel>
+      <title>Vulnerability Metrics</title>
+      <table>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 
+| spath metrics.vulnerability_metrics.connectivity_metrics.* 
+| rename 
+  "metrics.vulnerability_metrics.connectivity_metrics.min_node_connectivity" as "Min Node Connectivity"
+  "metrics.vulnerability_metrics.connectivity_metrics.min_edge_connectivity" as "Min Edge Connectivity"
+  "metrics.vulnerability_metrics.connectivity_metrics.average_clustering" as "Average Clustering"
+| table "Min Node Connectivity" "Min Edge Connectivity" "Average Clustering"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+      </table>
+    </panel>
+    <panel>
+      <title>Path Redundancy</title>
+      <table>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 | spath metrics.vulnerability_metrics.redundancy_metrics.alternative_paths.* | transpose | rename "column" as "Path" "row 1" as "Redundant Paths" | sort - "Redundant Paths"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+
+  <!-- Historical Comparison Row -->
+  <row depends="$show_results$">
+    <panel>
+      <title>Network Changes</title>
+      <table>
+        <search>
+          <query>| nodeheim_scan subnet="$subnet$" scan_type="$scan_type$" | head 1 
+| spath metrics.comparison.topology_changes.* 
+| rename 
+  "metrics.comparison.topology_changes.nodes_added" as "Nodes Added"
+  "metrics.comparison.topology_changes.nodes_removed" as "Nodes Removed"
+  "metrics.comparison.topology_changes.edges_added" as "Edges Added"
+  "metrics.comparison.topology_changes.edges_removed" as "Edges Removed"
+| table "Nodes Added" "Nodes Removed" "Edges Added" "Edges Removed"</query>
+          <earliest>-24h</earliest>
+          <latest>now</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+</form> 
