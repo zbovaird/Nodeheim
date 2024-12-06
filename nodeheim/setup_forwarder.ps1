@@ -13,7 +13,7 @@ Start-Process msiexec.exe -ArgumentList "/i `"$installerPath`" AGREETOLICENSE=Ye
 Start-Sleep -Seconds 30
 
 # Copy our app files
-$splunkAppsPath = "C:\Program Files\SplunkUniversalForwarder\etc\apps\nodeheim-splunk"
+$splunkAppsPath = "C:\Program Files\SplunkUniversalForwarder\etc\apps\nodeheim"
 New-Item -ItemType Directory -Force -Path $splunkAppsPath
 Copy-Item -Path "bin" -Destination "$splunkAppsPath\" -Recurse -Force
 Copy-Item -Path "default" -Destination "$splunkAppsPath\" -Recurse -Force

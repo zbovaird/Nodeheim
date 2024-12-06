@@ -1,6 +1,6 @@
 # Set version and app name
 $VERSION = "1.0.0"
-$APP_NAME = "nodeheim-splunk"
+$APP_NAME = "nodeheim"
 
 # Clean up any existing packages
 Remove-Item -Force "${APP_NAME}-${VERSION}.tar.gz" -ErrorAction SilentlyContinue
@@ -23,7 +23,7 @@ $manifest = @{
         title = "Nodeheim Network Analysis"
         id = @{
             group = $null
-            name = "nodeheim-splunk"
+            name = "nodeheim"
             version = $VERSION
         }
         author = @(

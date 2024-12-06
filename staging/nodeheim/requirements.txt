@@ -1,6 +1,0 @@
-splunk-sdk>=1.7.3
-networkx>=2.8.4
-python-nmap>=0.7.1
-matplotlib>=3.5.2
-numpy>=1.23.1
-ipaddress>=1.0.23 

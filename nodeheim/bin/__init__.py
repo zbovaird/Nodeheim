@@ -5,12 +5,16 @@ Network scanning and analysis tool for Splunk Enterprise.
 
 import os
 import sys
+import logging
+from datetime import datetime
 
-# Add the bin directory to the Python path
-bin_path = os.path.dirname(os.path.abspath(__file__))
-if bin_path not in sys.path:
-    sys.path.append(bin_path)
+# Configure logging
+logging.basicConfig(
+    filename="/opt/splunk/var/log/splunk/nodeheim_debug.log",
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s"
+)
 
-# Import version from app.conf
-APP_NAME = "nodeheim-splunk"
-VERSION = "1.0.0" 
+# App configuration
+APP_NAME = "nodeheim"
+APP_VERSION = "1.0.3" 

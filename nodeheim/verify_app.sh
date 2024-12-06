@@ -1,37 +1,35 @@
 #!/bin/bash
 
-# Create necessary directories
-mkdir -p /opt/splunk/etc/apps/nodeheim-splunk/var/log
-mkdir -p /opt/splunk/etc/apps/nodeheim-splunk/local
+# Create required directories
+mkdir -p /opt/splunk/etc/apps/nodeheim/var/log
+mkdir -p /opt/splunk/etc/apps/nodeheim/local
 
 # Create log files
-touch /opt/splunk/etc/apps/nodeheim-splunk/var/log/scanner.log
-touch /opt/splunk/etc/apps/nodeheim-splunk/var/log/network.log
+touch /opt/splunk/etc/apps/nodeheim/var/log/scanner.log
+touch /opt/splunk/etc/apps/nodeheim/var/log/network.log
 
-# Set proper ownership
-chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim-splunk
+# Set ownership
+chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim
 
-# Set proper permissions
-chmod -R 755 /opt/splunk/etc/apps/nodeheim-splunk/bin
-chmod -R 644 /opt/splunk/etc/apps/nodeheim-splunk/default/*.conf
-chmod -R 644 /opt/splunk/etc/apps/nodeheim-splunk/local/*.conf
-chmod -R 644 /opt/splunk/etc/apps/nodeheim-splunk/metadata/default.meta
-chmod 644 /opt/splunk/etc/apps/nodeheim-splunk/test_data.log
-chmod -R 755 /opt/splunk/etc/apps/nodeheim-splunk/var/log
+# Set permissions
+chmod -R 755 /opt/splunk/etc/apps/nodeheim/bin
+chmod -R 644 /opt/splunk/etc/apps/nodeheim/default/*.conf
+chmod -R 644 /opt/splunk/etc/apps/nodeheim/local/*.conf
+chmod -R 644 /opt/splunk/etc/apps/nodeheim/metadata/default.meta
+chmod 644 /opt/splunk/etc/apps/nodeheim/test_data.log
+chmod -R 755 /opt/splunk/etc/apps/nodeheim/var/log
 
-# Verify Python is available
-which python3
+# Verify Python dependencies
+/opt/splunk/bin/python3.9 -m pip list | grep -E "networkx|splunk-sdk|matplotlib|numpy"
 
-# List installed Python packages
-pip3 list
+# Verify file structure
+echo "Verifying file structure..."
+ls -la /opt/splunk/etc/apps/nodeheim/
 
-# Check Splunk app directory
-ls -la /opt/splunk/etc/apps/nodeheim-splunk/
-
-# Check specific files
-echo "Checking test_data.log:"
-ls -l /opt/splunk/etc/apps/nodeheim-splunk/test_data.log
-cat /opt/splunk/etc/apps/nodeheim-splunk/test_data.log
+# Verify log files
+echo "Verifying log files..."
+ls -l /opt/splunk/etc/apps/nodeheim/test_data.log
+cat /opt/splunk/etc/apps/nodeheim/test_data.log
 
 # Restart Splunk
 /opt/splunk/bin/splunk restart 

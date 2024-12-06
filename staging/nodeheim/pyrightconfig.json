@@ -1,9 +1,0 @@
-{
-    "extraPaths": [
-        "C:/Users/Service Casket/AppData/Roaming/Python/Python312/site-packages",
-        "bin"
-    ],
-    "reportMissingImports": true,
-    "pythonVersion": "3.12",
-    "typeCheckingMode": "basic"
-} 

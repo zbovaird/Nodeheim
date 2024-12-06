@@ -1,29 +1,22 @@
 #!/bin/bash
 
-# Create log directory
-mkdir -p /var/log/nodeheim
+# Install Splunk Universal Forwarder
+wget -O splunkforwarder.tgz 'https://download.splunk.com/products/universalforwarder/releases/9.1.1/linux/splunkforwarder-9.1.1-64e843ea36b1-Linux-x86_64.tgz'
+tar xzf splunkforwarder.tgz -C /opt
+rm splunkforwarder.tgz
 
-# Download and install Splunk Universal Forwarder
-wget -O splunkforwarder-9.1.2-b6b9c8185839.tgz 'https://download.splunk.com/products/universalforwarder/releases/9.1.2/linux/splunkforwarder-9.1.2-b6b9c8185839.tgz'
-tar xvzf splunkforwarder-9.1.2-b6b9c8185839.tgz -C /opt
+# Start Splunk and accept license
+/opt/splunkforwarder/bin/splunk start --accept-license --answer-yes --no-prompt --seed-passwd Password123
 
-# Copy our app files
-mkdir -p /opt/splunkforwarder/etc/apps/nodeheim-splunk
-cp -r bin default /opt/splunkforwarder/etc/apps/nodeheim-splunk/
+# Copy app files
+mkdir -p /opt/splunkforwarder/etc/apps/nodeheim
+cp -r bin default /opt/splunkforwarder/etc/apps/nodeheim/
 
 # Set permissions
-chown -R splunk:splunk /opt/splunkforwarder
-chmod -R 755 /opt/splunkforwarder/etc/apps/nodeheim-splunk/bin/*.py
-chmod -R 755 /var/log/nodeheim
+chmod -R 755 /opt/splunkforwarder/etc/apps/nodeheim/bin/*.py
 
-# Start the forwarder
-/opt/splunkforwarder/bin/splunk start --accept-license --answer-yes --no-prompt --seed-passwd password123
+# Configure forwarding
+/opt/splunkforwarder/bin/splunk add forward-server splunk:9997 -auth admin:Password123
 
-# Configure forwarder to connect to Splunk instance
-/opt/splunkforwarder/bin/splunk add forward-server localhost:9997 -auth admin:password123
-
-# Enable the boot-start
-/opt/splunkforwarder/bin/splunk enable boot-start
-
-# Restart to apply changes
-/opt/splunkforwarder/bin/splunk restart 
+# Restart Splunk
+/opt/splunkforwarder/bin/splunk restart
