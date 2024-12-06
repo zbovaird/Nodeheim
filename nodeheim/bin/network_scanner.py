@@ -1,4 +1,4 @@
-﻿#!/opt/splunk/bin/python3.9
+﻿#!/opt/splunk/bin/python3
 import sys
 import os
 import logging
@@ -7,9 +7,9 @@ import ipaddress
 import subprocess
 import json
 
-# Configure logging
+# Configure logging to stderr
 logging.basicConfig(
-    filename="/opt/splunk/var/log/splunk/nodeheim_debug.log",
+    stream=sys.stderr,
     level=logging.DEBUG,
     format="%(asctime)s %(levelname)s %(message)s"
 )
