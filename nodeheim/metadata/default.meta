@@ -10,7 +10,11 @@ access = read : [ * ], write : [ admin ]
 
 [commands/nodeheim_scan]
 export = system
-access = read : [ * ], write : [ admin ]
+access = read : [ admin, power ], write : [ admin ]
+python.version = python3
+capability.network_scan = required
+capability.raw_exec = required
+capability.sudo_nmap = optional
 
 [searchbnf]
 access = read : [ * ], write : [ admin ]
@@ -18,4 +22,17 @@ export = system
 
 [searchscripts]
 access = read : [ * ], write : [ admin ]
+export = system
+
+# Security capabilities
+[capability::network_scan]
+owner = admin
+export = system
+
+[capability::raw_exec]
+owner = admin
+export = system
+
+[capability::sudo_nmap]
+owner = admin
 export = system 

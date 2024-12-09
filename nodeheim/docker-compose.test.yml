@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  splunk:
+    image: splunk/splunk:latest
+    container_name: nodeheim_test_splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=Password123
+      - SPLUNK_HOME=/opt/splunk
+      - SPLUNK_USER=splunk
+    ports:
+      - "8000:8000"   # Splunk Web
+      - "8089:8089"   # Splunk Management
+    volumes:
+      - ./:/opt/splunk/etc/apps/nodeheim
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3 

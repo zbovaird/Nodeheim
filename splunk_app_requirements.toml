@@ -1,0 +1,309 @@
+# Cursor Rules for Splunk App Development
+
+[splunk_app_standards]
+description = "Rules to ensure Splunk app compatibility across instances"
+severity = "error"
+
+# Rule 1: No Hardcoded Paths
+[no_hardcoded_paths]
+description = "Avoid hardcoded paths that may differ across Splunk instances"
+severity = "error"
+patterns = [
+    "/opt/splunk",
+    "C:\\Program Files\\Splunk",
+    "\\\\splunk\\",
+    "/usr/local/splunk"
+]
+
+# Rule 2: No Local Environment Dependencies
+[no_local_dependencies]
+description = "Avoid dependencies on local environment settings"
+severity = "error"
+patterns = [
+    "os.environ\\['HOME'\\]",
+    "os.environ\\['USERPROFILE'\\]",
+    "os.environ\\['PWD'\\]",
+    "os.environ\\['PATH'\\]"
+]
+
+# Rule 3: Proper Python Path Management
+[proper_python_path]
+description = "Use proper Python path management for Splunk apps"
+severity = "error"
+required_patterns = [
+    "os.path.dirname\\(os.path.abspath\\(__file__\\)\\)",
+    "sys.path.append\\("
+]
+
+# Rule 4: Splunk SDK Import Standards
+[splunk_sdk_imports]
+description = "Use proper Splunk SDK import statements"
+severity = "error"
+required_patterns = [
+    "import splunk.Intersplunk",
+    "# type: ignore  # After Splunk imports"
+]
+
+# Rule 5: No Direct File System Access
+[no_direct_fs_access]
+description = "Avoid direct file system access outside app directory"
+severity = "error"
+patterns = [
+    "open\\('/'",
+    "open\\('[A-Z]:\\\\'",
+    "os.path.join\\('/', ",
+    "os.path.join\\('[A-Z]:\\\\', "
+]
+
+# Rule 6: Proper Exception Handling
+[proper_exception_handling]
+description = "Use Splunk's error handling mechanisms"
+severity = "error"
+required_patterns = [
+    "splunk.Intersplunk.generateErrorResults\\(",
+    "try:",
+    "except Exception as e:"
+]
+
+# Rule 7: No Local Configuration
+[no_local_config]
+description = "Avoid local configuration files"
+severity = "error"
+patterns = [
+    "\\.env",
+    "config\\.ini",
+    "settings\\.json"
+]
+
+# Rule 8: Proper Command Registration
+[proper_command_registration]
+description = "Ensure commands are properly registered"
+severity = "error"
+required_files = [
+    "default/commands.conf",
+    "default/app.conf"
+]
+required_patterns_in_commands = [
+    "filename = ",
+    "type = python",
+    "local = true"
+]
+
+# Rule 9: No External Network Access
+[no_external_network]
+description = "Avoid direct external network access"
+severity = "error"
+patterns = [
+    "requests\\.",
+    "urllib\\.",
+    "http\\.",
+    "socket\\."
+]
+
+# Rule 10: Proper Module Structure
+[proper_module_structure]
+description = "Maintain proper module structure"
+severity = "error"
+required_files = [
+    "bin/__init__.py",
+    "default/app.conf",
+    "default/commands.conf"
+]
+
+# Rule 11: App Packaging and Installation Process
+[app_packaging_process]
+description = "Standard process for packaging and installing Splunk app updates"
+severity = "info"
+required_steps = [
+    # Version Update
+    {
+        "step": "Update version numbers",
+        "files": [
+            "app.manifest: info.id.version",
+            "default/app.conf: launcher.version and id.version"
+        ]
+    },
+    # Package Creation
+    {
+        "step": "Create package",
+        "powershell_commands": [
+            "Remove-Item -Force nodeheim-VERSION.* -ErrorAction SilentlyContinue",
+            "Remove-Item -Force -Recurse staging -ErrorAction SilentlyContinue",
+            "New-Item -ItemType Directory -Path staging/nodeheim",
+            "Copy-Item -Recurse nodeheim/* staging/nodeheim/",
+            "Compress-Archive -Path staging/nodeheim -DestinationPath nodeheim-VERSION.zip -Force",
+            "Rename-Item -Force nodeheim-VERSION.zip nodeheim-VERSION.spl"
+        ]
+    },
+    # Installation
+    {
+        "step": "Install in Splunk",
+        "docker_commands": [
+            "docker cp nodeheim-VERSION.spl splunk:/tmp/",
+            "docker exec -u root -it splunk /opt/splunk/bin/splunk install app /tmp/nodeheim-VERSION.spl -update 1 -auth admin:Password123",
+            "docker exec -u root -it splunk /opt/splunk/bin/splunk restart"
+        ]
+    }
+]
+
+# Rule 12: Version Management
+[version_management]
+description = "Version numbering and update rules"
+severity = "info"
+version_format = "MAJOR.MINOR.PATCH"
+version_rules = [
+    "Major: Breaking changes (e.g., 1.0.0 to 2.0.0)",
+    "Minor: New features, backward compatible (e.g., 1.0.0 to 1.1.0)",
+    "Patch: Bug fixes, backward compatible (e.g., 1.0.0 to 1.0.1)"
+]
+required_version_files = [
+    "app.manifest",
+    "default/app.conf"
+]
+
+[security_requirements]
+description = "Security requirements for using nmap in Splunk"
+severity = "critical"
+
+required_capabilities = [
+    {
+        "name": "network_scan",
+        "description": "Allows network scanning operations",
+        "required": true
+    },
+    {
+        "name": "raw_exec",
+        "description": "Allows execution of nmap commands",
+        "required": true
+    },
+    {
+        "name": "sudo_nmap",
+        "description": "Allows elevated privileges for nmap (optional)",
+        "required": false
+    }
+]
+
+required_permissions = [
+    "admin role for installation",
+    "power or admin role for execution"
+]
+
+system_requirements = [
+    "nmap >= 7.80 installed on system",
+    "python-nmap >= 0.7.1 Python package"
+]
+
+[compliance_status]
+description = "Current compliance status with Splunk app requirements"
+last_updated = "2023-12-06"
+
+[compliance_status.passing]
+rules = [
+    "proper_command_registration",
+    "proper_module_structure",
+    "no_local_config",
+    "proper_python_path",
+    "no_hardcoded_paths",
+    "splunk_sdk_imports",
+    "no_direct_fs_access",
+    "security_capabilities",
+    "proper_exception_handling",
+    "version_management"
+]
+
+[compliance_status.failing]
+rules = []
+
+[compliance_status.action_items]
+priority = [
+    "✅ Remove .env file and move configuration to Splunk's configuration system",
+    "✅ Update Python scripts to use Splunk SDK properly",
+    "✅ Remove hardcoded paths",
+    "✅ Replace direct system commands with Splunk-approved methods",
+    "Consolidate version management"
+]
+
+[compliance_status.completed_items]
+items = [
+    {
+        "date": "2023-12-06",
+        "description": "Removed .env file and implemented proper Python path management",
+        "changes": [
+            "Deleted .env file",
+            "Updated __init__.py to use proper path management",
+            "Configured logging to use Splunk's system"
+        ]
+    },
+    {
+        "date": "2023-12-06",
+        "description": "Removed hardcoded paths and improved Python scripts",
+        "changes": [
+            "Removed hardcoded shebang from network_scanner.py",
+            "Added proper Splunk SDK imports",
+            "Implemented cross-platform path handling",
+            "Switched to Splunk's logging system",
+            "Added proper error handling"
+        ]
+    },
+    {
+        "date": "2023-12-06",
+        "description": "Replaced direct system commands with nmap library",
+        "changes": [
+            "Removed subprocess ping commands",
+            "Implemented proper nmap scanning",
+            "Added support for different scan types (basic, ports, os)",
+            "Enhanced result data with OS detection and port information"
+        ]
+    },
+    {
+        "date": "2023-12-06",
+        "description": "Added proper security controls for nmap usage",
+        "changes": [
+            "Added capability declarations in app.conf",
+            "Updated default.meta with proper permissions",
+            "Added capability checking in network_scanner.py",
+            "Added sudo support for privileged scanning",
+            "Restricted access to admin and power users"
+        ]
+    },
+    {
+        "date": "2023-12-06",
+        "description": "Improved error handling and command registration",
+        "changes": [
+            "Added type ignore comments for Splunk imports",
+            "Created custom SplunkNmapError exception class",
+            "Improved error messages and handling",
+            "Verified proper command registration in commands.conf",
+            "Added better validation for scan types and subnets"
+        ]
+    },
+    {
+        "date": "2023-12-06",
+        "description": "Implemented proper version management",
+        "changes": [
+            "Created version_manager.py script",
+            "Cleaned up inconsistent version files",
+            "Standardized version format across all files",
+            "Added automated package creation",
+            "Added git tag suggestions for releases"
+        ]
+    }
+]
+
+[version_management.process]
+description = "Standard process for version updates"
+steps = [
+    "1. Decide on version number (MAJOR.MINOR.PATCH)",
+    "2. Run version_manager.py with new version",
+    "3. Test the new package",
+    "4. Create git tag for the release",
+    "5. Push changes and tag to repository"
+]
+
+[version_management.files]
+managed = [
+    "app.manifest",
+    "default/app.conf"
+]
+package_format = "nodeheim-VERSION.spl"
+git_tag_format = "vVERSION" 
