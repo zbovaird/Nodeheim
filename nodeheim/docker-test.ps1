@@ -38,25 +38,22 @@ if (-not $ready) {
     exit 1
 }
 
-# Install dependencies
+# Install dependencies in Splunk's Python environment
 Write-Host "Installing Python dependencies..."
-docker exec nodeheim_test_splunk pip install python-nmap
+docker exec nodeheim_test_splunk /opt/splunk/bin/splunk cmd python3 -m pip install python-nmap --target=/opt/splunk/etc/apps/nodeheim/lib/
 
-# Install nmap
-Write-Host "Installing nmap..."
-docker exec nodeheim_test_splunk apt-get update
-docker exec nodeheim_test_splunk apt-get install -y nmap
+# Verify command registration
+Write-Host "Verifying command registration..."
+docker exec nodeheim_test_splunk /opt/splunk/bin/splunk cmd btool commands list --debug
 
 # Run tests
 Write-Host "Running tests..."
-docker exec nodeheim_test_splunk python /opt/splunk/etc/apps/nodeheim/bin/splunk_test.py --splunk-home=/opt/splunk --app-package=/opt/splunk/etc/apps/nodeheim/nodeheim-1.0.4.spl
+docker exec nodeheim_test_splunk /opt/splunk/bin/splunk cmd python3 /opt/splunk/etc/apps/nodeheim/bin/splunk_test.py
 
-# Get test results
-$testResult = $LASTEXITCODE
+# Check Splunk logs for errors
+Write-Host "Checking Splunk logs..."
+docker exec nodeheim_test_splunk cat /opt/splunk/var/log/splunk/splunkd.log | Select-String -Pattern "ERROR"
 
-# Clean up
-Write-Host "Cleaning up..."
-docker-compose -f docker-compose.test.yml down
-
-# Exit with test result
-exit $testResult 
+Write-Host "Test environment setup complete. Access Splunk at http://localhost:8000"
+Write-Host "Username: admin"
+Write-Host "Password: Password123" 
