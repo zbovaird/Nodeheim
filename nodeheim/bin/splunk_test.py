@@ -45,20 +45,20 @@ class SplunkTester:
         """Verify Splunk installation."""
         print("\n=== Verifying Splunk Installation ===")
         result = self._run_command(f'"{self.splunk_cmd}" version')
-        print(f"Splunk version: {result.stdout.strip()}")
+        print("Splunk version:", result.stdout.strip())
         
     def verify_nmap(self):
         """Verify nmap installation."""
         print("\n=== Verifying nmap Installation ===")
         result = self._run_command('nmap --version')
-        print(f"nmap version: {result.stdout.split('\\n')[0]}")
+        print("nmap version:", result.stdout.split('\n')[0])
         
     def verify_python_deps(self):
         """Verify Python dependencies."""
         print("\n=== Verifying Python Dependencies ===")
-        cmd = f'"{self.splunk_cmd}" cmd python3 -c "import nmap; print(f\'python-nmap version: {nmap.__version__}\')"'
+        cmd = f'"{self.splunk_cmd}" cmd python3 -c "import nmap; print(nmap.__version__)"'
         result = self._run_command(cmd)
-        print(result.stdout.strip())
+        print("python-nmap version:", result.stdout.strip())
         
     def install_app(self):
         """Install the Nodeheim app."""
@@ -139,8 +139,8 @@ raw_exec = enabled
         """Run all tests in sequence."""
         try:
             print("Starting Nodeheim integration tests...")
-            print(f"Time: {datetime.now()}")
-            print(f"Splunk Home: {self.splunk_home}")
+            print("Time:", datetime.now())
+            print("Splunk Home:", self.splunk_home)
             
             self.verify_splunk()
             self.verify_nmap()
@@ -157,10 +157,10 @@ raw_exec = enabled
             print("All tests completed successfully!")
             
         except SplunkTestError as e:
-            print(f"\nTest failed: {str(e)}")
+            print("\nTest failed:", str(e))
             sys.exit(1)
         except Exception as e:
-            print(f"\nUnexpected error: {str(e)}")
+            print("\nUnexpected error:", str(e))
             sys.exit(1)
 
 def main():
