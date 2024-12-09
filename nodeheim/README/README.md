@@ -1,110 +1,111 @@
 # Nodeheim - Network Discovery for Splunk
 
-Nodeheim is a Splunk app that provides network discovery and analysis capabilities using nmap. It allows you to scan and monitor your network infrastructure directly from Splunk.
+A Splunk app for network discovery and monitoring, optimized for both Free and Enterprise editions.
 
-## Requirements
+## Features
 
-- Splunk Enterprise 8.0 or later
-- Python 3.7 or later
-- nmap 7.80 or later
-- python-nmap 0.7.1 or later
+- Network discovery using non-privileged scans
+- CSV data import for offline scanning
+- Resource-optimized processing
+- Automatic caching and data retention
+- Progress tracking and monitoring
+- Fallback modes for resource constraints
 
 ## Installation
 
-1. Install nmap on your Splunk search head:
-   - **Windows**: Download and install from [nmap.org](https://nmap.org)
-   - **Linux**: `sudo apt-get install nmap` or `sudo yum install nmap`
+1. Install via Splunk Web:
+   - Navigate to "Manage Apps"
+   - Click "Install app from file"
+   - Upload the .spl file
 
-2. Install the app:
-   - Via Splunk Web:
-     1. Navigate to "Manage Apps"
-     2. Click "Install app from file"
-     3. Upload the `nodeheim-VERSION.spl` file
-   - Via CLI:
-     ```bash
-     $SPLUNK_HOME/bin/splunk install app nodeheim-VERSION.spl
-     ```
+2. Manual Installation:
+   - Extract to `$SPLUNK_HOME/etc/apps/nodeheim`
+   - Restart Splunk
 
-3. Restart Splunk
+## Requirements
 
-## Configuration
-
-1. Verify nmap installation:
-   ```bash
-   nmap --version
-   ```
-
-2. Configure capabilities in `authorize.conf`:
-   ```ini
-   [capability::network_scan]
-   [capability::raw_exec]
-   ```
-
-3. Assign capabilities to roles in `authorize.conf`:
-   ```ini
-   [role_admin]
-   network_scan = enabled
-   raw_exec = enabled
-   ```
+- Splunk Free or Enterprise Edition
+- Python 3.7+
+- nmap package (will be installed automatically)
+- psutil package (will be installed automatically)
 
 ## Usage
 
-### Basic Network Discovery
+### Direct Network Scanning
+
 ```spl
-| nodeheim_scan subnet="192.168.1.0/24"
+| nodeheim-scan source=direct target="192.168.1.0/24"
 ```
 
-### TCP Port Scanning
+Options:
+- `source=direct` (default): Perform live network scan
+- `target`: Network to scan (CIDR notation)
+- `options`: Scan options (default: "-sn" for ping scan)
+- `cache=true/false`: Enable/disable result caching (default: true)
+- `cache_ttl`: Cache duration in seconds (default: 3600)
+
+### CSV Import Mode
+
 ```spl
-| nodeheim_scan subnet="192.168.1.0/24" scan_type="connect"
+| nodeheim-scan source=import import_file="network_scan.csv"
 ```
 
-### Service Version Detection
-```spl
-| nodeheim_scan subnet="192.168.1.0/24" scan_type="version"
-```
+Options:
+- `source=import`: Import from CSV file
+- `import_file`: CSV file in lookups directory
+- `cache`: Enable/disable result caching
+- `cache_ttl`: Cache duration
 
-## Scan Types
+### Resource Optimization
 
-1. **basic** (default)
-   - Simple host discovery
-   - No port scanning
-   - Fastest and least intrusive
+The app automatically manages resources:
+- Memory usage monitoring
+- CPU usage tracking
+- Disk space management
+- Automatic cleanup of old data
 
-2. **connect**
-   - TCP connect scan
-   - Scans common ports
-   - More detailed but slower
+### Fallback Modes
 
-3. **version**
-   - Service version detection
-   - Most detailed information
-   - Slowest scan type
+When resource constraints are detected:
+1. Reduced chunk sizes
+2. Slower scan speeds
+3. Progressive processing
+4. Automatic cleanup
 
-## Security Considerations
+## Free Edition Considerations
 
-- All scan types use non-privileged operations
-- No raw packet manipulation
-- Scans are logged and auditable
-- Access controlled via Splunk capabilities
+### Limitations
+- Maximum scan size recommendations
+- Resource usage guidelines
+- Data retention periods
+- Command timeout limits
+
+### Best Practices
+1. Use CSV import for large networks
+2. Enable caching for repeated scans
+3. Schedule scans during off-peak hours
+4. Monitor resource usage
+
+### Workarounds
+1. Split large networks into smaller chunks
+2. Use hybrid scanning approach
+3. Implement local data retention
+4. Utilize fallback modes
 
 ## Troubleshooting
 
-1. Check nmap installation:
-   ```bash
-   nmap --version
-   ```
-
-2. Verify Python environment:
-   ```bash
-   $SPLUNK_HOME/bin/splunk cmd python3 -c "import nmap"
-   ```
-
-3. Check Splunk logs:
-   ```bash
-   $SPLUNK_HOME/var/log/splunk/nodeheim_debug.log
-   ```
+See `TROUBLESHOOTING.md` for:
+- Common issues and solutions
+- Error message explanations
+- Resource optimization tips
+- Network scanning guidelines
 
 ## Support
 
-For issues and feature requests, please visit our [GitHub repository](https://github.com/yourusername/nodeheim). 
+- GitHub Issues: [Report bugs or request features]
+- Documentation: See `README` directory
+- Examples: See `lookups/sample_network_scan.csv`
+
+## License
+
+Apache License 2.0 
