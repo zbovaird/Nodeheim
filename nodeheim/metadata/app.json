@@ -1,0 +1,137 @@
+{
+    "app_version": "1.0.4",
+    "name": "nodeheim",
+    "description": "Network Discovery and Analysis App using nmap",
+    "actions": [
+        {
+            "name": "discover_hosts",
+            "description": "Perform network scanning operations",
+            "type": "investigate",
+            "standard_type": "discover",
+            "parameters": {
+                "target": {
+                    "description": "Network to scan in CIDR notation",
+                    "data_type": "string",
+                    "required": true,
+                    "example": "192.168.1.0/24"
+                },
+                "options": {
+                    "description": "Scan options",
+                    "data_type": "string",
+                    "required": false,
+                    "default": "-sn",
+                    "example": "-sn -T4"
+                },
+                "source": {
+                    "description": "Scan source type",
+                    "data_type": "string",
+                    "required": false,
+                    "default": "direct",
+                    "value_list": ["direct", "import"]
+                }
+            },
+            "output": [
+                {
+                    "data_path": "host",
+                    "data_type": "string",
+                    "description": "Discovered host address",
+                    "contains": ["ip"]
+                },
+                {
+                    "data_path": "status",
+                    "data_type": "string",
+                    "description": "Host status (up/down)"
+                },
+                {
+                    "data_path": "scan_time",
+                    "data_type": "string",
+                    "description": "Timestamp of scan",
+                    "contains": ["time"]
+                }
+            ]
+        },
+        {
+            "name": "investigate_network",
+            "description": "Analyze network topology",
+            "type": "investigate",
+            "standard_type": "investigate",
+            "parameters": {
+                "scan_id": {
+                    "description": "ID of previous scan to analyze",
+                    "data_type": "string",
+                    "required": false
+                }
+            },
+            "output": [
+                {
+                    "data_path": "topology",
+                    "data_type": "object",
+                    "description": "Network topology analysis",
+                    "contains": ["network_topology"]
+                }
+            ]
+        },
+        {
+            "name": "compare_networks",
+            "description": "Compare network snapshots",
+            "type": "investigate",
+            "standard_type": "compare",
+            "parameters": {
+                "scan_id_1": {
+                    "description": "First scan ID to compare",
+                    "data_type": "string",
+                    "required": true,
+                    "contains": ["scan_id"]
+                },
+                "scan_id_2": {
+                    "description": "Second scan ID to compare",
+                    "data_type": "string",
+                    "required": true,
+                    "contains": ["scan_id"]
+                }
+            },
+            "output": [
+                {
+                    "data_path": "differences",
+                    "data_type": "object",
+                    "description": "Network changes between scans",
+                    "contains": ["network_changes"]
+                }
+            ]
+        }
+    ],
+    "standard_types": {
+        "discover": {
+            "description": "Network discovery operations",
+            "can_replace": ["network_discovery", "host_discovery", "asset_discovery"]
+        },
+        "investigate": {
+            "description": "Network analysis operations",
+            "can_replace": ["network_analysis", "topology_analysis"]
+        },
+        "compare": {
+            "description": "Network comparison operations",
+            "can_replace": ["network_diff", "topology_comparison"]
+        }
+    },
+    "widgets": [
+        {
+            "name": "network_map",
+            "description": "Interactive network topology map",
+            "type": "visualization",
+            "data_source": "investigate_network"
+        },
+        {
+            "name": "scan_results",
+            "description": "Tabular view of scan results",
+            "type": "table",
+            "data_source": "discover_hosts"
+        },
+        {
+            "name": "network_changes",
+            "description": "Network topology changes visualization",
+            "type": "visualization",
+            "data_source": "compare_networks"
+        }
+    ]
+} 

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nodeheim - Network Discovery for Splunk</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #333; }
+        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+        pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .note { background: #fff3d4; padding: 10px; border-left: 4px solid #f6b73c; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Nodeheim Documentation</h1>
+    
+    <h2>Overview</h2>
+    <p>Nodeheim is a network discovery and analysis app for Splunk that provides standardized network scanning, analysis, and comparison capabilities. It integrates with Splunk's search and visualization features while maintaining compatibility with both Free and Enterprise editions.</p>
+
+    <h2>Standard Actions</h2>
+    
+    <h3>discover_hosts</h3>
+    <p>Performs network host discovery using non-privileged scans.</p>
+    <pre><code>| nodeheim-scan source=direct target="192.168.1.0/24"</code></pre>
+    <div class="note">
+        <strong>Note:</strong> This action implements the standard "discover" type and can be used interchangeably with other network discovery tools.
+    </div>
+
+    <h3>investigate_network</h3>
+    <p>Analyzes network topology and structure.</p>
+    <pre><code>| nodeheim-scan action=investigate_network scan_id="previous_scan_id"</code></pre>
+    <div class="note">
+        <strong>Note:</strong> This action implements the standard "investigate" type for network analysis operations.
+    </div>
+
+    <h3>compare_networks</h3>
+    <p>Compares network snapshots to identify changes.</p>
+    <pre><code>| nodeheim-scan action=compare_networks scan_id_1="scan1" scan_id_2="scan2"</code></pre>
+    <div class="note">
+        <strong>Note:</strong> This action implements the standard "compare" type for network comparison operations.
+    </div>
+
+    <h2>Data Types</h2>
+    <ul>
+        <li><strong>ip</strong>: Host IP addresses</li>
+        <li><strong>time</strong>: Timestamps in ISO format</li>
+        <li><strong>network_topology</strong>: Network structure data</li>
+        <li><strong>network_changes</strong>: Network difference data</li>
+    </ul>
+
+    <h2>Interoperability</h2>
+    <p>Nodeheim implements standard Splunk action types to ensure interoperability:</p>
+    <ul>
+        <li><strong>discover</strong>: Can replace network_discovery, host_discovery, asset_discovery</li>
+        <li><strong>investigate</strong>: Can replace network_analysis, topology_analysis</li>
+        <li><strong>compare</strong>: Can replace network_diff, topology_comparison</li>
+    </ul>
+
+    <h2>Resource Management</h2>
+    <p>The app includes built-in resource management features:</p>
+    <ul>
+        <li>Memory usage monitoring</li>
+        <li>CPU usage tracking</li>
+        <li>Disk space management</li>
+        <li>Automatic cleanup routines</li>
+    </ul>
+
+    <h2>Free Edition Support</h2>
+    <p>Nodeheim is fully compatible with Splunk Free Edition with the following optimizations:</p>
+    <ul>
+        <li>Local processing mode</li>
+        <li>Resource usage limits</li>
+        <li>Data caching support</li>
+        <li>Progressive scanning</li>
+    </ul>
+
+    <h2>Support</h2>
+    <p>For issues, feature requests, or general support:</p>
+    <ul>
+        <li>GitHub Issues: <a href="#">Report bugs or request features</a></li>
+        <li>Documentation: See README directory</li>
+        <li>Examples: See lookups/sample_network_scan.csv</li>
+    </ul>
+</body>
+</html> 
