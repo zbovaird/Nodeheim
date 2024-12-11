@@ -7,18 +7,20 @@ services:
     environment:
       - SPLUNK_START_ARGS=--accept-license --answer-yes --no-prompt
       - SPLUNK_PASSWORD=Password123
+      - SPLUNK_USER=splunk
+      - SPLUNK_GROUP=splunk
       - SPLUNK_HOME=/opt/splunk
+      - SPLUNK_ROLE=splunk_standalone
       - ACCEPT_LICENSE=true
+      - SPLUNK_ENABLE_LISTEN=9997
     ports:
       - "8000:8000"
       - "8089:8089"
+      - "9997:9997"
     volumes:
       - ./:/opt/splunk/etc/apps/nodeheim:rw
-    user: root
-    command: >
-      sh -c "
-        chown -R splunk:splunk /opt/splunk &&
-        su -s /bin/bash splunk -c '/opt/splunk/bin/splunk start --accept-license --answer-yes --no-prompt &&
-        /opt/splunk/bin/splunk cmd python3 -m pip install python-nmap psutil &&
-        /opt/splunk/bin/splunk restart'
-      "
+    healthcheck:
+      test: ["CMD", "/opt/splunk/bin/splunk", "status", "--accept-license", "--answer-yes", "--no-prompt"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
