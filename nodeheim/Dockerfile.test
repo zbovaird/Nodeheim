@@ -1,0 +1,27 @@
+FROM splunk/splunk:latest
+
+USER root
+
+# Create necessary directories and set permissions
+RUN mkdir -p /opt/splunk/var/log/splunk \
+    /opt/splunk/var/run/splunk \
+    /opt/splunk/var/lib/splunk \
+    /opt/splunk/etc/apps/nodeheim \
+    && chown -R splunk:splunk /opt/splunk
+
+# Set environment variables
+ENV SPLUNK_START_ARGS="--accept-license --answer-yes --no-prompt"
+ENV SPLUNK_PASSWORD="Password123"
+ENV ACCEPT_LICENSE="true"
+
+# Copy app files
+COPY . /opt/splunk/etc/apps/nodeheim/
+RUN chown -R splunk:splunk /opt/splunk/etc/apps/nodeheim
+
+# Copy and set up entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+USER splunk
+
+ENTRYPOINT ["/docker-entrypoint.sh"] 

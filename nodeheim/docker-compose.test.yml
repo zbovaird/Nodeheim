@@ -5,18 +5,20 @@ services:
     image: splunk/splunk:latest
     container_name: nodeheim_test_splunk
     environment:
-      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_START_ARGS=--accept-license --answer-yes --no-prompt
       - SPLUNK_PASSWORD=Password123
       - SPLUNK_HOME=/opt/splunk
       - ACCEPT_LICENSE=true
-      - DEBUG=true
     ports:
       - "8000:8000"
       - "8089:8089"
     volumes:
       - ./:/opt/splunk/etc/apps/nodeheim:rw
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    user: root
+    command: >
+      sh -c "
+        chown -R splunk:splunk /opt/splunk &&
+        su -s /bin/bash splunk -c '/opt/splunk/bin/splunk start --accept-license --answer-yes --no-prompt &&
+        /opt/splunk/bin/splunk cmd python3 -m pip install python-nmap psutil &&
+        /opt/splunk/bin/splunk restart'
+      "
