@@ -5,7 +5,7 @@ services:
     image: splunk/splunk:latest
     container_name: nodeheim_test_splunk
     environment:
-      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_START_ARGS=--accept-license --answer-yes --no-prompt
       - SPLUNK_PASSWORD=Password123
       - SPLUNK_LICENSE_URI=Free
     ports:
